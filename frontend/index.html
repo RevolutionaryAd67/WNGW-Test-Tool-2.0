@@ -7,187 +7,219 @@
     <title>WNGW-Test-Tool</title>
     <link rel="stylesheet" href="/frontend/css/styles.css" />
   </head>
-  <body>
-    <header class="app-header">
-      <h1>WNGW-Test-Tool</h1>
+  <body class="wngw-body">
+    <header class="wngw-header">
+      <div class="wngw-header-title">WNGW-Test-Tool</div>
     </header>
-    <nav class="top-nav">
-      <button data-view="home">Startseite</button>
-      <button data-view="observe">Beobachten</button>
-      <button data-view="testing">Prüfung</button>
-      <button data-view="help">Hilfe</button>
-      <button data-view="settings">Einstellungen</button>
+    <nav class="wngw-topnav top-nav">
+      <button class="wngw-topnav-item" data-view="home">Startseite</button>
+      <button class="wngw-topnav-item" data-view="observe">Beobachten</button>
+      <button class="wngw-topnav-item" data-view="testing">Prüfung</button>
+      <button class="wngw-topnav-item" data-view="help">Hilfe</button>
+      <button class="wngw-topnav-item" data-view="settings">Einstellungen</button>
     </nav>
-    <nav class="sub-nav" id="sub-navigation"></nav>
-    <main id="content">
-      <section id="view-home" class="view active">
-        <div class="card">
-          <h2>Willkommen</h2>
-          <p>Nutzen Sie die Navigation, um Client und Server zu überwachen oder Prüfungen zu konfigurieren.</p>
-          <p>Aktive Prozesse werden jederzeit im Footer angezeigt.</p>
-        </div>
-      </section>
-      <section id="view-observe" class="view">
-        <div class="observe-layout">
-          <div class="observe-column" id="client-column">
-            <h3>Client/Master</h3>
-            <div class="log-list" id="client-log"></div>
+    <nav class="wngw-subnav sub-nav" id="sub-navigation"></nav>
+    <main class="wngw-main" id="content">
+      <section class="wngw-page-content">
+        <section id="view-home" class="view active">
+          <div class="wngw-block">
+            <div class="wngw-block-header">Willkommen</div>
+            <div class="wngw-block-body">
+              <p>Nutzen Sie die Navigation, um Client und Server zu überwachen oder Prüfungen zu konfigurieren.</p>
+              <p>Aktive Prozesse werden jederzeit in der Statusleiste angezeigt.</p>
+            </div>
           </div>
-          <div class="observe-column" id="server-column">
-            <h3>Server/Slave</h3>
-            <div class="log-list" id="server-log"></div>
+        </section>
+        <section id="view-observe" class="view">
+          <div class="wngw-two-column">
+            <div class="wngw-column" id="client-column">
+              <div class="wngw-column-header">Client/Master</div>
+              <div class="wngw-column-body" id="client-log"></div>
+            </div>
+            <div class="wngw-column" id="server-column">
+              <div class="wngw-column-header">Server/Slave</div>
+              <div class="wngw-column-body" id="server-log"></div>
+            </div>
           </div>
-        </div>
-      </section>
-      <section id="view-testing" class="view">
-        <div class="testing-layout">
-          <div class="testing-sidebar">
-            <h3>Prüfkonfigurationen</h3>
-            <ul id="test-config-list"></ul>
-            <button id="new-test-config">Neue Konfiguration</button>
-          </div>
-          <div class="testing-content">
-            <div id="testing-start" class="testing-panel">
-              <h3>Name der Prüfung</h3>
-              <input type="text" id="test-config-name" placeholder="Name eingeben" />
-              <div class="actions">
-                <button id="save-test-config">Prüfung speichern</button>
-                <button id="delete-test-config">Prüfung löschen</button>
+        </section>
+        <section id="view-testing" class="view">
+          <div class="testing-layout">
+            <aside class="testing-sidebar wngw-block">
+              <div class="wngw-block-header">Prüfkonfigurationen</div>
+              <div class="wngw-block-body">
+                <ul id="test-config-list" class="testing-config-list"></ul>
+                <button class="wngw-button wngw-button-primary" id="new-test-config">Neue Konfiguration</button>
               </div>
-              <section class="panel">
-                <h4>Teilprüfung hinzufügen</h4>
-                <div class="step-form">
-                  <label>Prüfungsart
-                    <select id="step-type">
-                      <option value="GA">GA-Prüfung</option>
-                    </select>
-                  </label>
-                  <label>Signalliste
-                    <input type="file" id="step-signal" />
-                  </label>
-                  <button id="add-test-step">Hinzufügen</button>
+            </aside>
+            <div class="testing-content">
+              <div id="testing-start" class="testing-panel wngw-block">
+                <div class="wngw-block-header">Prüfung konfigurieren</div>
+                <div class="wngw-block-body">
+                  <div class="form-row">
+                    <label class="form-label" for="test-config-name">Name der Prüfung</label>
+                    <input class="form-input" type="text" id="test-config-name" placeholder="Name eingeben" />
+                  </div>
+                  <div class="actions">
+                    <button class="wngw-button wngw-button-primary" id="save-test-config">Prüfung speichern</button>
+                    <button class="wngw-button wngw-button-danger" id="delete-test-config">Prüfung löschen</button>
+                  </div>
+                  <section class="panel wngw-block">
+                    <div class="wngw-block-header">Teilprüfung hinzufügen</div>
+                    <div class="wngw-block-body">
+                      <div class="step-form">
+                        <label class="form-label">Prüfungsart
+                          <select class="form-input" id="step-type">
+                            <option value="GA">GA-Prüfung</option>
+                          </select>
+                        </label>
+                        <label class="form-label">Signalliste
+                          <input class="form-input" type="file" id="step-signal" />
+                        </label>
+                        <button class="wngw-button" id="add-test-step">Hinzufügen</button>
+                      </div>
+                    </div>
+                  </section>
+                  <section class="panel wngw-block">
+                    <div class="wngw-block-header">Prüfungsablauf</div>
+                    <div class="wngw-block-body">
+                      <table class="wngw-table" id="test-steps-table">
+                        <thead>
+                          <tr>
+                            <th>Index</th>
+                            <th>Prüfungsart</th>
+                            <th>Signalliste</th>
+                            <th>Aktionen</th>
+                          </tr>
+                        </thead>
+                        <tbody></tbody>
+                      </table>
+                    </div>
+                  </section>
                 </div>
-              </section>
-              <section class="panel">
-                <h4>Prüfungsablauf</h4>
-                <table id="test-steps-table">
-                  <thead>
-                    <tr>
-                      <th>Index</th>
-                      <th>Prüfungsart</th>
-                      <th>Signalliste</th>
-                      <th>Aktionen</th>
-                    </tr>
-                  </thead>
-                  <tbody></tbody>
-                </table>
-              </section>
-            </div>
-            <div id="testing-run" class="testing-panel hidden">
-              <div class="actions">
-                <button id="start-test-run">Prüfung starten</button>
-                <button id="stop-test-run">Prüfung abbrechen</button>
               </div>
-              <section class="panel">
-                <h4>Prüfungsablauf</h4>
-                <table id="run-steps-table">
-                  <thead>
-                    <tr>
-                      <th>Index</th>
-                      <th>Prüfungsart</th>
-                      <th>Signalliste</th>
-                      <th>Status</th>
-                    </tr>
-                  </thead>
-                  <tbody></tbody>
-                </table>
-              </section>
+              <div id="testing-run" class="testing-panel wngw-block hidden">
+                <div class="wngw-block-header">Prüfung durchführen</div>
+                <div class="wngw-block-body">
+                  <div class="actions">
+                    <button class="wngw-button wngw-button-primary" id="start-test-run">Prüfung starten</button>
+                    <button class="wngw-button wngw-button-danger" id="stop-test-run">Prüfung abbrechen</button>
+                  </div>
+                  <section class="panel wngw-block">
+                    <div class="wngw-block-header">Prüfungsablauf</div>
+                    <div class="wngw-block-body">
+                      <table class="wngw-table" id="run-steps-table">
+                        <thead>
+                          <tr>
+                            <th>Index</th>
+                            <th>Prüfungsart</th>
+                            <th>Signalliste</th>
+                            <th>Status</th>
+                          </tr>
+                        </thead>
+                        <tbody></tbody>
+                      </table>
+                    </div>
+                  </section>
+                </div>
+              </div>
+              <div id="testing-logs" class="testing-panel wngw-block hidden">
+                <div class="wngw-block-header">Prüfprotokolle</div>
+                <div class="wngw-block-body">
+                  <ul id="test-log-list" class="log-list"></ul>
+                </div>
+              </div>
             </div>
-            <div id="testing-logs" class="testing-panel hidden">
-              <h3>Prüfprotokolle</h3>
-              <ul id="test-log-list"></ul>
+          </div>
+        </section>
+        <section id="view-help" class="view">
+          <div class="wngw-block">
+            <div class="wngw-block-header">Hilfe</div>
+            <div class="wngw-block-body">
+              <p>Die Hilfefunktionen werden in einer späteren Version ergänzt.</p>
             </div>
           </div>
-        </div>
-      </section>
-      <section id="view-help" class="view">
-        <div class="card">
-          <h2>Hilfe</h2>
-          <p>Die Hilfefunktionen werden in einer späteren Version ergänzt.</p>
-        </div>
-      </section>
-      <section id="view-settings" class="view">
-        <div class="settings-grid">
-          <div class="settings-panel" id="client-settings-panel">
-            <h3>Einstellungen Client/Master</h3>
-            <form id="client-settings-form">
-              <fieldset>
-                <legend>Kommunikationspartner</legend>
-                <label>IP-Adresse <input name="partner.ip" type="text" /></label>
-                <label>Gemeinsame Adresse (CA) <input name="partner.ca" type="number" /></label>
-              </fieldset>
-              <fieldset>
-                <legend>TCP-Konnektivität</legend>
-                <label>Eigene IP-Adresse <input name="tcp.ip" type="text" /></label>
-                <label>TCP-Port <input name="tcp.port" type="number" /></label>
-              </fieldset>
-              <fieldset>
-                <legend>Zeitüberwachungen</legend>
-                <label>T1 <input name="timers.t1" type="number" step="0.1" /></label>
-                <label>T2 <input name="timers.t2" type="number" step="0.1" /></label>
-                <label>T3 <input name="timers.t3" type="number" step="0.1" /></label>
-              </fieldset>
-              <fieldset>
-                <legend>Flusskontrolle</legend>
-                <label>k <input name="flow.k" type="number" /></label>
-                <label>w <input name="flow.w" type="number" /></label>
-              </fieldset>
-              <button type="submit">Speichern</button>
-            </form>
+        </section>
+        <section id="view-settings" class="view">
+          <div class="settings-grid">
+            <div class="settings-panel wngw-block" id="client-settings-panel">
+              <div class="wngw-block-header">Einstellungen Client/Master</div>
+              <div class="wngw-block-body">
+                <form id="client-settings-form" class="settings-form">
+                  <fieldset>
+                    <legend>Kommunikationspartner</legend>
+                    <label class="form-label">IP-Adresse <input class="form-input" name="partner.ip" type="text" /></label>
+                    <label class="form-label">Gemeinsame Adresse (CA) <input class="form-input" name="partner.ca" type="number" /></label>
+                  </fieldset>
+                  <fieldset>
+                    <legend>TCP-Konnektivität</legend>
+                    <label class="form-label">Eigene IP-Adresse <input class="form-input" name="tcp.ip" type="text" /></label>
+                    <label class="form-label">TCP-Port <input class="form-input" name="tcp.port" type="number" /></label>
+                  </fieldset>
+                  <fieldset>
+                    <legend>Zeitüberwachungen</legend>
+                    <label class="form-label">T1 <input class="form-input" name="timers.t1" type="number" step="0.1" /></label>
+                    <label class="form-label">T2 <input class="form-input" name="timers.t2" type="number" step="0.1" /></label>
+                    <label class="form-label">T3 <input class="form-input" name="timers.t3" type="number" step="0.1" /></label>
+                  </fieldset>
+                  <fieldset>
+                    <legend>Flusskontrolle</legend>
+                    <label class="form-label">k <input class="form-input" name="flow.k" type="number" /></label>
+                    <label class="form-label">w <input class="form-input" name="flow.w" type="number" /></label>
+                  </fieldset>
+                  <button class="wngw-button wngw-button-primary" type="submit">Speichern</button>
+                </form>
+              </div>
+            </div>
+            <div class="settings-panel wngw-block" id="server-settings-panel">
+              <div class="wngw-block-header">Einstellungen Server/Slave</div>
+              <div class="wngw-block-body">
+                <form id="server-settings-form" class="settings-form">
+                  <fieldset>
+                    <legend>Kommunikationspartner</legend>
+                    <label class="form-label">IP-Adresse <input class="form-input" name="partner.ip" type="text" /></label>
+                    <label class="form-label">Gemeinsame Adresse (CA) <input class="form-input" name="partner.ca" type="number" /></label>
+                  </fieldset>
+                  <fieldset>
+                    <legend>TCP-Konnektivität</legend>
+                    <label class="form-label">Eigene IP-Adresse <input class="form-input" name="tcp.ip" type="text" /></label>
+                    <label class="form-label">TCP-Port <input class="form-input" name="tcp.port" type="number" /></label>
+                  </fieldset>
+                  <fieldset>
+                    <legend>IEC-104: ASDU-Parameter</legend>
+                    <label class="form-label">Eigene Station/CA <input class="form-input" name="asdu.ca" type="number" /></label>
+                    <label class="form-label">Herkunftsadresse <input class="form-input" name="asdu.originator" type="number" /></label>
+                  </fieldset>
+                  <fieldset>
+                    <legend>IEC-104: Zeitüberwachungen</legend>
+                    <label class="form-label">T1 <input class="form-input" name="timers.t1" type="number" step="0.1" /></label>
+                    <label class="form-label">T2 <input class="form-input" name="timers.t2" type="number" step="0.1" /></label>
+                    <label class="form-label">T3 <input class="form-input" name="timers.t3" type="number" step="0.1" /></label>
+                  </fieldset>
+                  <fieldset>
+                    <legend>IEC-104: Flusskontrollparameter</legend>
+                    <label class="form-label">k <input class="form-input" name="flow.k" type="number" /></label>
+                    <label class="form-label">w <input class="form-input" name="flow.w" type="number" /></label>
+                  </fieldset>
+                  <fieldset>
+                    <legend>Signalliste</legend>
+                    <input class="form-input" type="file" id="server-signal-upload" />
+                  </fieldset>
+                  <button class="wngw-button wngw-button-primary" type="submit">Speichern</button>
+                </form>
+              </div>
+            </div>
           </div>
-          <div class="settings-panel" id="server-settings-panel">
-            <h3>Einstellungen Server/Slave</h3>
-            <form id="server-settings-form">
-              <fieldset>
-                <legend>Kommunikationspartner</legend>
-                <label>IP-Adresse <input name="partner.ip" type="text" /></label>
-                <label>Gemeinsame Adresse (CA) <input name="partner.ca" type="number" /></label>
-              </fieldset>
-              <fieldset>
-                <legend>TCP-Konnektivität</legend>
-                <label>Eigene IP-Adresse <input name="tcp.ip" type="text" /></label>
-                <label>TCP-Port <input name="tcp.port" type="number" /></label>
-              </fieldset>
-              <fieldset>
-                <legend>IEC-104: ASDU-Parameter</legend>
-                <label>Eigene Station/CA <input name="asdu.ca" type="number" /></label>
-                <label>Herkunftsadresse <input name="asdu.originator" type="number" /></label>
-              </fieldset>
-              <fieldset>
-                <legend>IEC-104: Zeitüberwachungen</legend>
-                <label>T1 <input name="timers.t1" type="number" step="0.1" /></label>
-                <label>T2 <input name="timers.t2" type="number" step="0.1" /></label>
-                <label>T3 <input name="timers.t3" type="number" step="0.1" /></label>
-              </fieldset>
-              <fieldset>
-                <legend>IEC-104: Flusskontrollparameter</legend>
-                <label>k <input name="flow.k" type="number" /></label>
-                <label>w <input name="flow.w" type="number" /></label>
-              </fieldset>
-              <fieldset>
-                <legend>Signalliste</legend>
-                <input type="file" id="server-signal-upload" />
-              </fieldset>
-              <button type="submit">Speichern</button>
-            </form>
-          </div>
-        </div>
+        </section>
       </section>
     </main>
-    <footer class="app-footer">
-      <div>Aktive Prozesse: <span id="footer-client" class="status status-inactive">Client/Master</span> <span id="footer-server" class="status status-inactive">Server/Slave</span></div>
-      <div id="footer-test">Keine Prüfung aktiv</div>
-      <div id="footer-clock">--:--:--.---</div>
+    <footer class="wngw-footer">
+      <div class="wngw-footer-left">
+        Aktive Prozesse:
+        <span id="footer-client" class="status-pill status-inactive">Client/Master</span>
+        <span id="footer-server" class="status-pill status-inactive">Server/Slave</span>
+      </div>
+      <div class="wngw-footer-center" id="footer-test">Keine Prüfung aktiv</div>
+      <div class="wngw-footer-right" id="footer-clock">--:--:--.---</div>
     </footer>
     <script src="/frontend/js/app.js" type="module"></script>
   </body>
