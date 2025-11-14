@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="de">
+  <head>
+    <meta charset="UTF-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>WNGW-Test-Tool</title>
+    <link rel="stylesheet" href="css/styles.css" />
+  </head>
+  <body>
+    <header class="app-header">
+      <h1>WNGW-Test-Tool</h1>
+    </header>
+    <nav class="top-nav">
+      <button data-view="home">Startseite</button>
+      <button data-view="observe">Beobachten</button>
+      <button data-view="testing">Prüfung</button>
+      <button data-view="help">Hilfe</button>
+      <button data-view="settings">Einstellungen</button>
+    </nav>
+    <nav class="sub-nav" id="sub-navigation"></nav>
+    <main id="content">
+      <section id="view-home" class="view active">
+        <div class="card">
+          <h2>Willkommen</h2>
+          <p>Nutzen Sie die Navigation, um Client und Server zu überwachen oder Prüfungen zu konfigurieren.</p>
+          <p>Aktive Prozesse werden jederzeit im Footer angezeigt.</p>
+        </div>
+      </section>
+      <section id="view-observe" class="view">
+        <div class="observe-layout">
+          <div class="observe-column" id="client-column">
+            <h3>Client/Master</h3>
+            <div class="log-list" id="client-log"></div>
+          </div>
+          <div class="observe-column" id="server-column">
+            <h3>Server/Slave</h3>
+            <div class="log-list" id="server-log"></div>
+          </div>
+        </div>
+      </section>
+      <section id="view-testing" class="view">
+        <div class="testing-layout">
+          <div class="testing-sidebar">
+            <h3>Prüfkonfigurationen</h3>
+            <ul id="test-config-list"></ul>
+            <button id="new-test-config">Neue Konfiguration</button>
+          </div>
+          <div class="testing-content">
+            <div id="testing-start" class="testing-panel">
+              <h3>Name der Prüfung</h3>
+              <input type="text" id="test-config-name" placeholder="Name eingeben" />
+              <div class="actions">
+                <button id="save-test-config">Prüfung speichern</button>
+                <button id="delete-test-config">Prüfung löschen</button>
+              </div>
+              <section class="panel">
+                <h4>Teilprüfung hinzufügen</h4>
+                <div class="step-form">
+                  <label>Prüfungsart
+                    <select id="step-type">
+                      <option value="GA">GA-Prüfung</option>
+                    </select>
+                  </label>
+                  <label>Signalliste
+                    <input type="file" id="step-signal" />
+                  </label>
+                  <button id="add-test-step">Hinzufügen</button>
+                </div>
+              </section>
+              <section class="panel">
+                <h4>Prüfungsablauf</h4>
+                <table id="test-steps-table">
+                  <thead>
+                    <tr>
+                      <th>Index</th>
+                      <th>Prüfungsart</th>
+                      <th>Signalliste</th>
+                      <th>Aktionen</th>
+                    </tr>
+                  </thead>
+                  <tbody></tbody>
+                </table>
+              </section>
+            </div>
+            <div id="testing-run" class="testing-panel hidden">
+              <div class="actions">
+                <button id="start-test-run">Prüfung starten</button>
+                <button id="stop-test-run">Prüfung abbrechen</button>
+              </div>
+              <section class="panel">
+                <h4>Prüfungsablauf</h4>
+                <table id="run-steps-table">
+                  <thead>
+                    <tr>
+                      <th>Index</th>
+                      <th>Prüfungsart</th>
+                      <th>Signalliste</th>
+                      <th>Status</th>
+                    </tr>
+                  </thead>
+                  <tbody></tbody>
+                </table>
+              </section>
+            </div>
+            <div id="testing-logs" class="testing-panel hidden">
+              <h3>Prüfprotokolle</h3>
+              <ul id="test-log-list"></ul>
+            </div>
+          </div>
+        </div>
+      </section>
+      <section id="view-help" class="view">
+        <div class="card">
+          <h2>Hilfe</h2>
+          <p>Die Hilfefunktionen werden in einer späteren Version ergänzt.</p>
+        </div>
+      </section>
+      <section id="view-settings" class="view">
+        <div class="settings-grid">
+          <div class="settings-panel" id="client-settings-panel">
+            <h3>Einstellungen Client/Master</h3>
+            <form id="client-settings-form">
+              <fieldset>
+                <legend>Kommunikationspartner</legend>
+                <label>IP-Adresse <input name="partner.ip" type="text" /></label>
+                <label>Gemeinsame Adresse (CA) <input name="partner.ca" type="number" /></label>
+              </fieldset>
+              <fieldset>
+                <legend>TCP-Konnektivität</legend>
+                <label>Eigene IP-Adresse <input name="tcp.ip" type="text" /></label>
+                <label>TCP-Port <input name="tcp.port" type="number" /></label>
+              </fieldset>
+              <fieldset>
+                <legend>Zeitüberwachungen</legend>
+                <label>T1 <input name="timers.t1" type="number" step="0.1" /></label>
+                <label>T2 <input name="timers.t2" type="number" step="0.1" /></label>
+                <label>T3 <input name="timers.t3" type="number" step="0.1" /></label>
+              </fieldset>
+              <fieldset>
+                <legend>Flusskontrolle</legend>
+                <label>k <input name="flow.k" type="number" /></label>
+                <label>w <input name="flow.w" type="number" /></label>
+              </fieldset>
+              <button type="submit">Speichern</button>
+            </form>
+          </div>
+          <div class="settings-panel" id="server-settings-panel">
+            <h3>Einstellungen Server/Slave</h3>
+            <form id="server-settings-form">
+              <fieldset>
+                <legend>Kommunikationspartner</legend>
+                <label>IP-Adresse <input name="partner.ip" type="text" /></label>
+                <label>Gemeinsame Adresse (CA) <input name="partner.ca" type="number" /></label>
+              </fieldset>
+              <fieldset>
+                <legend>TCP-Konnektivität</legend>
+                <label>Eigene IP-Adresse <input name="tcp.ip" type="text" /></label>
+                <label>TCP-Port <input name="tcp.port" type="number" /></label>
+              </fieldset>
+              <fieldset>
+                <legend>IEC-104: ASDU-Parameter</legend>
+                <label>Eigene Station/CA <input name="asdu.ca" type="number" /></label>
+                <label>Herkunftsadresse <input name="asdu.originator" type="number" /></label>
+              </fieldset>
+              <fieldset>
+                <legend>IEC-104: Zeitüberwachungen</legend>
+                <label>T1 <input name="timers.t1" type="number" step="0.1" /></label>
+                <label>T2 <input name="timers.t2" type="number" step="0.1" /></label>
+                <label>T3 <input name="timers.t3" type="number" step="0.1" /></label>
+              </fieldset>
+              <fieldset>
+                <legend>IEC-104: Flusskontrollparameter</legend>
+                <label>k <input name="flow.k" type="number" /></label>
+                <label>w <input name="flow.w" type="number" /></label>
+              </fieldset>
+              <fieldset>
+                <legend>Signalliste</legend>
+                <input type="file" id="server-signal-upload" />
+              </fieldset>
+              <button type="submit">Speichern</button>
+            </form>
+          </div>
+        </div>
+      </section>
+    </main>
+    <footer class="app-footer">
+      <div>Aktive Prozesse: <span id="footer-client" class="status status-inactive">Client/Master</span> <span id="footer-server" class="status status-inactive">Server/Slave</span></div>
+      <div id="footer-test">Keine Prüfung aktiv</div>
+      <div id="footer-clock">--:--:--.---</div>
+    </footer>
+    <script src="js/app.js" type="module"></script>
+  </body>
+</html>
