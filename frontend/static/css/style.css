@@ -1,10 +1,11 @@
 :root {
     --bg-color: #f5f7fb;
-    --nav-bg: #11284c;
+    --nav-bg: #ffffff;
     --accent: #ffd166;
     --text-color: #1a1a1a;
     --light-text: #f4f4f4;
-    --footer-bg: #0b1a30;
+    --footer-bg: #ffffff;
+    --border-color: rgba(0, 0, 0, 0.08);
 }
 
 * {
@@ -25,12 +26,12 @@ body {
 .main-nav {
     width: 100%;
     background-color: var(--nav-bg);
-    color: var(--light-text);
+    color: var(--text-color);
     display: flex;
     align-items: center;
     padding: 0 2rem;
     height: 70px;
-    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
 }
 
 .nav-logo {
@@ -52,7 +53,7 @@ body {
 
 .nav-link,
 .dropdown-toggle {
-    color: var(--light-text);
+    color: var(--text-color);
     text-decoration: none;
     padding: 0.75rem 1rem;
     display: inline-flex;
@@ -67,7 +68,7 @@ body {
 .dropdown-toggle:hover,
 .nav-link.active,
 .dropdown.active > .dropdown-toggle {
-    background-color: rgba(255, 255, 255, 0.15);
+    background-color: rgba(17, 40, 76, 0.08);
 }
 
 .caret {
@@ -84,21 +85,22 @@ body {
     background-color: var(--nav-bg);
     min-width: 220px;
     border-radius: 0 0 0.5rem 0.5rem;
-    box-shadow: 0 6px 14px rgba(0, 0, 0, 0.2);
+    box-shadow: 0 6px 14px rgba(0, 0, 0, 0.12);
     flex-direction: column;
     overflow: hidden;
+    border: 1px solid var(--border-color);
 }
 
 .dropdown-menu li a {
     display: block;
     padding: 0.75rem 1rem;
-    color: var(--light-text);
+    color: var(--text-color);
     text-decoration: none;
     transition: background-color 0.2s ease;
 }
 
 .dropdown-menu li a:hover {
-    background-color: rgba(255, 255, 255, 0.1);
+    background-color: rgba(17, 40, 76, 0.08);
 }
 
 .dropdown:hover .dropdown-menu {
@@ -132,9 +134,10 @@ body {
 
 .main-footer {
     background-color: var(--footer-bg);
-    color: var(--light-text);
+    color: var(--text-color);
     padding: 0.5rem 2rem;
     text-align: right;
+    border-top: 1px solid var(--border-color);
 }
 
 .footer-text {
