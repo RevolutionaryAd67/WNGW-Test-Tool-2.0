@@ -1,7 +1,7 @@
 :root {
   --accent: #1f4b99;
   --accent-light: #5c82d6;
-  --bg: #f4f5f7;
+  --bg: #ffffff;
   --text: #1f2933;
   --muted: #6b7280;
 }
@@ -21,10 +21,11 @@ body {
 }
 
 .page-header {
-  background: var(--accent);
-  color: #fff;
+  background: #fff;
+  color: var(--text);
   padding: 0.5rem 1rem;
   text-align: left;
+  border-bottom: 1px solid #e5e7eb;
 }
 
 .page-header h1 {
@@ -65,7 +66,7 @@ nav.sub-nav li.active a {
 }
 
 nav.sub-nav {
-  background: #fdfdfd;
+  background: #fff;
 }
 
 nav.sub-nav li.placeholder {
@@ -85,11 +86,12 @@ main.content section {
 }
 
 .page-footer {
-  background: var(--accent-light);
-  color: #fff;
+  background: #fff;
+  color: var(--text);
   padding: 0.5rem 1rem;
   display: flex;
   justify-content: space-between;
+  border-top: 1px solid #e5e7eb;
 }
 
 .page-footer .process-list {
