@@ -51,7 +51,8 @@ nav li {
 
 nav.top-nav a,
 nav.sub-nav a,
-nav.sub-nav li.placeholder {
+nav.sub-nav li.placeholder,
+nav.sub-nav button.dropdown-toggle {
   display: block;
   padding: 0.4rem 1rem;
   text-decoration: none;
@@ -60,7 +61,8 @@ nav.sub-nav li.placeholder {
 }
 
 nav.top-nav li.active a,
-nav.sub-nav li.active a {
+nav.sub-nav li.active a,
+nav.sub-nav li.active button.dropdown-toggle {
   color: var(--accent);
   border-bottom: 2px solid var(--accent);
 }
@@ -71,6 +73,67 @@ nav.sub-nav {
 
 nav.sub-nav li.placeholder {
   color: var(--muted);
+}
+
+nav.sub-nav li.has-dropdown {
+  position: relative;
+}
+
+nav.sub-nav button.dropdown-toggle {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  width: 100%;
+  text-align: left;
+  font: inherit;
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+nav.sub-nav li.has-dropdown.open button.dropdown-toggle {
+  color: var(--accent);
+  border-bottom: 2px solid var(--accent);
+}
+
+.dropdown-indicator {
+  display: inline-flex;
+  transform: rotate(90deg);
+  font-size: 0.75rem;
+  color: var(--muted);
+}
+
+nav.sub-nav .dropdown-menu {
+  position: absolute;
+  top: calc(100% + 0.25rem);
+  left: 0;
+  display: none;
+  flex-direction: column;
+  min-width: 180px;
+  margin: 0;
+  padding: 0.25rem 0;
+  list-style: none;
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 0.25rem;
+  box-shadow: 0 8px 16px rgba(15, 23, 42, 0.15);
+  z-index: 10;
+}
+
+nav.sub-nav li.has-dropdown.open .dropdown-menu {
+  display: flex;
+}
+
+nav.sub-nav .dropdown-menu a {
+  padding: 0.4rem 1rem;
+  display: block;
+  color: var(--text);
+  text-decoration: none;
+}
+
+nav.sub-nav .dropdown-menu a:hover,
+nav.sub-nav .dropdown-menu a:focus {
+  background: #f3f4f6;
 }
 
 main.content {
