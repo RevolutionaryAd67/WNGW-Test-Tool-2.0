@@ -122,6 +122,29 @@ body {
     box-shadow: 0 10px 20px rgba(0, 0, 0, 0.06);
 }
 
+.page-section.beobachten {
+    position: relative;
+    padding-left: 3rem;
+    padding-right: 3rem;
+}
+
+.page-section.beobachten::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 50%;
+    width: 2px;
+    background-color: rgba(0, 0, 0, 0.12);
+    transform: translateX(-50%);
+    pointer-events: none;
+}
+
+.page-section.beobachten h1,
+.page-section.beobachten p {
+    max-width: calc(50% - 2rem);
+}
+
 .page-section h1 {
     font-size: 2rem;
     margin-bottom: 1rem;
@@ -130,6 +153,22 @@ body {
 .page-section p {
     line-height: 1.6;
     color: #333;
+}
+
+@media (max-width: 768px) {
+    .page-section.beobachten {
+        padding-left: 2rem;
+        padding-right: 2rem;
+    }
+
+    .page-section.beobachten::before {
+        display: none;
+    }
+
+    .page-section.beobachten h1,
+    .page-section.beobachten p {
+        max-width: 100%;
+    }
 }
 
 .main-footer {
