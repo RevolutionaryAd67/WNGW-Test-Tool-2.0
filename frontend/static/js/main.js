@@ -1,1 +1,0 @@
-// Platzhalter für zukünftige Interaktivität.
