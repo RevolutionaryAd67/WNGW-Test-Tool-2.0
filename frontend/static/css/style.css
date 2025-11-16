@@ -53,7 +53,7 @@ nav.top-nav a,
 nav.sub-nav a,
 nav.sub-nav li.placeholder {
   display: block;
-  padding: 0.75rem 1rem;
+  padding: 0.4rem 1rem;
   text-decoration: none;
   color: var(--text);
   font-weight: 500;
