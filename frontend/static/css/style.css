@@ -1,0 +1,97 @@
+:root {
+  --accent: #1f4b99;
+  --accent-light: #5c82d6;
+  --bg: #f4f5f7;
+  --text: #1f2933;
+  --muted: #6b7280;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.page-header {
+  background: var(--accent);
+  color: #fff;
+  padding: 0.5rem 1rem;
+  text-align: left;
+}
+
+.page-header h1 {
+  margin: 0;
+  font-size: 1.5rem;
+}
+
+nav {
+  background: #fff;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+nav ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+}
+
+nav li {
+  margin: 0;
+}
+
+nav.top-nav a,
+nav.sub-nav a,
+nav.sub-nav li.placeholder {
+  display: block;
+  padding: 0.75rem 1rem;
+  text-decoration: none;
+  color: var(--text);
+  font-weight: 500;
+}
+
+nav.top-nav li.active a,
+nav.sub-nav li.active a {
+  color: var(--accent);
+  border-bottom: 2px solid var(--accent);
+}
+
+nav.sub-nav {
+  background: #fdfdfd;
+}
+
+nav.sub-nav li.placeholder {
+  color: var(--muted);
+}
+
+main.content {
+  flex: 1;
+  padding: 1.5rem;
+}
+
+main.content section {
+  background: #fff;
+  padding: 1.5rem;
+  border-radius: 0.5rem;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.1);
+}
+
+.page-footer {
+  background: var(--accent-light);
+  color: #fff;
+  padding: 0.5rem 1rem;
+  display: flex;
+  justify-content: space-between;
+}
+
+.page-footer .process-list {
+  font-weight: 600;
+}
