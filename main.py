@@ -3,12 +3,7 @@ from __future__ import annotations
 
 from flask import Flask, render_template
 
-from backend.navigation import NavItem, build_sub_navigation, build_top_navigation
-
 app = Flask(__name__, template_folder="frontend/templates", static_folder="frontend/static")
-
-TOP_NAV = build_top_navigation()
-SUB_NAV = build_sub_navigation()
 
 BEOBACHTEN_SECTIONS = {
     "Client/Master": {
@@ -28,18 +23,10 @@ BEOBACHTEN_SECTIONS = {
         "description": "Zusätzliche Beobachtungsoptionen und Einstellungen.",
     },
 }
-
-
-def _get_sub_nav(label: str) -> list[NavItem]:
-    return SUB_NAV.get(label, [])
-
-
 def _render_page(template: str, *, title: str, active_top: str, active_sub: str = "", **context):
     return render_template(
         template,
         title=title,
-        top_nav=TOP_NAV,
-        sub_nav=_get_sub_nav(active_top),
         active_top=active_top,
         active_sub=active_sub,
         **context,
