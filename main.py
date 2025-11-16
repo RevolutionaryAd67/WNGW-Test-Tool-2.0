@@ -51,6 +51,7 @@ def create_app() -> Flask:
             heading=page.get("heading", ""),
             description=page.get("description", ""),
             active_page=active_page,
+            page_key=page_key,
         )
 
     @app.route("/")

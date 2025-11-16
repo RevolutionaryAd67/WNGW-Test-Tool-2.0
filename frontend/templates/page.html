@@ -1,6 +1,6 @@
 {% extends 'base.html' %}
 {% block content %}
-<section class="page-section">
+<section class="page-section {% if page_key %}{{ page_key }}{% endif %}">
     <h1>{{ heading }}</h1>
     <p>{{ description }}</p>
 </section>
