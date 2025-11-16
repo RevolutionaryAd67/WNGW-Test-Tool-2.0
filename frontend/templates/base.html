@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="de">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{{ title }} - WNGW-Test-Tool</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}" />
+  </head>
+  <body>
+    <header class="page-header">
+      <h1>WNGW-Test-Tool</h1>
+    </header>
+
+    <nav class="top-nav">
+      <ul>
+        {% for item in top_nav %}
+          <li class="{% if active_top == item.label %}active{% endif %}">
+            <a href="{{ url_for(item.endpoint) }}">{{ item.label }}</a>
+          </li>
+        {% endfor %}
+      </ul>
+    </nav>
+
+    <nav class="sub-nav">
+      <ul>
+        {% if sub_nav %}
+          {% for item in sub_nav %}
+            <li class="{% if active_sub == item.label %}active{% endif %}">
+              <a href="{{ url_for(item.endpoint) }}">{{ item.label }}</a>
+            </li>
+          {% endfor %}
+        {% else %}
+          <li class="placeholder">Keine zusätzlichen Optionen</li>
+        {% endif %}
+      </ul>
+    </nav>
+
+    <main class="content">
+      {% block content %}{% endblock %}
+    </main>
+
+    <footer class="page-footer">
+      <span>Aktive Prozesse:</span>
+      <span class="process-list">{% block processes %}Keine aktiven Prozesse{% endblock %}</span>
+    </footer>
+    <script src="{{ url_for('static', filename='js/main.js') }}" defer></script>
+  </body>
+</html>
