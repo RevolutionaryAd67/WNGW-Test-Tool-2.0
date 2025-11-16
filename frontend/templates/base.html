@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ title }} - WNGW-Test-Tool</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+</head>
+<body>
+    <nav class="main-nav">
+        <div class="nav-logo">WNGW</div>
+        <ul class="nav-links">
+            <li><a href="{{ url_for('startseite') }}" class="nav-link {% if active_page == 'startseite' %}active{% endif %}">Startseite</a></li>
+            <li><a href="{{ url_for('beobachten') }}" class="nav-link {% if active_page == 'beobachten' %}active{% endif %}">Beobachten</a></li>
+            <li class="dropdown {% if 'pruefung' in active_page %}active{% endif %}">
+                <span class="dropdown-toggle">Prüfung <span class="caret">&gt;</span></span>
+                <ul class="dropdown-menu">
+                    <li><a href="{{ url_for('pruefung_starten') }}">Prüfung starten</a></li>
+                    <li><a href="{{ url_for('pruefung_konfigurieren') }}">Prüfung konfigurieren</a></li>
+                    <li><a href="{{ url_for('pruefprotokolle') }}">Prüfprotokolle</a></li>
+                </ul>
+            </li>
+            <li class="dropdown {% if 'einstellungen' in active_page %}active{% endif %}">
+                <span class="dropdown-toggle">Einstellungen <span class="caret">&gt;</span></span>
+                <ul class="dropdown-menu">
+                    <li><a href="{{ url_for('einstellungen_client') }}">Client</a></li>
+                    <li><a href="{{ url_for('einstellungen_server') }}">Server</a></li>
+                    <li><a href="{{ url_for('einstellungen_allgemein') }}">Allgemein</a></li>
+                </ul>
+            </li>
+        </ul>
+    </nav>
+
+    <main class="content">
+        {% block content %}{% endblock %}
+    </main>
+
+    <footer class="main-footer">
+        <div class="footer-text"><strong>WNGW-Test-Tool</strong></div>
+    </footer>
+    <script src="{{ url_for('static', filename='js/script.js') }}"></script>
+</body>
+</html>
