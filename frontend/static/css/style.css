@@ -6,6 +6,8 @@
     --light-text: #f4f4f4;
     --footer-bg: #ffffff;
     --border-color: rgba(0, 0, 0, 0.08);
+    --nav-height: 70px;
+    --footer-height: 56px;
 }
 
 * {
@@ -21,6 +23,9 @@ body {
     min-height: 100vh;
     display: flex;
     flex-direction: column;
+    overflow: hidden;
+    padding-top: var(--nav-height);
+    padding-bottom: var(--footer-height);
 }
 
 .main-nav {
@@ -30,9 +35,12 @@ body {
     display: flex;
     align-items: center;
     padding: 0 2rem;
-    height: 70px;
+    height: var(--nav-height);
     box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
-    position: relative;
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
     z-index: 10;
 }
 
@@ -111,11 +119,13 @@ body {
 }
 
 .content {
-    flex: 1;
+    flex: 1 1 auto;
     width: 100%;
     max-width: none;
-    margin: 2rem 0;
-    padding: 0 1.5rem;
+    height: calc(100vh - var(--nav-height) - var(--footer-height));
+    padding: 2rem 1.5rem;
+    overflow-y: auto;
+    min-height: 0;
 }
 
 .page-section {
@@ -141,6 +151,15 @@ body {
     padding: 0.5rem 2rem;
     text-align: right;
     border-top: 1px solid var(--border-color);
+    height: var(--footer-height);
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    z-index: 10;
 }
 
 .footer-text {
