@@ -1,16 +1,23 @@
-{% extends 'base.html' %}
-{% import 'input-box/input_box.html' as input_box_component %}
+<!-- HTML-Seite "Server"-->
 
+<!-- Einbinden -->
+{% extends 'base.html' %}                                           <!-- Nutzt base.html als Framework -->
+{% import 'input-box/input_box.html' as input_box_component %}      <!-- Nutzt input-box als Framework -->
+
+<!-- Seiten-spezifische Styles -->
 {% block extra_css %}
     {{ super() }}
     <link rel="stylesheet" href="{{ url_for('component_asset', filename='input-box/input_box.css') }}">
     <style>
-        .server-page .page-section {
-            margin-bottom: 0.5rem;
+        .server-page {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
         }
 
-        .server-page .input-box + .input-box {
-            margin-top: 0.5rem;
+        .server-page .page-section,
+        .server-page .input-box {
+            margin: 0;
         }
     </style>
 {% endblock %}
