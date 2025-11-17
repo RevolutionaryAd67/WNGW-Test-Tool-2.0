@@ -62,8 +62,34 @@
     <!-- Ende: input-Box "Kommunikationspartner (WNGW)" -->
 
 
+    <!-- Anfang: input-Box "TCP-Konnektivität" -->
+    {% set tcp_columns = [
+        {"key": "parameter", "label": "Parameter", "type": "header"},
+        {"key": "value", "label": "Wert", "type": "input"}
+    ] %}
+
+    {% set tcp_rows = [
+        {"id": "tcp_ip_address_client", "label": "IP-Adresse"},
+        {"id": "tcp_port_client", "label": "Port"}
+    ] %}
+
+    {% set tcp_konnektivitaet_box = {
+        "id": "tcp_konnektivitaet",
+        "page_key": "einstellungen_client",
+        "title": "TCP-Konnektivität",
+        "note": "<p>TCP-Konnektivitäts-Parameter, die der Client annehmen soll.</p><p>Die IP-Adresse muss in der Windows-Systemsteuerung unter Netzwerk und Internet / Netzwerk- und Freigabecenter / Adaptereinstellungen ändern / für die jeweilige Schnittstelle angepasst, mit der der Prüfrechner mit dem WNGW (Westnetz Gateway) verbunden ist.</p>",
+        "table": {
+            "columns": tcp_columns,
+            "rows": tcp_rows
+        },
+        "values": input_box_values("einstellungen_client", "tcp_konnektivitaet", tcp_columns, tcp_rows)
+    } %}
+    <!-- Ende: input-Box "TCP-Konnektivität" -->
+
+
     <!-- Rendern der input-boxes -->
     {{ input_box_component.render(kommunikationspartner_box) }}
+    {{ input_box_component.render(tcp_konnektivitaet_box) }}
 </div>
 
 
