@@ -15,9 +15,9 @@
             display: flex;
             flex-direction: column;
             gap: 0.5rem;
+            margin-top: 1rem;
         }
 
-        .server-page .page-section,
         .server-page .input-box {
             margin: 0;
         }
@@ -28,13 +28,6 @@
 <!-- Anfang: Seiteninhalt -->
 {% block content %}
 <div class="server-page">
-
-
-    <!-- Übernimmt Überschrift und Beschreibung von main.py -->
-    <section class="page-section">
-        <h1>{{ heading }}</h1>
-        <p>{{ description }}</p>
-    </section>
 
 
     <!-- Anfang: input-Box "Kommunikationspartner (WNGW)" -->
@@ -77,7 +70,7 @@
         "id": "tcp_konnektivitaet",
         "page_key": "einstellungen_server",
         "title": "TCP-Konnektivität",
-        "note": "<p>TCP-Konnektivitäts-Parameter, die der Server annehmen soll.</p><p>Die IP-Adresse muss in der Windows-Systemsteuerung unter Netzwerk und Internet / Netzwerk- und Freigabecenter / Adaptereinstellungen ändern / für die jeweilige Schnittstelle angepasst, mit der der Prüfrechner mit dem Client/Master verbunden ist.</p>",
+        "note": "<p>TCP-Konnektivitäts-Parameter, die der Server annehmen soll.</p><p>Die IP-Adresse muss in der Windows-Systemsteuerung unter Netzwerk und Internet / Netzwerk- und Freigabecenter / Adaptereinstellungen ändern / für die jeweilige Schnittstelle angepasst, mit der der Prüfrechner mit dem WNGW (Westnetz Gateway) verbunden ist.</p>",
         "table": {
             "columns": tcp_columns,
             "rows": tcp_rows
