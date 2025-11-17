@@ -65,6 +65,7 @@
     width: 100%;
     border-collapse: collapse;
     font-size: 0.95rem;
+    table-layout: fixed;
 }
 
 .input-box__table th,
@@ -72,6 +73,7 @@
     border: 1px solid #e0e0e0;
     padding: 0.75rem;
     vertical-align: middle;
+    overflow-wrap: anywhere;
 }
 
 .input-box__table thead th,
