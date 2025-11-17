@@ -1,0 +1,43 @@
+{% extends 'base.html' %}
+{% import 'input-box/input_box.html' as input_box_component %}
+
+{% block extra_css %}
+    {{ super() }}
+    <link rel="stylesheet" href="{{ url_for('component_asset', filename='input-box/input_box.css') }}">
+{% endblock %}
+
+{% block content %}
+<section class="page-section">
+    <h1>{{ heading }}</h1>
+    <p>{{ description }}</p>
+</section>
+
+{% set columns = [
+    {"key": "parameter", "label": "Parameter", "type": "header"},
+    {"key": "value", "label": "Wert", "type": "input"}
+] %}
+
+{% set rows = [
+    {"id": "ip_address", "label": "IP-Adresse"},
+    {"id": "asdu_address", "label": "Gemeinsame Adresse der ASDU (CA)"}
+] %}
+
+{% set kommunikationspartner_box = {
+    "id": "kommunikationspartner",
+    "page_key": "einstellungen_client",
+    "title": "Kommunikationspartner (Client/WNGW)",
+    "note": "<p>Konnektivitäsparameter der Station eintragen, die der Server/Slave als Client/Master ansieht.</p><p>Die &quot;Gemeinsame Adresse der ASDU (CA)&quot; meint die Stationsadresse des Client/Master.</p>",
+    "table": {
+        "columns": columns,
+        "rows": rows
+    },
+    "values": input_box_values("einstellungen_client", "kommunikationspartner", columns, rows)
+} %}
+
+{{ input_box_component.render(kommunikationspartner_box) }}
+{% endblock %}
+
+{% block extra_js %}
+    {{ super() }}
+    <script src="{{ url_for('component_asset', filename='input-box/input_box.js') }}" defer></script>
+{% endblock %}
