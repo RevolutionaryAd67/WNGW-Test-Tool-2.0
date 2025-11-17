@@ -1,0 +1,51 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<section class="monitoring-box">
+    <div class="monitoring-box__column">
+        <div>
+            <h2>Live-Status</h2>
+            <p class="monitoring-box__lead">Aktuelle Meldungen aus laufenden Prüfungen.</p>
+        </div>
+        <ul class="monitoring-box__list">
+            <li>
+                <span class="monitoring-box__label">Leitstelle</span>
+                <strong>Stabil</strong>
+                <p>Alle Client-Verbindungen antworten innerhalb der erwarteten 120&nbsp;ms.</p>
+            </li>
+            <li>
+                <span class="monitoring-box__label">Fehler</span>
+                <strong>0 kritische Ereignisse</strong>
+                <p>Letzte Warnung vor 4 Minuten automatisch behoben.</p>
+            </li>
+            <li>
+                <span class="monitoring-box__label">Nächster Check</span>
+                <strong>14:05 Uhr</strong>
+                <p>Erweiterte Protokollierung für neue Firmware-Version.</p>
+            </li>
+        </ul>
+    </div>
+    <div class="monitoring-box__divider" aria-hidden="true"></div>
+    <div class="monitoring-box__column">
+        <div>
+            <h2>Kennzahlen</h2>
+            <p class="monitoring-box__lead">Relevante KPIs des aktuellen Testfensters.</p>
+        </div>
+        <div class="monitoring-box__stats">
+            <div>
+                <span class="monitoring-box__stat-label">Aktive Prüfungen</span>
+                <strong class="monitoring-box__stat-value">3</strong>
+            </div>
+            <div>
+                <span class="monitoring-box__stat-label">Durchschnittliche Latenz</span>
+                <strong class="monitoring-box__stat-value">108&nbsp;ms</strong>
+            </div>
+            <div>
+                <span class="monitoring-box__stat-label">Protokollierte Pakete</span>
+                <strong class="monitoring-box__stat-value">1.42&nbsp;Mio.</strong>
+            </div>
+        </div>
+        <p class="monitoring-box__hint">Die Werte werden alle 60&nbsp;Sekunden aktualisiert und können zur Analyse exportiert werden.</p>
+    </div>
+</section>
+{% endblock %}

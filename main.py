@@ -122,7 +122,14 @@ def create_app() -> Flask:
 
     @app.route("/beobachten")
     def beobachten():
-        return render_page("beobachten", "beobachten")
+        page = pages.get("beobachten", {})
+        return render_template(
+            "beobachten.html",
+            title=page.get("heading", "WNGW"),
+            heading=page.get("heading", ""),
+            description=page.get("description", ""),
+            active_page="beobachten",
+        )
 
     @app.route("/pruefung/starten")
     def pruefung_starten():
