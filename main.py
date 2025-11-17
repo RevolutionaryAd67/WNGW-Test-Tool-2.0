@@ -47,15 +47,15 @@ def create_app() -> Flask:
             "description": "Analysieren Sie abgeschlossene Prüfungen und exportieren Sie Protokolle zur Dokumentation.",
         },
         "einstellungen_client": {
-            "heading": "Einstellungen – Client",
+            "heading": "Client",
             "description": "Verwalten Sie clientseitige Parameter wie Benutzerrollen, Agenten und Updates.",
         },
         "einstellungen_server": {
-            "heading": "Einstellungen – Server",
+            "heading": "Server",
             "description": "Überblick über Server-Ressourcen, Dienste und Schnittstellenkonfigurationen.",
         },
         "einstellungen_allgemein": {
-            "heading": "Einstellungen – Allgemein",
+            "heading": "Allgemein",
             "description": "Globale Richtlinien, Benachrichtigungen und Integrationsoptionen des Test-Tools.",
         },
     }
