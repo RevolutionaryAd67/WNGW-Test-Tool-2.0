@@ -87,9 +87,34 @@
     <!-- Ende: input-Box "TCP-Konnektivität" -->
 
 
+    <!-- Anfang: input-Box "ASDU-Parameter" -->
+    {% set asdu_columns = [
+        {"key": "parameter", "label": "Parameter", "type": "header"},
+        {"key": "value", "label": "Wert", "type": "input"}
+    ] %}
+
+    {% set asdu_rows = [
+        {"id": "asdu_origin_address_client", "label": "Herkunftsadresse (HK)"}
+    ] %}
+
+    {% set asdu_parameter_box = {
+        "id": "asdu_parameter",
+        "page_key": "einstellungen_client",
+        "title": "ASDU-Parameter",
+        "note": "<p>Definieren Sie clientseitige ASDU-Parameter.</p>",
+        "table": {
+            "columns": asdu_columns,
+            "rows": asdu_rows
+        },
+        "values": input_box_values("einstellungen_client", "asdu_parameter", asdu_columns, asdu_rows)
+    } %}
+    <!-- Ende: input-Box "ASDU-Parameter" -->
+
+
     <!-- Rendern der input-boxes -->
     {{ input_box_component.render(kommunikationspartner_box) }}
     {{ input_box_component.render(tcp_konnektivitaet_box) }}
+    {{ input_box_component.render(asdu_parameter_box) }}
 </div>
 
 
