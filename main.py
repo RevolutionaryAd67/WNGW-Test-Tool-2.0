@@ -48,11 +48,11 @@ def create_app() -> Flask:
         },
         "einstellungen_client": {
             "heading": "Client",
-            "description": "Verwalten Sie clientseitige Parameter wie IP-Adressen, Zeitüberwachungen und Flusskontrollparameter.",
+            "description": "Verwalten Sie clientseitige Parameter wie IP-Adressen, Zeitüberwachungen und Flusskontrollparameter. Der Client-Prozess nimmt im WNGW-Test-Tool die Rolle der Leitstelle ein.",
         },
         "einstellungen_server": {
             "heading": "Server",
-            "description": "Verwalten Sie serverseitige Parameter wie IP-Adressen, Zeitüberwachungen und Flusskontrollparameter.",
+            "description": "Verwalten Sie serverseitige Parameter wie IP-Adressen, Zeitüberwachungen und Flusskontrollparameter. Der Server-Prozess nimmt im WNGW-Test-Tool die Rolle der Kundenstation ein.",
         },
         "einstellungen_allgemein": {
             "heading": "Allgemein",
