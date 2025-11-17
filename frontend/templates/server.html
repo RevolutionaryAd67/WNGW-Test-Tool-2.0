@@ -1,8 +1,10 @@
 <!-- HTML-Seite "Server"-->
 
+
 <!-- Einbinden -->
 {% extends 'base.html' %}                                           <!-- Nutzt base.html als Framework -->
 {% import 'input-box/input_box.html' as input_box_component %}      <!-- Nutzt input-box als Framework -->
+
 
 <!-- Seiten-spezifische Styles -->
 {% block extra_css %}
@@ -22,12 +24,15 @@
     </style>
 {% endblock %}
 
+
+<!-- Übernimmt Überschrift und Beschreibung von main.py -->
 {% block content %}
 <div class="server-page">
     <section class="page-section">
         <h1>{{ heading }}</h1>
         <p>{{ description }}</p>
     </section>
+
 
 <!-- input-Box "Kommunikationspartner (WNGW)" -->
 {% set columns = [
@@ -53,6 +58,7 @@
 } %}
 <!-- Ende: input-Box "Kommunikationspartner (WNGW)" -->
 
+
 <!-- input-Box "TCP-Konnektivität" -->
 {% set tcp_columns = [
     {"key": "parameter", "label": "Parameter", "type": "header"},
@@ -77,11 +83,14 @@
 } %}
 <!-- Ende: input-Box "TCP-Konnektivität" -->
 
+    <!-- Rendern der input-boxes -->
     {{ input_box_component.render(kommunikationspartner_box) }}
     {{ input_box_component.render(tcp_konnektivitaet_box) }}
 </div>
 {% endblock %}
 
+
+<!-- JavaSkript einbinden -->
 {% block extra_js %}
     {{ super() }}
     <script src="{{ url_for('component_asset', filename='input-box/input_box.js') }}" defer></script>
