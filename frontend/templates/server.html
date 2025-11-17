@@ -25,69 +25,101 @@
 {% endblock %}
 
 
-<!-- Übernimmt Überschrift und Beschreibung von main.py -->
+<!-- Anfang: Seiteninhalt -->
 {% block content %}
 <div class="server-page">
+
+
+    <!-- Übernimmt Überschrift und Beschreibung von main.py -->
     <section class="page-section">
         <h1>{{ heading }}</h1>
         <p>{{ description }}</p>
     </section>
 
 
-<!-- input-Box "Kommunikationspartner (WNGW)" -->
-{% set columns = [
-    {"key": "parameter", "label": "Parameter", "type": "header"},
-    {"key": "value", "label": "Wert", "type": "input"}
-] %}
+    <!-- Anfang: input-Box "Kommunikationspartner (WNGW)" -->
+    {% set columns = [
+        {"key": "parameter", "label": "Parameter", "type": "header"},
+        {"key": "value", "label": "Wert", "type": "input"}
+    ] %}
 
-{% set rows = [
-    {"id": "ip_address_wngw_server", "label": "IP-Adresse"},
-    {"id": "asdu_address_wngw_server", "label": "Gemeinsame Adresse der ASDU (CA)"}
-] %}
+    {% set rows = [
+        {"id": "ip_address_wngw_server", "label": "IP-Adresse"},
+        {"id": "asdu_address_wngw_server", "label": "Gemeinsame Adresse der ASDU (CA)"}
+    ] %}
 
-{% set kommunikationspartner_box = {
-    "id": "kommunikationspartner",
-    "page_key": "einstellungen_server",
-    "title": "Kommunikationspartner (WNGW)",
-    "note": "<p>Konnektivitätsparameter des WNGW (Westnetz Gateway) für die Kommunikation mit dem Server eintragen.</p><p>Die &quot;Gemeinsame Adresse der ASDU (CA)&quot; meint die Stationsadresse des WNGW (Westnetz Gateway).</p>",
-    "table": {
-        "columns": columns,
-        "rows": rows
-    },
-    "values": input_box_values("einstellungen_server", "kommunikationspartner", columns, rows)
-} %}
-<!-- Ende: input-Box "Kommunikationspartner (WNGW)" -->
+    {% set kommunikationspartner_box = {
+        "id": "kommunikationspartner",
+        "page_key": "einstellungen_server",
+        "title": "Kommunikationspartner (WNGW)",
+        "note": "<p>Konnektivitätsparameter des WNGW (Westnetz Gateway) für die Kommunikation mit dem Server eintragen.</p><p>Die &quot;Gemeinsame Adresse der ASDU (CA)&quot; meint die Stationsadresse des WNGW (Westnetz Gateway).</p>",
+        "table": {
+            "columns": columns,
+            "rows": rows
+        },
+        "values": input_box_values("einstellungen_server", "kommunikationspartner", columns, rows)
+    } %}
+    <!-- Ende: input-Box "Kommunikationspartner (WNGW)" -->
 
 
-<!-- input-Box "TCP-Konnektivität" -->
-{% set tcp_columns = [
-    {"key": "parameter", "label": "Parameter", "type": "header"},
-    {"key": "value", "label": "Wert", "type": "input"}
-] %}
+    <!-- Anfang: input-Box "TCP-Konnektivität" -->
+    {% set tcp_columns = [
+        {"key": "parameter", "label": "Parameter", "type": "header"},
+        {"key": "value", "label": "Wert", "type": "input"}
+    ] %}
 
-{% set tcp_rows = [
-    {"id": "tcp_ip_address_server", "label": "IP-Adresse"},
-    {"id": "tcp_port_server", "label": "Port"}
-] %}
+    {% set tcp_rows = [
+        {"id": "tcp_ip_address_server", "label": "IP-Adresse"},
+        {"id": "tcp_port_server", "label": "Port"}
+    ] %}
 
-{% set tcp_konnektivitaet_box = {
-    "id": "tcp_konnektivitaet",
-    "page_key": "einstellungen_server",
-    "title": "TCP-Konnektivität",
-    "note": "<p>TCP-Konnektivitäts-Parameter, die der Server annehmen soll.</p><p>Die IP-Adresse muss in der Windows-Systemsteuerung unter Netzwerk und Internet / Netzwerk- und Freigabecenter / Adaptereinstellungen ändern / für die jeweilige Schnittstelle angepasst, mit der der Prüfrechner mit dem Client/Master verbunden ist.</p>",
-    "table": {
-        "columns": tcp_columns,
-        "rows": tcp_rows
-    },
-    "values": input_box_values("einstellungen_server", "tcp_konnektivitaet", tcp_columns, tcp_rows)
-} %}
-<!-- Ende: input-Box "TCP-Konnektivität" -->
+    {% set tcp_konnektivitaet_box = {
+        "id": "tcp_konnektivitaet",
+        "page_key": "einstellungen_server",
+        "title": "TCP-Konnektivität",
+        "note": "<p>TCP-Konnektivitäts-Parameter, die der Server annehmen soll.</p><p>Die IP-Adresse muss in der Windows-Systemsteuerung unter Netzwerk und Internet / Netzwerk- und Freigabecenter / Adaptereinstellungen ändern / für die jeweilige Schnittstelle angepasst, mit der der Prüfrechner mit dem Client/Master verbunden ist.</p>",
+        "table": {
+            "columns": tcp_columns,
+            "rows": tcp_rows
+        },
+        "values": input_box_values("einstellungen_server", "tcp_konnektivitaet", tcp_columns, tcp_rows)
+    } %}
+    <!-- Ende: input-Box "TCP-Konnektivität" -->
+
+
+    <!-- Anfang: input-Box "ASDU-Parameter" -->
+    {% set asdu_columns = [
+        {"key": "parameter", "label": "Parameter", "type": "header"},
+        {"key": "value", "label": "Wert", "type": "input"}
+    ] %}
+
+    {% set asdu_rows = [
+        {"id": "asdu_common_address_server", "label": "Gemeinsame Adresse der ASDU (CA)"},
+        {"id": "asdu_originator_address_server", "label": "Herkunftsadresse (HK)"}
+    ] %}
+
+    {% set asdu_parameter_box = {
+        "id": "asdu_parameter",
+        "page_key": "einstellungen_server",
+        "title": "ASDU-Parameter",
+        "note": "<p>Die &quot;Gemeinsame Adresse der ASDU (CA)&quot; meint die Stationsadresse des Servers.</p>",
+        "table": {
+            "columns": asdu_columns,
+            "rows": asdu_rows
+        },
+        "values": input_box_values("einstellungen_server", "asdu_parameter", asdu_columns, asdu_rows)
+    } %}
+    <!-- Ende: input-Box "ASDU-Parameter" -->
 
 
     <!-- Rendern der input-boxes -->
     {{ input_box_component.render(kommunikationspartner_box) }}
     {{ input_box_component.render(tcp_konnektivitaet_box) }}
+    {{ input_box_component.render(asdu_parameter_box) }}
 </div>
+
+
+<!-- Ende: Seiteninhalt -->
 {% endblock %}
 
 
