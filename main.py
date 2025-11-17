@@ -48,11 +48,11 @@ def create_app() -> Flask:
         },
         "einstellungen_client": {
             "heading": "Client",
-            "description": "Verwalten Sie clientseitige Parameter wie Benutzerrollen, Agenten und Updates.",
+            "description": "Verwalten Sie clientseitige Parameter wie IP-Adressen, Zeitüberwachungen und Flusskontrollparameter.",
         },
         "einstellungen_server": {
             "heading": "Server",
-            "description": "Überblick über Server-Ressourcen, Dienste und Schnittstellenkonfigurationen.",
+            "description": "Verwalten Sie serverseitige Parameter wie IP-Adressen, Zeitüberwachungen und Flusskontrollparameter.",
         },
         "einstellungen_allgemein": {
             "heading": "Allgemein",
