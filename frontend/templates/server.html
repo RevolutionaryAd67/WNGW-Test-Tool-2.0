@@ -18,15 +18,15 @@
 ] %}
 
 {% set rows = [
-    {"id": "ip_address_client", "label": "IP-Adresse"},
-    {"id": "asdu_address_client", "label": "Gemeinsame Adresse der ASDU (CA)"}
+    {"id": "ip_address_wngw_server", "label": "IP-Adresse"},
+    {"id": "asdu_address_wngw_server", "label": "Gemeinsame Adresse der ASDU (CA)"}
 ] %}
 
 {% set kommunikationspartner_box = {
     "id": "kommunikationspartner",
     "page_key": "einstellungen_server",
-    "title": "Kommunikationspartner (Client/WNGW)",
-    "note": "<p>Konnektivitätsparameter der Station eintragen, die der Server/Slave als Client/Master ansieht.</p><p>Die &quot;Gemeinsame Adresse der ASDU (CA)&quot; meint die Stationsadresse des Client/Master.</p>",
+    "title": "Kommunikationspartner (WNGW)",
+    "note": "<p>Konnektivitätsparameter des WNGW (Westnetz Gateway) eintragen</p><p>Die &quot;Gemeinsame Adresse der ASDU (CA)&quot; meint die Stationsadresse des WNGW (Westnetz Gateway).</p>",
     "table": {
         "columns": columns,
         "rows": rows
