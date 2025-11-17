@@ -149,7 +149,14 @@ def create_app() -> Flask:
 
     @app.route("/einstellungen/server")
     def einstellungen_server():
-        return render_page("einstellungen_server", "einstellungen_server")
+        page = pages.get("einstellungen_server", {})
+        return render_template(
+            "server.html",
+            title=page.get("heading", "WNGW"),
+            heading=page.get("heading", ""),
+            description=page.get("description", ""),
+            active_page="einstellungen_server",
+        )
 
     @app.route("/einstellungen/allgemein")
     def einstellungen_allgemein():
