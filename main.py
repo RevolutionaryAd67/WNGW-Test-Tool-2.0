@@ -109,7 +109,7 @@ def create_app() -> Flask:
     def render_page(page_key: str, active_page: str):
         page = pages.get(page_key, {})
         return render_template(
-            "page.html",
+            "base.html",
             title=page.get("heading", "WNGW"),
             heading=page.get("heading", ""),
             description=page.get("description", ""),

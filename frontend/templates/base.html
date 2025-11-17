@@ -35,6 +35,18 @@
     </nav>
 
     <main class="content">
+        {% block page_intro %}
+            {% if heading or description %}
+                <section class="page-section">
+                    {% if heading %}
+                        <h1>{{ heading }}</h1>
+                    {% endif %}
+                    {% if description %}
+                        <p>{{ description }}</p>
+                    {% endif %}
+                </section>
+            {% endif %}
+        {% endblock %}
         {% block content %}{% endblock %}
     </main>
 
