@@ -32,6 +32,8 @@ body {
     padding: 0 2rem;
     height: 70px;
     box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
+    position: relative;
+    z-index: 10;
 }
 
 .nav-logo {
@@ -89,6 +91,7 @@ body {
     flex-direction: column;
     overflow: hidden;
     border: 1px solid var(--border-color);
+    z-index: 20;
 }
 
 .dropdown-menu li a {
