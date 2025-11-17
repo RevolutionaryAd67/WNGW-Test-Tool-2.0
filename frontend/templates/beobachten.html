@@ -1,5 +1,15 @@
 {% extends 'base.html' %}
 
+{% block extra_css %}
+<style>
+    .content > .monitoring-box:first-of-type {
+        margin-top: 0;
+    }
+</style>
+{% endblock %}
+
+{% block page_intro %}{% endblock %}
+
 {% block content %}
 <section class="monitoring-box">
     <div class="monitoring-box__column">
