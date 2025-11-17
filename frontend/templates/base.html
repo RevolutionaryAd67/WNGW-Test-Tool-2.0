@@ -1,20 +1,37 @@
+<!-- Grundlayout aller HTML-Seiten -->
+
+
+<!-- Einrichtung -->
 <!DOCTYPE html>
 <html lang="de">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{{ title }} - WNGW-Test-Tool</title>
+
+    <!--Stylesheet einbinden -->
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+
+
+    <!-- Seitenspezifische Styles einbinden -->
     {% block extra_css %}{% endblock %}
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 </head>
+
+
+<!-- Seiteninhalt -->
 <body>
-    <nav class="main-nav">
-        <div class="nav-logo">WNGW-Test-Tool</div>
+
+    <!-- Navigationsleiste -->
+    <nav class="main-nav">       
+        <!-- Überschrift -->       
+        <div class="nav-logo">Westnetz Gateway</div>   
+        <!-- Seitenlinks -->                                                                                             
         <ul class="nav-links">
             <li><a href="{{ url_for('startseite') }}" class="nav-link {% if active_page == 'startseite' %}active{% endif %}">Startseite</a></li>
             <li><a href="{{ url_for('beobachten') }}" class="nav-link {% if active_page == 'beobachten' %}active{% endif %}">Beobachten</a></li>
+            <!-- Seite Prüfung mit Dropdown -->
             <li class="dropdown {% if 'pruefung' in active_page %}active{% endif %}">
                 <span class="dropdown-toggle">Prüfung <span class="caret">&gt;</span></span>
                 <ul class="dropdown-menu">
@@ -23,6 +40,7 @@
                     <li><a href="{{ url_for('pruefprotokolle') }}">Prüfprotokolle</a></li>
                 </ul>
             </li>
+            <!-- Seite Einstellungen mit Dropdown -->
             <li class="dropdown {% if 'einstellungen' in active_page %}active{% endif %}">
                 <span class="dropdown-toggle">Einstellungen <span class="caret">&gt;</span></span>
                 <ul class="dropdown-menu">
@@ -34,13 +52,32 @@
         </ul>
     </nav>
 
+    <!-- Content-Frameworks definieren -->
     <main class="content">
+        <!-- Überschrift und Beschreibung der Seite als Block -->
+        <!-- Wird von main.py genutzt, um die Seiten zu beschreiben-->
+        {% block page_intro %}
+            {% if heading or description %}
+                <section class="page-section">
+                    {% if heading %}
+                        <h1>{{ heading }}</h1>
+                    {% endif %}
+                    {% if description %}
+                        <p>{{ description }}</p>
+                    {% endif %}
+                </section>
+            {% endif %}
+        {% endblock %}
         {% block content %}{% endblock %}
     </main>
 
+
+    <!-- Footer -->
     <footer class="main-footer">
-        <div class="footer-text"><strong>Westnetz</strong></div>
+        <div class="footer-text"><strong>WNGW-Test-Tool</strong></div>
     </footer>
+
+    <!-- JavaSkript einbinden -->
     <script src="{{ url_for('static', filename='js/script.js') }}"></script>
     {% block extra_js %}{% endblock %}
 </body>
