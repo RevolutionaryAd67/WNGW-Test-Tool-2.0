@@ -6,11 +6,11 @@
     <link rel="stylesheet" href="{{ url_for('component_asset', filename='input-box/input_box.css') }}">
     <style>
         .server-page .page-section {
-            margin-bottom: 1.5rem;
+            margin-bottom: 0.5rem;
         }
 
         .server-page .input-box + .input-box {
-            margin-top: 2rem;
+            margin-top: 0.5rem;
         }
     </style>
 {% endblock %}
@@ -22,6 +22,7 @@
         <p>{{ description }}</p>
     </section>
 
+<!-- input-Box "Kommunikationspartner (WNGW)" -->
 {% set columns = [
     {"key": "parameter", "label": "Parameter", "type": "header"},
     {"key": "value", "label": "Wert", "type": "input"}
@@ -43,28 +44,31 @@
     },
     "values": input_box_values("einstellungen_server", "kommunikationspartner", columns, rows)
 } %}
+<!-- Ende: input-Box "Kommunikationspartner (WNGW)" -->
 
+<!-- input-Box "TCP-Konnektivität" -->
 {% set tcp_columns = [
     {"key": "parameter", "label": "Parameter", "type": "header"},
     {"key": "value", "label": "Wert", "type": "input"}
 ] %}
 
 {% set tcp_rows = [
-    {"id": "tcp_ip_address", "label": "IP-Adresse"},
-    {"id": "tcp_port", "label": "Port"}
+    {"id": "tcp_ip_address_server", "label": "IP-Adresse"},
+    {"id": "tcp_port_server", "label": "Port"}
 ] %}
 
 {% set tcp_konnektivitaet_box = {
     "id": "tcp_konnektivitaet",
     "page_key": "einstellungen_server",
     "title": "TCP-Konnektivität",
-    "note": "TCP-Konnektivitäts-Parameter, die der Server/Slave annehmen soll. Die IP-Adresse muss in der Windows-Systemsteuerung unter Netzwerk und Internet / Netzwerk- und Freigabecenter / Adaptereinstellungen ändern / für die jeweilige Schnittstelle angepasst, mit der der Prüfrechner mit dem Client/Master verbunden ist",
+    "note": "TCP-Konnektivitäts-Parameter, die der Server annehmen soll. Die IP-Adresse muss in der Windows-Systemsteuerung unter Netzwerk und Internet / Netzwerk- und Freigabecenter / Adaptereinstellungen ändern / für die jeweilige Schnittstelle angepasst, mit der der Prüfrechner mit dem Client/Master verbunden ist",
     "table": {
         "columns": tcp_columns,
         "rows": tcp_rows
     },
     "values": input_box_values("einstellungen_server", "tcp_konnektivitaet", tcp_columns, tcp_rows)
 } %}
+<!-- Ende: input-Box "TCP-Konnektivität" -->
 
     {{ input_box_component.render(kommunikationspartner_box) }}
     {{ input_box_component.render(tcp_konnektivitaet_box) }}
