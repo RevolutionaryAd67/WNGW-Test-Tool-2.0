@@ -1,8 +1,78 @@
-{% extends 'base.html' %}
+<!-- HTML-Seite "Client"-->
 
+
+<!-- Einbinden -->
+{% extends 'base.html' %}                                           <!-- Nutzt base.html als Framework -->
+{% import 'input-box/input_box.html' as input_box_component %}      <!-- Nutzt input-box als Framework -->
+
+
+<!-- Seiten-spezifische Styles -->
+{% block extra_css %}
+    {{ super() }}
+    <link rel="stylesheet" href="{{ url_for('component_asset', filename='input-box/input_box.css') }}">
+    <style>
+        .client-page {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .client-page .page-section,
+        .client-page .input-box {
+            margin: 0;
+        }
+    </style>
+{% endblock %}
+
+
+<!-- Anfang: Seiteninhalt -->
 {% block content %}
-<section class="page-section">
-    <h1>{{ heading }}</h1>
-    <p>{{ description }}</p>
-</section>
+<div class="client-page">
+
+
+    <!-- Übernimmt Überschrift und Beschreibung von main.py -->
+    <section class="page-section">
+        <h1>{{ heading }}</h1>
+        <p>{{ description }}</p>
+    </section>
+
+
+    <!-- Anfang: input-Box "Kommunikationspartner (WNGW)" -->
+    {% set columns = [
+        {"key": "parameter", "label": "Parameter", "type": "header"},
+        {"key": "value", "label": "Wert", "type": "input"}
+    ] %}
+
+    {% set rows = [
+        {"id": "ip_address_wngw_client", "label": "IP-Adresse"},
+        {"id": "asdu_address_wngw_client", "label": "Gemeinsame Adresse der ASDU (CA)"}
+    ] %}
+
+    {% set kommunikationspartner_box = {
+        "id": "kommunikationspartner",
+        "page_key": "einstellungen_client",
+        "title": "Kommunikationspartner (WNGW)",
+        "note": "<p>Konnektivitätsparameter des WNGW (Westnetz Gateway) für die Kommunikation mit dem Server eintragen.</p><p>Die &quot;Gemeinsame Adresse der ASDU (CA)&quot; meint die Stationsadresse des WNGW (Westnetz Gateway).</p>",
+        "table": {
+            "columns": columns,
+            "rows": rows
+        },
+        "values": input_box_values("einstellungen_client", "kommunikationspartner", columns, rows)
+    } %}
+    <!-- Ende: input-Box "Kommunikationspartner (WNGW)" -->
+
+
+    <!-- Rendern der input-boxes -->
+    {{ input_box_component.render(kommunikationspartner_box) }}
+</div>
+
+
+<!-- Ende: Seiteninhalt -->
+{% endblock %}
+
+
+<!-- JavaSkript einbinden -->
+{% block extra_js %}
+    {{ super() }}
+    <script src="{{ url_for('component_asset', filename='input-box/input_box.js') }}" defer></script>
 {% endblock %}
