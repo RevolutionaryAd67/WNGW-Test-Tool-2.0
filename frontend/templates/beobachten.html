@@ -7,6 +7,29 @@
     .content > .monitoring-box:first-of-type {
         margin-top: 0;
     }
+
+    .monitoring-box__actions {
+        display: flex;
+        justify-content: left;
+        gap: 0.75rem;
+        margin-bottom: 1.25rem;
+    }
+
+    .monitoring-box__button {
+        background-color: #0078d4;
+        border: none;
+        color: #ffffff;
+        border-radius: 999px;
+        padding: 0.45rem 1.5rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: background-color 0.2s ease-in-out;
+    }
+
+    .monitoring-box__button:hover,
+    .monitoring-box__button:focus {
+        background-color: #005ea8;
+    }
 </style>
 {% endblock %}
 
@@ -15,6 +38,10 @@
 {% block content %}
 <section class="monitoring-box">
     <div class="monitoring-box__column">
+        <div class="monitoring-box__actions">
+            <button type="button" class="monitoring-box__button">Client starten</button>
+            <button type="button" class="monitoring-box__button">Senden</button>
+        </div>
         <div>
             <h2>Live-Status</h2>
             <p class="monitoring-box__lead">Aktuelle Meldungen aus laufenden Prüfungen.</p>
@@ -39,6 +66,9 @@
     </div>
     <div class="monitoring-box__divider" aria-hidden="true"></div>
     <div class="monitoring-box__column">
+        <div class="monitoring-box__actions">
+            <button type="button" class="monitoring-box__button">Server starten</button>
+        </div>
         <div>
             <h2>Kennzahlen</h2>
             <p class="monitoring-box__lead">Relevante KPIs des aktuellen Testfensters.</p>
