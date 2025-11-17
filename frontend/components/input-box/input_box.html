@@ -1,0 +1,48 @@
+{% macro render(box) %}
+<div class="input-box" data-component-id="{{ box.id }}" data-page-key="{{ box.page_key }}" data-save-url="{{ url_for('save_input_box') }}">
+    <div class="input-box__header">
+        <h2 class="input-box__title">{{ box.title }}</h2>
+        <div class="input-box__actions">
+            <span class="input-box__status" aria-live="polite"></span>
+            <button type="button" class="input-box__save-btn">Speichern</button>
+        </div>
+    </div>
+    <div class="input-box__table-wrapper">
+        <table class="input-box__table">
+            <thead>
+                <tr>
+                    {% for column in box.table.columns %}
+                        <th scope="col">{{ column.label }}</th>
+                    {% endfor %}
+                </tr>
+            </thead>
+            <tbody>
+                {% set stored_values = box['values'] %}
+                {% for row in box.table.rows %}
+                    <tr>
+                        <th scope="row">{{ row.label }}</th>
+                        {% for column in box.table.columns[1:] %}
+                            {% set value = stored_values.get(row.id, {}).get(column.key, '') %}
+                            <td>
+                                {% if column.type == 'input' %}
+                                    <input
+                                        type="{{ column.input_type or 'text' }}"
+                                        class="input-box__input"
+                                        data-row-id="{{ row.id }}"
+                                        data-column-key="{{ column.key }}"
+                                        value="{{ value }}"
+                                        placeholder="{{ column.placeholder or '' }}"
+                                    />
+                                {% else %}
+                                    {{ value }}
+                                {% endif %}
+                            </td>
+                        {% endfor %}
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    <div class="input-box__note">{{ box.note | safe }}</div>
+</div>
+{% endmacro %}
