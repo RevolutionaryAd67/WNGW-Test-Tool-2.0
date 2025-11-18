@@ -56,7 +56,7 @@ def create_app() -> Flask:
         },
         "einstellungen_allgemein": {
             "heading": "Allgemein",
-            "description": "Globale Richtlinien, Benachrichtigungen und Integrationsoptionen des Test-Tools.",
+            "description": "Darstellung, Sprache und Reset-Optionen.",
         },
     }
 
