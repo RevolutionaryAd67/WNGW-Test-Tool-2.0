@@ -237,9 +237,43 @@ async function startComponent(kind) {
   }
 }
 
+async function stopComponent(kind) {
+  const endpoint = kind === 'client' ? '/api/backend/client/stop' : '/api/backend/server/stop';
+  const button = document.querySelector(`[data-action="stop-${kind}"]`);
+  const status = document.querySelector(`.monitoring-status[data-status="${kind}"]`);
+  if (button) {
+    button.disabled = true;
+  }
+  try {
+    const response = await fetch(endpoint, { method: 'POST' });
+    if (!response.ok) {
+      throw new Error('HTTP ' + response.status);
+    }
+    const result = await response.json();
+    if (status) {
+      status.textContent = result.status === 'stopped'
+        ? 'Gestoppt.'
+        : 'Nicht aktiv.';
+    }
+  } catch (error) {
+    console.error('Stopp fehlgeschlagen', error);
+    if (status) {
+      status.textContent = 'Stopp fehlgeschlagen. Details siehe Konsole.';
+    }
+  } finally {
+    if (button) {
+      setTimeout(() => {
+        button.disabled = false;
+      }, 800);
+    }
+  }
+}
+
 function bindControls() {
   const clientButton = document.querySelector('[data-action="start-client"]');
   const serverButton = document.querySelector('[data-action="start-server"]');
+  const stopClientButton = document.querySelector('[data-action="stop-client"]');
+  const stopServerButton = document.querySelector('[data-action="stop-server"]');
   const clearClientButton = document.querySelector('[data-action="clear-client"]');
   const clearServerButton = document.querySelector('[data-action="clear-server"]');
   if (clientButton) {
@@ -247,6 +281,12 @@ function bindControls() {
   }
   if (serverButton) {
     serverButton.addEventListener('click', () => startComponent('server'));
+  }
+  if (stopClientButton) {
+    stopClientButton.addEventListener('click', () => stopComponent('client'));
+  }
+  if (stopServerButton) {
+    stopServerButton.addEventListener('click', () => stopComponent('server'));
   }
   if (clearClientButton) {
     clearClientButton.addEventListener('click', () => clearHistory('client'));

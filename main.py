@@ -206,6 +206,18 @@ def create_app() -> Flask:
         status = "started" if started else "already_running"
         return jsonify({"status": status})
 
+    @app.post("/api/backend/client/stop")
+    def api_stop_client():
+        stopped = backend_controller.stop_client()
+        status = "stopped" if stopped else "not_running"
+        return jsonify({"status": status})
+
+    @app.post("/api/backend/server/stop")
+    def api_stop_server():
+        stopped = backend_controller.stop_server()
+        status = "stopped" if stopped else "not_running"
+        return jsonify({"status": status})
+
     @app.get("/api/backend/history")
     def api_history():
         history = backend_controller.history.load_all()
