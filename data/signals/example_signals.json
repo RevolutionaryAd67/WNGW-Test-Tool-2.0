@@ -1,9 +1,0 @@
-{
-  "analog": [
-    {"id": 1, "name": "Voltage", "address": 1001},
-    {"id": 2, "name": "Current", "address": 1002}
-  ],
-  "binary": [
-    {"id": 10, "name": "Breaker", "address": 2001}
-  ]
-}

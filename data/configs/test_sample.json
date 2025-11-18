@@ -1,8 +1,0 @@
-{
-  "name": "sample",
-  "steps": [
-    {"action": "send_client", "payload": {"type": "C_SC_NA_1", "value": 5}},
-    {"action": "send_server", "payload": {"type": "M_ME_NA_1", "value": 42}},
-    {"action": "custom", "payload": {"note": "verification"}}
-  ]
-}

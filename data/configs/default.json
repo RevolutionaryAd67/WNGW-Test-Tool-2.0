@@ -1,8 +1,0 @@
-{
-  "name": "default",
-  "description": "Default IEC-104 system configuration",
-  "steps": [
-    {"action": "send_client", "payload": {"type": "M_ME_NA_1", "value": 10}},
-    {"action": "send_server", "payload": {"type": "M_SP_NA_1", "value": 1}}
-  ]
-}
