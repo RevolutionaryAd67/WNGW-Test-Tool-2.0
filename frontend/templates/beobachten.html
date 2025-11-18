@@ -8,27 +8,68 @@
         margin-top: 0;
     }
 
-    .monitoring-box__actions {
+    .monitoring-box__header h2 {
+        margin-bottom: 0.25rem;
+    }
+
+    .monitoring-box__header p {
+        color: rgba(0, 0, 0, 0.6);
+        font-size: 0.95rem;
+    }
+
+    .comm-lists {
         display: flex;
-        justify-content: left;
-        gap: 0.75rem;
-        margin-bottom: 1.25rem;
+        flex-direction: column;
+        gap: 1.25rem;
     }
 
-    .monitoring-box__button {
-        background-color: #0078d4;
-        border: none;
-        color: #ffffff;
-        border-radius: 999px;
-        padding: 0.45rem 1.5rem;
+    .comm-lists__group h3 {
+        font-size: 1rem;
+        margin-bottom: 0.35rem;
+        color: rgba(0, 0, 0, 0.75);
+    }
+
+    .comm-list {
+        list-style: none;
+        display: flex;
+        flex-direction: column;
+        gap: 0.85rem;
+        margin: 0;
+        padding: 0;
+        max-height: 26vh;
+        overflow-y: auto;
+    }
+
+    .comm-entry {
+        background: #f9fafc;
+        border-radius: 0.85rem;
+        padding: 1rem 1.25rem;
+        border: 1px solid rgba(0, 0, 0, 0.08);
+        font-family: 'Cascadia Mono', 'Consolas', 'Courier New', monospace;
+        white-space: pre-line;
+        line-height: 1.45;
+    }
+
+    .comm-entry--incoming {
+        border-left: 6px solid #1a1a1a;
+        color: #1a1a1a;
+    }
+
+    .comm-entry--outgoing {
+        border-left: 6px solid #0b6edc;
+        color: #0b4f9a;
+        background: #f0f6ff;
+    }
+
+    .comm-entry__primary {
         font-weight: 600;
-        cursor: pointer;
-        transition: background-color 0.2s ease-in-out;
     }
 
-    .monitoring-box__button:hover,
-    .monitoring-box__button:focus {
-        background-color: #005ea8;
+    .comm-list__empty {
+        color: rgba(0, 0, 0, 0.45);
+        font-style: italic;
+        text-align: center;
+        padding: 2rem 1rem;
     }
 </style>
 {% endblock %}
@@ -36,58 +77,55 @@
 {% block page_intro %}{% endblock %}
 
 {% block content %}
-<section class="monitoring-box">
-    <div class="monitoring-box__column">
-        <div class="monitoring-box__actions">
-            <button type="button" class="monitoring-box__button">Client starten</button>
-            <button type="button" class="monitoring-box__button">Senden</button>
+<section class="monitoring-box" data-monitoring>
+    <div class="monitoring-box__column" data-client-monitor>
+        <div class="monitoring-box__header">
+            <h2>Client – Kommunikation</h2>
+            <p>Ein- und ausgehende Telegramme des Clients, links vom Trennstrich.</p>
         </div>
-        <div>
-            <h2>Live-Status</h2>
-            <p class="monitoring-box__lead">Aktuelle Meldungen aus laufenden Prüfungen.</p>
+        <div class="comm-lists">
+            <div class="comm-lists__group">
+                <h3>Ausgehende Telegramme</h3>
+                <ul class="comm-list" data-client-outgoing>
+                    <li class="comm-list__empty">Noch keine ausgehenden Telegramme verfügbar.</li>
+                </ul>
+            </div>
+            <div class="comm-lists__group">
+                <h3>Eingehende Telegramme</h3>
+                <ul class="comm-list" data-client-incoming>
+                    <li class="comm-list__empty">Noch keine eingehenden Telegramme verfügbar.</li>
+                </ul>
+            </div>
         </div>
-        <ul class="monitoring-box__list">
-            <li>
-                <span class="monitoring-box__label">Leitstelle</span>
-                <strong>Stabil</strong>
-                <p>Alle Client-Verbindungen antworten innerhalb der erwarteten 120&nbsp;ms.</p>
-            </li>
-            <li>
-                <span class="monitoring-box__label">Fehler</span>
-                <strong>0 kritische Ereignisse</strong>
-                <p>Letzte Warnung vor 4 Minuten automatisch behoben.</p>
-            </li>
-            <li>
-                <span class="monitoring-box__label">Nächster Check</span>
-                <strong>14:05 Uhr</strong>
-                <p>Erweiterte Protokollierung für neue Firmware-Version.</p>
-            </li>
-        </ul>
     </div>
     <div class="monitoring-box__divider" aria-hidden="true"></div>
-    <div class="monitoring-box__column">
-        <div class="monitoring-box__actions">
-            <button type="button" class="monitoring-box__button">Server starten</button>
+    <div class="monitoring-box__column" data-server-monitor>
+        <div class="monitoring-box__header">
+            <h2>Server – Kommunikation</h2>
+            <p>Ein- und ausgehende Telegramme des Servers, rechts vom Trennstrich.</p>
         </div>
-        <div>
-            <h2>Kennzahlen</h2>
-            <p class="monitoring-box__lead">Relevante KPIs des aktuellen Testfensters.</p>
-        </div>
-        <div class="monitoring-box__stats">
-            <div>
-                <span class="monitoring-box__stat-label">Aktive Prüfungen</span>
-                <strong class="monitoring-box__stat-value">3</strong>
+        <div class="comm-lists">
+            <div class="comm-lists__group">
+                <h3>Ausgehende Telegramme</h3>
+                <ul class="comm-list" data-server-outgoing>
+                    <li class="comm-list__empty">Noch keine ausgehenden Telegramme verfügbar.</li>
+                </ul>
             </div>
-            <div>
-                <span class="monitoring-box__stat-label">Durchschnittliche Latenz</span>
-                <strong class="monitoring-box__stat-value">108&nbsp;ms</strong>
-            </div>
-            <div>
-                <span class="monitoring-box__stat-label">Protokollierte Pakete</span>
-                <strong class="monitoring-box__stat-value">1.42&nbsp;Mio.</strong>
+            <div class="comm-lists__group">
+                <h3>Eingehende Telegramme</h3>
+                <ul class="comm-list" data-server-incoming>
+                    <li class="comm-list__empty">Noch keine eingehenden Telegramme verfügbar.</li>
+                </ul>
             </div>
         </div>
-        <p class="monitoring-box__hint">Die Werte werden alle 60&nbsp;Sekunden aktualisiert und können zur Analyse exportiert werden.</p>
     </div>
 </section>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    window.WNGW = window.WNGW || {};
+    window.WNGW.observeMonitorEnabled = true;
+    window.WNGW.clientMonitorEnabled = true;
+</script>
 {% endblock %}
