@@ -152,10 +152,13 @@ def build_i_frame(
 ) -> bytes:
     send_field = send_sequence << 1
     recv_field = recv_sequence << 1
+    # Length field covers the four control bytes plus the ASDU fields.
+    # ASDU without information elements is 9 bytes long, therefore
+    # the total length becomes len(information) + 13.
     header = bytes(
         [
             0x68,
-            len(information) + 10,
+            len(information) + 13,
             send_field & 0xFF,
             (send_field >> 8) & 0xFF,
             recv_field & 0xFF,
