@@ -1,8 +1,8 @@
 {
-  "asdu_common_address_server": {
-    "value": "2019"
+  "ip_address_wngw_client": {
+    "value": "192.168.1.50"
   },
-  "asdu_originator_address_server": {
-    "value": "0"
+  "asdu_address_wngw_client": {
+    "value": "49331"
   }
 }
