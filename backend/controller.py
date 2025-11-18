@@ -8,6 +8,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Dict, Optional
 
+from multiprocessing.synchronize import Event as MpEvent
+
 from .events import EventBus
 from .history import CommunicationHistory
 from .processes import run_client_process, run_server_process
@@ -18,6 +20,7 @@ class _ManagedProcess:
     process: mp.Process
     queue: mp.Queue
     listener: threading.Thread
+    stop_event: MpEvent
 
 
 class BackendController:
@@ -35,13 +38,14 @@ class BackendController:
         if existing and existing.process.is_alive():
             return False
         queue: mp.Queue = mp.Queue()
-        process = mp.Process(target=target, args=(queue,), daemon=True)
+        stop_event = mp.Event()
+        process = mp.Process(target=target, args=(queue, stop_event), daemon=True)
         process.start()
         listener = threading.Thread(
             target=self._drain_queue, args=(queue,), daemon=True
         )
         listener.start()
-        setattr(self, label, _ManagedProcess(process, queue, listener))
+        setattr(self, label, _ManagedProcess(process, queue, listener, stop_event))
         return True
 
     def _stop_process(self, label: str) -> bool:
@@ -49,13 +53,16 @@ class BackendController:
         if not managed:
             return False
         is_alive = managed.process.is_alive()
+        managed.stop_event.set()
+        if is_alive:
+            managed.process.join(timeout=5)
+        if managed.process.is_alive():
+            managed.process.terminate()
+            managed.process.join(timeout=2)
         try:
             managed.queue.put_nowait(None)
         except Exception:
             pass
-        if is_alive:
-            managed.process.terminate()
-            managed.process.join(timeout=2)
         setattr(self, label, None)
         return is_alive
 
