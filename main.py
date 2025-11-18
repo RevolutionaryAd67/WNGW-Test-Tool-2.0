@@ -206,6 +206,19 @@ def create_app() -> Flask:
         status = "started" if started else "already_running"
         return jsonify({"status": status})
 
+    @app.get("/api/backend/history")
+    def api_history():
+        history = backend_controller.history.load_all()
+        return jsonify(history)
+
+    @app.post("/api/backend/history/<side>/clear")
+    def api_history_clear(side: str):
+        try:
+            backend_controller.history.clear(side)
+        except ValueError:
+            return jsonify({"status": "error", "message": "Ungültige Seite."}), 400
+        return jsonify({"status": "success"})
+
     @app.route("/api/backend/stream")
     def api_backend_stream():
         subscriber = backend_controller.event_bus.subscribe()

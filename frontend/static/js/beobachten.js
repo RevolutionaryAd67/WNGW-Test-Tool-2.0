@@ -3,6 +3,8 @@ const TELEGRAM_STATE = {
   server: [],
 };
 
+const TELEGRAM_SIDES = ['client', 'server'];
+
 const FRAME_LABELS = {
   I: 'I-Format',
   U: 'U-Format',
@@ -123,7 +125,7 @@ function addEmptyState(container) {
   }
 }
 
-function clearTelegrams(side) {
+function resetTelegrams(side) {
   const container = document.querySelector(`.telegram-feed[data-telegrams="${side}"]`);
   if (!container || !TELEGRAM_STATE[side]) {
     return;
@@ -131,6 +133,26 @@ function clearTelegrams(side) {
   TELEGRAM_STATE[side] = [];
   container.innerHTML = '';
   addEmptyState(container);
+}
+
+async function clearHistory(side) {
+  const button = document.querySelector(`[data-action="clear-${side}"]`);
+  if (button) {
+    button.disabled = true;
+  }
+  try {
+    const response = await fetch(`/api/backend/history/${side}/clear`, { method: 'POST' });
+    if (!response.ok) {
+      throw new Error('HTTP ' + response.status);
+    }
+    resetTelegrams(side);
+  } catch (error) {
+    console.error('Verlauf konnte nicht gelöscht werden', error);
+  } finally {
+    if (button) {
+      button.disabled = false;
+    }
+  }
 }
 
 function handleTelegramEvent(raw) {
@@ -227,16 +249,35 @@ function bindControls() {
     serverButton.addEventListener('click', () => startComponent('server'));
   }
   if (clearClientButton) {
-    clearClientButton.addEventListener('click', () => clearTelegrams('client'));
+    clearClientButton.addEventListener('click', () => clearHistory('client'));
   }
   if (clearServerButton) {
-    clearServerButton.addEventListener('click', () => clearTelegrams('server'));
+    clearServerButton.addEventListener('click', () => clearHistory('server'));
+  }
+}
+
+async function loadExistingTelegrams() {
+  try {
+    const response = await fetch('/api/backend/history');
+    if (!response.ok) {
+      throw new Error('HTTP ' + response.status);
+    }
+    const history = await response.json();
+    TELEGRAM_SIDES.forEach((side) => {
+      resetTelegrams(side);
+      const entries = history && Array.isArray(history[side]) ? history[side] : [];
+      entries.forEach((entry) => handleTelegramEvent(entry));
+    });
+  } catch (error) {
+    console.warn('Konnte Verlauf nicht laden', error);
   }
 }
 
 function initBeobachten() {
   bindControls();
-  connectEventStream();
+  loadExistingTelegrams().finally(() => {
+    connectEventStream();
+  });
 }
 
 window.addEventListener('beforeunload', () => {
