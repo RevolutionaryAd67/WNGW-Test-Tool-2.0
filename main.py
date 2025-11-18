@@ -4,9 +4,10 @@ import json
 from pathlib import Path
 from typing import Any, Dict, List
 
-from flask import Flask, jsonify, render_template, request, send_from_directory
+from flask import Flask, Response, jsonify, render_template, request, send_from_directory
 from jinja2 import ChoiceLoader, FileSystemLoader
 
+from backend import backend_controller
 
 DATA_DIR = Path("data")
 
@@ -192,6 +193,34 @@ def create_app() -> Flask:
     @app.route("/components/<path:filename>")
     def component_asset(filename: str):
         return send_from_directory("frontend/components", filename)
+
+    @app.post("/api/backend/client/start")
+    def api_start_client():
+        started = backend_controller.start_client()
+        status = "started" if started else "already_running"
+        return jsonify({"status": status})
+
+    @app.post("/api/backend/server/start")
+    def api_start_server():
+        started = backend_controller.start_server()
+        status = "started" if started else "already_running"
+        return jsonify({"status": status})
+
+    @app.route("/api/backend/stream")
+    def api_backend_stream():
+        subscriber = backend_controller.event_bus.subscribe()
+
+        def event_stream():
+            try:
+                while True:
+                    event = subscriber.get()
+                    if event is None:
+                        break
+                    yield f"data: {json.dumps(event)}\n\n"
+            finally:
+                backend_controller.event_bus.unsubscribe(subscriber)
+
+        return Response(event_stream(), mimetype="text/event-stream")
 
     return app
 

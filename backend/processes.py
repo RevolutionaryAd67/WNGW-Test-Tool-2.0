@@ -1,0 +1,308 @@
+"""Worker process implementations for IEC-104 client and server."""
+from __future__ import annotations
+
+import select
+import socket
+import time
+from typing import Dict, Optional
+
+from .config import ClientSettings, ServerSettings, load_client_settings, load_server_settings
+from .iec104.protocol import (
+    COT_LABELS,
+    FrameParser,
+    build_i_frame,
+    build_s_frame,
+    build_u_frame,
+    decode_frame,
+)
+
+RETRY_DELAY = 5.0
+KEEPALIVE_INTERVAL = 15.0
+
+
+def _publish_event(queue, payload: Dict) -> None:
+    queue.put({"type": "telegram", "payload": payload})
+
+
+class _BaseEndpoint:
+    def __init__(self, side: str, queue, local_ip: str, local_port: int, remote_ip: str, remote_port: int) -> None:
+        self.side = side
+        self.queue = queue
+        self.local_ip = local_ip
+        self.local_port = local_port
+        self.remote_ip = remote_ip
+        self.remote_port = remote_port
+        self._sequence = 0
+        self._recv_sequence = 0
+        self._last_event_ts = time.time()
+        self._event_index = 0
+
+    def next_sequence(self) -> int:
+        value = self._sequence
+        self._sequence += 1
+        return value
+
+    def update_recv_sequence(self, seq: int) -> None:
+        self._recv_sequence = seq
+
+    def _publish(self, payload: Dict) -> None:
+        timestamp = time.time()
+        delta = max(0.0, timestamp - self._last_event_ts)
+        self._last_event_ts = timestamp
+        self._event_index += 1
+        event = {
+            "side": self.side,
+            "sequence": self._event_index,
+            "timestamp": timestamp,
+            "delta": delta,
+            "local_endpoint": f"{self.local_ip}:{self.local_port}",
+            "remote_endpoint": f"{self.remote_ip}:{self.remote_port}",
+        }
+        event.update(payload)
+        _publish_event(self.queue, event)
+
+    def publish_tcp(self, label: str, direction: str) -> None:
+        self._publish(
+            {
+                "frame_family": "TCP",
+                "label": label,
+                "direction": direction,
+            }
+        )
+
+    def publish_frame(self, telegram, direction: str) -> None:
+        payload = {
+            "frame_family": telegram.frame_family,
+            "label": telegram.label,
+            "direction": direction,
+        }
+        if telegram.type_id is not None:
+            payload["type_id"] = telegram.type_id
+        if telegram.cause is not None:
+            payload["cause"] = telegram.cause
+            payload["originator"] = telegram.originator
+        if telegram.station is not None:
+            payload["station"] = telegram.station
+        if telegram.ioa is not None:
+            payload["ioa"] = telegram.ioa
+        self._publish(payload)
+
+    def publish_custom(
+        self,
+        frame_family: str,
+        label: str,
+        direction: str,
+        type_id: Optional[int] = None,
+        cause: Optional[int] = None,
+        originator: Optional[int] = None,
+        station: Optional[int] = None,
+        ioa: Optional[int] = None,
+    ) -> None:
+        payload = {
+            "frame_family": frame_family,
+            "label": label,
+            "direction": direction,
+        }
+        if type_id is not None:
+            payload["type_id"] = type_id
+        if cause is not None:
+            payload["cause"] = cause
+        if originator is not None:
+            payload["originator"] = originator
+        if station is not None:
+            payload["station"] = station
+        if ioa is not None:
+            payload["ioa"] = ioa
+        self._publish(payload)
+
+
+class IEC104ClientProcess(_BaseEndpoint):
+    def __init__(self, queue, settings: ClientSettings) -> None:
+        super().__init__(
+            side="client",
+            queue=queue,
+            local_ip=settings.local_ip,
+            local_port=settings.local_port,
+            remote_ip=settings.remote_ip,
+            remote_port=settings.remote_port,
+        )
+        self.settings = settings
+        self._parser = FrameParser()
+        self._sock: Optional[socket.socket] = None
+        self._last_keepalive = 0.0
+
+    def run(self) -> None:
+        while True:
+            try:
+                self._connect()
+                self._loop()
+            except Exception as exc:
+                self.publish_tcp(f"Verbindung getrennt: {exc}", "incoming")
+                self._close_socket()
+                time.sleep(RETRY_DELAY)
+
+    def _connect(self) -> None:
+        self._close_socket()
+        self._recv_sequence = 0
+        self._parser = FrameParser()
+        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        sock.settimeout(10)
+        sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        sock.bind((self.local_ip, self.local_port))
+        sock.connect((self.remote_ip, self.remote_port))
+        sock.settimeout(None)
+        self._sock = sock
+        self.publish_tcp("SYN", "outgoing")
+        self.publish_tcp("SYN ACK", "incoming")
+        self.publish_tcp("ACK", "outgoing")
+        self._send_u_frame(0x07, "STARTDT ACT")
+
+    def _close_socket(self) -> None:
+        if self._sock:
+            try:
+                self._sock.close()
+            except Exception:
+                pass
+            self._sock = None
+
+    def _send(self, payload: bytes) -> None:
+        if not self._sock:
+            raise RuntimeError("Socket not connected")
+        self._sock.sendall(payload)
+
+    def _send_u_frame(self, command: int, label: str) -> None:
+        payload = build_u_frame(command)
+        self._send(payload)
+        self.publish_custom("U", label, "outgoing")
+
+    def _send_s_frame(self) -> None:
+        payload = build_s_frame(self._recv_sequence)
+        self._send(payload)
+        self.publish_custom("S", "S-FRAME", "outgoing")
+
+    def _loop(self) -> None:
+        if not self._sock:
+            return
+        self._last_keepalive = time.time()
+        while True:
+            ready, _, _ = select.select([self._sock], [], [], 1.0)
+            if ready:
+                data = self._sock.recv(4096)
+                if not data:
+                    raise ConnectionError("Kommunikationspartner hat getrennt")
+                for frame in self._parser.feed(data):
+                    telegram = decode_frame(frame)
+                    self.publish_frame(telegram, "incoming")
+                    if telegram.frame_family == "I":
+                        self._recv_sequence += 1
+                        self._send_s_frame()
+                    if telegram.frame_family == "U" and telegram.label == "STARTDT CON":
+                        self.publish_custom("U", "STARTDT bestätigt", "incoming")
+            now = time.time()
+            if now - self._last_keepalive >= KEEPALIVE_INTERVAL:
+                self._send_u_frame(0x43, "TESTFR ACT")
+                self._last_keepalive = now
+
+
+class IEC104ServerProcess(_BaseEndpoint):
+    def __init__(self, queue, settings: ServerSettings) -> None:
+        super().__init__(
+            side="server",
+            queue=queue,
+            local_ip=settings.local_ip,
+            local_port=settings.local_port,
+            remote_ip=settings.remote_ip,
+            remote_port=settings.remote_port,
+        )
+        self.settings = settings
+        self._parser = FrameParser()
+        self._send_sequence = 0
+
+    def run(self) -> None:
+        while True:
+            with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as server:
+                server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+                server.bind((self.local_ip, self.local_port))
+                server.listen(1)
+                conn, addr = server.accept()
+                with conn:
+                    conn.settimeout(None)
+                    self._handle_connection(conn, addr)
+
+    def _handle_connection(self, conn: socket.socket, addr) -> None:
+        self._recv_sequence = 0
+        self._send_sequence = 0
+        self._parser = FrameParser()
+        self.publish_tcp("SYN", "incoming")
+        self.publish_tcp("SYN ACK", "outgoing")
+        self.publish_tcp("ACK", "incoming")
+        last_activity = time.time()
+        while True:
+            ready, _, _ = select.select([conn], [], [], 1.0)
+            if ready:
+                data = conn.recv(4096)
+                if not data:
+                    break
+                for frame in self._parser.feed(data):
+                    telegram = decode_frame(frame)
+                    self.publish_frame(telegram, "incoming")
+                    if telegram.frame_family == "U" and telegram.label == "STARTDT ACT":
+                        self._send_u_frame(conn, 0x0B, "STARTDT CON")
+                    if telegram.frame_family == "I":
+                        self._recv_sequence += 1
+                        if (
+                            telegram.type_id == 100
+                            and telegram.cause == 6
+                        ):
+                            self._send_general_interrogation_response(conn)
+                        self._send_s_frame(conn)
+                last_activity = time.time()
+            if time.time() - last_activity > KEEPALIVE_INTERVAL:
+                self._send_u_frame(conn, 0x43, "TESTFR ACT")
+                last_activity = time.time()
+
+    def _send_u_frame(self, conn: socket.socket, command: int, label: str) -> None:
+        payload = build_u_frame(command)
+        conn.sendall(payload)
+        self.publish_custom("U", label, "outgoing")
+
+    def _send_s_frame(self, conn: socket.socket) -> None:
+        payload = build_s_frame(self._recv_sequence)
+        conn.sendall(payload)
+        self.publish_custom("S", "S-FRAME", "outgoing")
+
+    def _send_general_interrogation_response(self, conn: socket.socket) -> None:
+        for cot in (7, 10):
+            frame = build_i_frame(
+                send_sequence=self._send_sequence,
+                recv_sequence=self._recv_sequence,
+                type_id=100,
+                cause=cot,
+                originator=0,
+                common_address=self.settings.common_address,
+                ioa=0,
+                information=bytes([20]),
+            )
+            conn.sendall(frame)
+            label = COT_LABELS.get((100, cot), "GENERALABFRAGE")
+            self.publish_custom(
+                "I",
+                label,
+                "outgoing",
+                type_id=100,
+                cause=cot,
+                originator=0,
+                station=self.settings.common_address,
+                ioa=0,
+            )
+            self._send_sequence += 1
+
+
+def run_client_process(queue) -> None:
+    settings = load_client_settings()
+    IEC104ClientProcess(queue, settings).run()
+
+
+def run_server_process(queue) -> None:
+    settings = load_server_settings()
+    IEC104ServerProcess(queue, settings).run()
