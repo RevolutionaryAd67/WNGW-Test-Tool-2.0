@@ -22,8 +22,8 @@ RETRY_DELAY = 5.0
 KEEPALIVE_INTERVAL = 15.0
 
 
-def _publish_event(queue, payload: Dict) -> None:
-    queue.put({"type": "telegram", "payload": payload})
+def _publish_event(queue, event_type: str, payload: Dict) -> None:
+    queue.put({"type": event_type, "payload": payload})
 
 
 class _BaseEndpoint:
@@ -71,7 +71,17 @@ class _BaseEndpoint:
             "remote_endpoint": f"{self.remote_ip}:{self.remote_port}",
         }
         event.update(payload)
-        _publish_event(self.queue, event)
+        _publish_event(self.queue, "telegram", event)
+
+    def publish_connection_status(self, connected: bool) -> None:
+        _publish_event(
+            self.queue,
+            "status",
+            {
+                "side": self.side,
+                "connected": bool(connected),
+            },
+        )
 
     def publish_tcp(self, label: str, direction: str) -> None:
         self._publish(
@@ -152,11 +162,13 @@ class IEC104ClientProcess(_BaseEndpoint):
             except ConnectionError as exc:
                 self.publish_tcp(f"Verbindung getrennt: {exc}", "incoming")
                 self._close_socket()
+                self.publish_connection_status(False)
                 if not self.stop_event.is_set():
                     time.sleep(RETRY_DELAY)
             except Exception as exc:
                 self.publish_tcp(f"Unerwarteter Fehler: {exc}", "incoming")
                 self._close_socket()
+                self.publish_connection_status(False)
                 if not self.stop_event.is_set():
                     time.sleep(RETRY_DELAY)
 
@@ -175,6 +187,7 @@ class IEC104ClientProcess(_BaseEndpoint):
         self.publish_tcp("SYN ACK", "incoming")
         self.publish_tcp("ACK", "outgoing")
         self._send_u_frame(0x07, "STARTDT ACT")
+        self.publish_connection_status(True)
 
     def _close_socket(self, publish_reset: bool = False) -> None:
         had_socket = self._sock is not None
@@ -229,6 +242,7 @@ class IEC104ClientProcess(_BaseEndpoint):
                 self._last_keepalive = now
         # stop requested
         self._close_socket(publish_reset=True)
+        self.publish_connection_status(False)
 
 
 class IEC104ServerProcess(_BaseEndpoint):
@@ -270,6 +284,7 @@ class IEC104ServerProcess(_BaseEndpoint):
         self.publish_tcp("SYN", "incoming")
         self.publish_tcp("SYN ACK", "outgoing")
         self.publish_tcp("ACK", "incoming")
+        self.publish_connection_status(True)
         while not self.stop_event.is_set():
             ready, _, _ = select.select([conn], [], [], 1.0)
             if ready:
@@ -299,6 +314,7 @@ class IEC104ServerProcess(_BaseEndpoint):
                         self._send_s_frame(conn)
         if self.stop_event.is_set():
             self.publish_tcp("RST ACK", "outgoing")
+        self.publish_connection_status(False)
 
     def _send_u_frame(self, conn: socket.socket, command: int, label: str) -> None:
         payload = build_u_frame(command)
