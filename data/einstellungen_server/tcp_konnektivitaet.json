@@ -1,0 +1,8 @@
+{
+  "tcp_ip_address_server": {
+    "value": "192.168.2.100"
+  },
+  "tcp_port_server": {
+    "value": "2404"
+  }
+}
