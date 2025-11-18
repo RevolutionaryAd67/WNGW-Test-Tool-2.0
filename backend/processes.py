@@ -196,8 +196,6 @@ class IEC104ClientProcess(_BaseEndpoint):
                     if telegram.frame_family == "I":
                         self._recv_sequence += 1
                         self._send_s_frame()
-                    if telegram.frame_family == "U" and telegram.label == "STARTDT CON":
-                        self.publish_custom("U", "STARTDT bestätigt", "incoming")
             now = time.time()
             if now - self._last_keepalive >= KEEPALIVE_INTERVAL:
                 self._send_u_frame(0x43, "TESTFR ACT")
