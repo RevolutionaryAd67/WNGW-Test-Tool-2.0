@@ -44,6 +44,21 @@ class BackendController:
         setattr(self, label, _ManagedProcess(process, queue, listener))
         return True
 
+    def _stop_process(self, label: str) -> bool:
+        managed = getattr(self, label)
+        if not managed:
+            return False
+        is_alive = managed.process.is_alive()
+        try:
+            managed.queue.put_nowait(None)
+        except Exception:
+            pass
+        if is_alive:
+            managed.process.terminate()
+            managed.process.join(timeout=2)
+        setattr(self, label, None)
+        return is_alive
+
     def start_client(self) -> bool:
         """Start the IEC-104 client worker if not already running."""
         return self._start_process(run_client_process, "_client")
@@ -51,6 +66,14 @@ class BackendController:
     def start_server(self) -> bool:
         """Start the IEC-104 server worker if not already running."""
         return self._start_process(run_server_process, "_server")
+
+    def stop_client(self) -> bool:
+        """Stop the IEC-104 client worker if running."""
+        return self._stop_process("_client")
+
+    def stop_server(self) -> bool:
+        """Stop the IEC-104 server worker if running."""
+        return self._stop_process("_server")
 
     # properties for compatibility
     @property
@@ -75,13 +98,4 @@ class BackendController:
 
     def shutdown(self) -> None:
         for label in ("_client", "_server"):
-            managed = getattr(self, label)
-            if not managed:
-                continue
-            try:
-                managed.queue.put_nowait(None)
-            except Exception:
-                pass
-            if managed.process.is_alive():
-                managed.process.terminate()
-            setattr(self, label, None)
+            self._stop_process(label)

@@ -51,6 +51,15 @@
         transition: background 0.2s ease-in-out;
     }
 
+    .monitoring-button--danger {
+        background-color: #c53030;
+    }
+
+    .monitoring-button--danger:hover:not(:disabled),
+    .monitoring-button--danger:focus-visible:not(:disabled) {
+        background-color: #9b1c1c;
+    }
+
     .monitoring-button--secondary {
         background-color: #e7ecf3;
         color: #0b2548;
@@ -152,6 +161,7 @@
             </div>
             <div class="monitoring-actions">
                 <button type="button" class="monitoring-button monitoring-button--secondary" data-action="clear-client">Verlauf leeren</button>
+                <button type="button" class="monitoring-button monitoring-button--danger" data-action="stop-client">Client stoppen</button>
                 <button type="button" class="monitoring-button" data-action="start-client">Client starten</button>
             </div>
         </div>
@@ -168,6 +178,7 @@
             </div>
             <div class="monitoring-actions">
                 <button type="button" class="monitoring-button monitoring-button--secondary" data-action="clear-server">Verlauf leeren</button>
+                <button type="button" class="monitoring-button monitoring-button--danger" data-action="stop-server">Server stoppen</button>
                 <button type="button" class="monitoring-button" data-action="start-server">Server starten</button>
             </div>
         </div>
