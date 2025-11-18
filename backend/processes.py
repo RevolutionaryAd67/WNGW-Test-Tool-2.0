@@ -6,6 +6,8 @@ import socket
 import time
 from typing import Dict, Optional
 
+from multiprocessing.synchronize import Event as MpEvent
+
 from .config import ClientSettings, ServerSettings, load_client_settings, load_server_settings
 from .iec104.protocol import (
     COT_LABELS,
@@ -25,13 +27,23 @@ def _publish_event(queue, payload: Dict) -> None:
 
 
 class _BaseEndpoint:
-    def __init__(self, side: str, queue, local_ip: str, local_port: int, remote_ip: str, remote_port: int) -> None:
+    def __init__(
+        self,
+        side: str,
+        queue,
+        local_ip: str,
+        local_port: int,
+        remote_ip: str,
+        remote_port: int,
+        stop_event: MpEvent,
+    ) -> None:
         self.side = side
         self.queue = queue
         self.local_ip = local_ip
         self.local_port = local_port
         self.remote_ip = remote_ip
         self.remote_port = remote_port
+        self.stop_event = stop_event
         self._sequence = 0
         self._recv_sequence = 0
         self._last_event_ts = time.time()
@@ -117,7 +129,7 @@ class _BaseEndpoint:
 
 
 class IEC104ClientProcess(_BaseEndpoint):
-    def __init__(self, queue, settings: ClientSettings) -> None:
+    def __init__(self, queue, settings: ClientSettings, stop_event: MpEvent) -> None:
         super().__init__(
             side="client",
             queue=queue,
@@ -125,6 +137,7 @@ class IEC104ClientProcess(_BaseEndpoint):
             local_port=settings.local_port,
             remote_ip=settings.remote_ip,
             remote_port=settings.remote_port,
+            stop_event=stop_event,
         )
         self.settings = settings
         self._parser = FrameParser()
@@ -132,14 +145,20 @@ class IEC104ClientProcess(_BaseEndpoint):
         self._last_keepalive = 0.0
 
     def run(self) -> None:
-        while True:
+        while not self.stop_event.is_set():
             try:
                 self._connect()
                 self._loop()
-            except Exception as exc:
+            except ConnectionError as exc:
                 self.publish_tcp(f"Verbindung getrennt: {exc}", "incoming")
                 self._close_socket()
-                time.sleep(RETRY_DELAY)
+                if not self.stop_event.is_set():
+                    time.sleep(RETRY_DELAY)
+            except Exception as exc:
+                self.publish_tcp(f"Unerwarteter Fehler: {exc}", "incoming")
+                self._close_socket()
+                if not self.stop_event.is_set():
+                    time.sleep(RETRY_DELAY)
 
     def _connect(self) -> None:
         self._close_socket()
@@ -157,13 +176,16 @@ class IEC104ClientProcess(_BaseEndpoint):
         self.publish_tcp("ACK", "outgoing")
         self._send_u_frame(0x07, "STARTDT ACT")
 
-    def _close_socket(self) -> None:
+    def _close_socket(self, publish_reset: bool = False) -> None:
+        had_socket = self._sock is not None
         if self._sock:
             try:
                 self._sock.close()
             except Exception:
                 pass
             self._sock = None
+        if publish_reset and had_socket:
+            self.publish_tcp("RST ACK", "outgoing")
 
     def _send(self, payload: bytes) -> None:
         if not self._sock:
@@ -184,11 +206,16 @@ class IEC104ClientProcess(_BaseEndpoint):
         if not self._sock:
             return
         self._last_keepalive = time.time()
-        while True:
+        while not self.stop_event.is_set():
             ready, _, _ = select.select([self._sock], [], [], 1.0)
             if ready:
-                data = self._sock.recv(4096)
+                try:
+                    data = self._sock.recv(4096)
+                except ConnectionResetError:
+                    self.publish_tcp("RST ACK", "incoming")
+                    raise ConnectionError("Kommunikationspartner hat zurückgesetzt")
                 if not data:
+                    self.publish_tcp("RST ACK", "incoming")
                     raise ConnectionError("Kommunikationspartner hat getrennt")
                 for frame in self._parser.feed(data):
                     telegram = decode_frame(frame)
@@ -200,10 +227,12 @@ class IEC104ClientProcess(_BaseEndpoint):
             if now - self._last_keepalive >= KEEPALIVE_INTERVAL:
                 self._send_u_frame(0x43, "TESTFR ACT")
                 self._last_keepalive = now
+        # stop requested
+        self._close_socket(publish_reset=True)
 
 
 class IEC104ServerProcess(_BaseEndpoint):
-    def __init__(self, queue, settings: ServerSettings) -> None:
+    def __init__(self, queue, settings: ServerSettings, stop_event: MpEvent) -> None:
         super().__init__(
             side="server",
             queue=queue,
@@ -211,21 +240,28 @@ class IEC104ServerProcess(_BaseEndpoint):
             local_port=settings.local_port,
             remote_ip=settings.remote_ip,
             remote_port=settings.remote_port,
+            stop_event=stop_event,
         )
         self.settings = settings
         self._parser = FrameParser()
         self._send_sequence = 0
 
     def run(self) -> None:
-        while True:
+        while not self.stop_event.is_set():
             with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as server:
                 server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
                 server.bind((self.local_ip, self.local_port))
                 server.listen(1)
-                conn, addr = server.accept()
+                server.settimeout(1.0)
+                try:
+                    conn, addr = server.accept()
+                except socket.timeout:
+                    continue
                 with conn:
                     conn.settimeout(None)
                     self._handle_connection(conn, addr)
+                    if self.stop_event.is_set():
+                        break
 
     def _handle_connection(self, conn: socket.socket, addr) -> None:
         self._recv_sequence = 0
@@ -234,11 +270,16 @@ class IEC104ServerProcess(_BaseEndpoint):
         self.publish_tcp("SYN", "incoming")
         self.publish_tcp("SYN ACK", "outgoing")
         self.publish_tcp("ACK", "incoming")
-        while True:
+        while not self.stop_event.is_set():
             ready, _, _ = select.select([conn], [], [], 1.0)
             if ready:
-                data = conn.recv(4096)
+                try:
+                    data = conn.recv(4096)
+                except ConnectionResetError:
+                    self.publish_tcp("RST ACK", "incoming")
+                    break
                 if not data:
+                    self.publish_tcp("RST ACK", "incoming")
                     break
                 for frame in self._parser.feed(data):
                     telegram = decode_frame(frame)
@@ -256,6 +297,8 @@ class IEC104ServerProcess(_BaseEndpoint):
                         ):
                             self._send_general_interrogation_response(conn)
                         self._send_s_frame(conn)
+        if self.stop_event.is_set():
+            self.publish_tcp("RST ACK", "outgoing")
 
     def _send_u_frame(self, conn: socket.socket, command: int, label: str) -> None:
         payload = build_u_frame(command)
@@ -294,11 +337,11 @@ class IEC104ServerProcess(_BaseEndpoint):
             self._send_sequence += 1
 
 
-def run_client_process(queue) -> None:
+def run_client_process(queue, stop_event: MpEvent) -> None:
     settings = load_client_settings()
-    IEC104ClientProcess(queue, settings).run()
+    IEC104ClientProcess(queue, settings, stop_event).run()
 
 
-def run_server_process(queue) -> None:
+def run_server_process(queue, stop_event: MpEvent) -> None:
     settings = load_server_settings()
-    IEC104ServerProcess(queue, settings).run()
+    IEC104ServerProcess(queue, settings, stop_event).run()
