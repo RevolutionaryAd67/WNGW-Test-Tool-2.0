@@ -5,9 +5,11 @@ import atexit
 import multiprocessing as mp
 import threading
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Any, Dict, Optional
 
 from .events import EventBus
+from .history import CommunicationHistory
 from .processes import run_client_process, run_server_process
 
 
@@ -25,6 +27,7 @@ class BackendController:
         self.event_bus = EventBus()
         self._client: Optional[_ManagedProcess] = None
         self._server: Optional[_ManagedProcess] = None
+        self.history = CommunicationHistory(Path("data/telegrams"))
         atexit.register(self.shutdown)
 
     def _start_process(self, target, label: str) -> bool:
@@ -66,7 +69,8 @@ class BackendController:
                 break
             if data is None:
                 break
-            if isinstance(data, (dict, list)):
+            if isinstance(data, dict):
+                self.history.record(data)
                 self.event_bus.publish(data)
 
     def shutdown(self) -> None:
