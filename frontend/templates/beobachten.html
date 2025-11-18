@@ -1,34 +1,129 @@
 {% extends 'base.html' %}
 
-
-<!-- Seiten-spezifische Styles -->
 {% block extra_css %}
 <style>
-    .content > .monitoring-box:first-of-type {
-        margin-top: 0;
-    }
-
-    .monitoring-box__actions {
+    .monitoring-grid {
         display: flex;
-        justify-content: left;
-        gap: 0.75rem;
-        margin-bottom: 1.25rem;
+        gap: 2rem;
+        background: #fff;
+        border-radius: 1rem;
+        padding: 2rem;
+        margin-top: 1.5rem;
+        box-shadow: 0 12px 24px rgba(0, 0, 0, 0.08);
+        border: 1px solid var(--border-color);
+        min-height: 70vh;
     }
 
-    .monitoring-box__button {
+    .monitoring-column {
+        flex: 1 1 0;
+        display: flex;
+        flex-direction: column;
+        min-width: 0;
+    }
+
+    .monitoring-divider {
+        width: 2px;
+        background: rgba(11, 37, 72, 0.2);
+    }
+
+    .monitoring-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 1rem;
+        flex-wrap: wrap;
+    }
+
+    .monitoring-actions {
+        display: flex;
+        gap: 0.5rem;
+        flex-wrap: wrap;
+    }
+
+    .monitoring-button {
         background-color: #0078d4;
+        color: #fff;
         border: none;
-        color: #ffffff;
         border-radius: 999px;
-        padding: 0.45rem 1.5rem;
+        padding: 0.45rem 1.6rem;
         font-weight: 600;
         cursor: pointer;
-        transition: background-color 0.2s ease-in-out;
+        transition: background 0.2s ease-in-out;
     }
 
-    .monitoring-box__button:hover,
-    .monitoring-box__button:focus {
+    .monitoring-button:disabled {
+        opacity: 0.6;
+        cursor: wait;
+    }
+
+    .monitoring-button:hover:not(:disabled),
+    .monitoring-button:focus-visible:not(:disabled) {
         background-color: #005ea8;
+    }
+
+    .monitoring-status {
+        margin-top: 0.35rem;
+        font-size: 0.9rem;
+        color: rgba(0, 0, 0, 0.6);
+    }
+
+    .telegram-feed {
+        margin-top: 1.5rem;
+        background: #0a1428;
+        color: #f3f3f3;
+        border-radius: 0.75rem;
+        padding: 1.25rem;
+        flex: 1 1 auto;
+        overflow-y: auto;
+        min-height: 0;
+    }
+
+    .telegram-feed__empty {
+        color: rgba(255, 255, 255, 0.55);
+        font-style: italic;
+    }
+
+    .telegram {
+        padding: 0.75rem 0.5rem;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+        font-family: 'Consolas', 'Courier New', monospace;
+    }
+
+    .telegram:last-child {
+        border-bottom: none;
+    }
+
+    .telegram--incoming {
+        color: #f8f8f8;
+    }
+
+    .telegram--outgoing {
+        color: #8cc2ff;
+    }
+
+    .telegram__line {
+        display: flex;
+        gap: 0.5rem;
+        justify-content: space-between;
+        white-space: pre-wrap;
+    }
+
+    .telegram__label {
+        min-width: 150px;
+        color: rgba(255, 255, 255, 0.65);
+    }
+
+    .telegram__index {
+        font-weight: 700;
+        margin-right: 0.5rem;
+    }
+
+    .telegram__headline {
+        margin-bottom: 0.25rem;
+    }
+
+    .telegram__arrow {
+        margin: 0 0.5rem;
     }
 </style>
 {% endblock %}
@@ -36,58 +131,39 @@
 {% block page_intro %}{% endblock %}
 
 {% block content %}
-<section class="monitoring-box">
-    <div class="monitoring-box__column">
-        <div class="monitoring-box__actions">
-            <button type="button" class="monitoring-box__button">Client starten</button>
-            <button type="button" class="monitoring-box__button">Senden</button>
+<section class="monitoring-grid">
+    <div class="monitoring-column">
+        <div class="monitoring-header">
+            <div>
+                <h2>Client</h2>
+                <p class="monitoring-status" data-status="client">Bereit zum Start.</p>
+            </div>
+            <div class="monitoring-actions">
+                <button type="button" class="monitoring-button" data-action="start-client">Client starten</button>
+            </div>
         </div>
-        <div>
-            <h2>Live-Status</h2>
-            <p class="monitoring-box__lead">Aktuelle Meldungen aus laufenden Prüfungen.</p>
+        <div class="telegram-feed" data-telegrams="client" aria-live="polite">
+            <div class="telegram-feed__empty">Noch keine Telegramme erfasst.</div>
         </div>
-        <ul class="monitoring-box__list">
-            <li>
-                <span class="monitoring-box__label">Leitstelle</span>
-                <strong>Stabil</strong>
-                <p>Alle Client-Verbindungen antworten innerhalb der erwarteten 120&nbsp;ms.</p>
-            </li>
-            <li>
-                <span class="monitoring-box__label">Fehler</span>
-                <strong>0 kritische Ereignisse</strong>
-                <p>Letzte Warnung vor 4 Minuten automatisch behoben.</p>
-            </li>
-            <li>
-                <span class="monitoring-box__label">Nächster Check</span>
-                <strong>14:05 Uhr</strong>
-                <p>Erweiterte Protokollierung für neue Firmware-Version.</p>
-            </li>
-        </ul>
     </div>
-    <div class="monitoring-box__divider" aria-hidden="true"></div>
-    <div class="monitoring-box__column">
-        <div class="monitoring-box__actions">
-            <button type="button" class="monitoring-box__button">Server starten</button>
-        </div>
-        <div>
-            <h2>Kennzahlen</h2>
-            <p class="monitoring-box__lead">Relevante KPIs des aktuellen Testfensters.</p>
-        </div>
-        <div class="monitoring-box__stats">
+    <div class="monitoring-divider" aria-hidden="true"></div>
+    <div class="monitoring-column">
+        <div class="monitoring-header">
             <div>
-                <span class="monitoring-box__stat-label">Aktive Prüfungen</span>
-                <strong class="monitoring-box__stat-value">3</strong>
+                <h2>Server</h2>
+                <p class="monitoring-status" data-status="server">Bereit zum Start.</p>
             </div>
-            <div>
-                <span class="monitoring-box__stat-label">Durchschnittliche Latenz</span>
-                <strong class="monitoring-box__stat-value">108&nbsp;ms</strong>
-            </div>
-            <div>
-                <span class="monitoring-box__stat-label">Protokollierte Pakete</span>
-                <strong class="monitoring-box__stat-value">1.42&nbsp;Mio.</strong>
+            <div class="monitoring-actions">
+                <button type="button" class="monitoring-button" data-action="start-server">Server starten</button>
             </div>
         </div>
-        <p class="monitoring-box__hint">Die Werte werden alle 60&nbsp;Sekunden aktualisiert und können zur Analyse exportiert werden.</p>
+        <div class="telegram-feed" data-telegrams="server" aria-live="polite">
+            <div class="telegram-feed__empty">Noch keine Telegramme erfasst.</div>
+        </div>
     </div>
 </section>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{{ url_for('static', filename='js/beobachten.js') }}"></script>
 {% endblock %}
