@@ -1,0 +1,4 @@
+[
+  {"id": "smoke", "name": "Smoke Test", "steps": 3},
+  {"id": "full", "name": "Full Regression", "steps": 5}
+]
