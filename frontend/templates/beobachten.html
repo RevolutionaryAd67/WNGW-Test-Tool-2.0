@@ -51,6 +51,16 @@
         transition: background 0.2s ease-in-out;
     }
 
+    .monitoring-button--secondary {
+        background-color: #e7ecf3;
+        color: #0b2548;
+    }
+
+    .monitoring-button--secondary:hover:not(:disabled),
+    .monitoring-button--secondary:focus-visible:not(:disabled) {
+        background-color: #d7e0ec;
+    }
+
     .monitoring-button:disabled {
         opacity: 0.6;
         cursor: wait;
@@ -139,6 +149,7 @@
                 <p class="monitoring-status" data-status="client">Bereit zum Start.</p>
             </div>
             <div class="monitoring-actions">
+                <button type="button" class="monitoring-button monitoring-button--secondary" data-action="clear-client">Verlauf leeren</button>
                 <button type="button" class="monitoring-button" data-action="start-client">Client starten</button>
             </div>
         </div>
@@ -154,6 +165,7 @@
                 <p class="monitoring-status" data-status="server">Bereit zum Start.</p>
             </div>
             <div class="monitoring-actions">
+                <button type="button" class="monitoring-button monitoring-button--secondary" data-action="clear-server">Verlauf leeren</button>
                 <button type="button" class="monitoring-button" data-action="start-server">Server starten</button>
             </div>
         </div>
