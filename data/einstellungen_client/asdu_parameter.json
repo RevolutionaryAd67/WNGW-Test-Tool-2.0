@@ -1,8 +1,5 @@
 {
-  "asdu_common_address_server": {
-    "value": "2019"
-  },
-  "asdu_originator_address_server": {
+  "asdu_origin_address_client": {
     "value": "0"
   }
 }
