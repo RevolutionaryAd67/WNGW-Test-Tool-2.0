@@ -4,6 +4,17 @@ const TELEGRAM_STATE = {
 };
 
 const TELEGRAM_SIDES = ['client', 'server'];
+const STATUS_ENDPOINT = '/api/backend/status';
+const STATUS_MESSAGES = {
+  client: {
+    active: 'Client ist aktiv',
+    inactive: 'Client ist nicht aktiv',
+  },
+  server: {
+    active: 'Server ist aktiv',
+    inactive: 'Server ist nicht aktiv',
+  },
+};
 
 const FRAME_LABELS = {
   I: 'I-Format',
@@ -18,6 +29,36 @@ const DIRECTION_ARROW = {
 };
 
 let eventSource = null;
+
+function updateConnectionIndicator(side, connected) {
+  const status = document.querySelector(`.monitoring-status[data-status="${side}"]`);
+  if (!status) {
+    return;
+  }
+  const isActive = Boolean(connected);
+  const labels = STATUS_MESSAGES[side] || {};
+  const activeText = labels.active || 'Aktiv';
+  const inactiveText = labels.inactive || 'Nicht aktiv';
+  status.textContent = isActive ? activeText : inactiveText;
+  status.classList.toggle('monitoring-status--active', isActive);
+  status.classList.toggle('monitoring-status--inactive', !isActive);
+}
+
+async function fetchConnectionStatusSnapshot() {
+  try {
+    const response = await fetch(STATUS_ENDPOINT);
+    if (!response.ok) {
+      throw new Error('HTTP ' + response.status);
+    }
+    const snapshot = await response.json();
+    Object.keys(STATUS_MESSAGES).forEach((side) => {
+      const connected = Boolean(snapshot && snapshot[side] && snapshot[side].connected);
+      updateConnectionIndicator(side, connected);
+    });
+  } catch (error) {
+    console.warn('Konnte Verbindungsstatus nicht laden', error);
+  }
+}
 
 function pad(value) {
   return value.toString().padStart(2, '0');
@@ -181,21 +222,29 @@ function handleTelegramEvent(raw) {
   appendTelegram(target, telegram);
 }
 
+function handleStreamMessage(event) {
+  try {
+    const payload = JSON.parse(event.data);
+    if (payload.type === 'telegram' && payload.payload) {
+      handleTelegramEvent(payload.payload);
+    }
+    if (payload.type === 'status' && payload.payload) {
+      const side = payload.payload.side;
+      if (side) {
+        updateConnectionIndicator(side, payload.payload.connected);
+      }
+    }
+  } catch (err) {
+    console.error('Fehler beim Lesen des Streams', err);
+  }
+}
+
 function connectEventStream() {
   if (eventSource) {
     eventSource.close();
   }
   eventSource = new EventSource('/api/backend/stream');
-  eventSource.onmessage = (event) => {
-    try {
-      const payload = JSON.parse(event.data);
-      if (payload.type === 'telegram' && payload.payload) {
-        handleTelegramEvent(payload.payload);
-      }
-    } catch (err) {
-      console.error('Fehler beim Lesen des Streams', err);
-    }
-  };
+  eventSource.onmessage = handleStreamMessage;
   eventSource.onerror = () => {
     if (eventSource) {
       eventSource.close();
@@ -208,7 +257,6 @@ function connectEventStream() {
 async function startComponent(kind) {
   const endpoint = kind === 'client' ? '/api/backend/client/start' : '/api/backend/server/start';
   const button = document.querySelector(`[data-action="start-${kind}"]`);
-  const status = document.querySelector(`.monitoring-status[data-status="${kind}"]`);
   if (button) {
     button.disabled = true;
   }
@@ -217,17 +265,9 @@ async function startComponent(kind) {
     if (!response.ok) {
       throw new Error('HTTP ' + response.status);
     }
-    const result = await response.json();
-    if (status) {
-      status.textContent = result.status === 'already_running'
-        ? 'Bereits aktiv.'
-        : 'Gestartet.';
-    }
+    await response.json();
   } catch (error) {
     console.error('Start fehlgeschlagen', error);
-    if (status) {
-      status.textContent = 'Start fehlgeschlagen. Details siehe Konsole.';
-    }
   } finally {
     if (button) {
       setTimeout(() => {
@@ -240,7 +280,6 @@ async function startComponent(kind) {
 async function stopComponent(kind) {
   const endpoint = kind === 'client' ? '/api/backend/client/stop' : '/api/backend/server/stop';
   const button = document.querySelector(`[data-action="stop-${kind}"]`);
-  const status = document.querySelector(`.monitoring-status[data-status="${kind}"]`);
   if (button) {
     button.disabled = true;
   }
@@ -249,17 +288,9 @@ async function stopComponent(kind) {
     if (!response.ok) {
       throw new Error('HTTP ' + response.status);
     }
-    const result = await response.json();
-    if (status) {
-      status.textContent = result.status === 'stopped'
-        ? 'Gestoppt.'
-        : 'Nicht aktiv.';
-    }
+    await response.json();
   } catch (error) {
     console.error('Stopp fehlgeschlagen', error);
-    if (status) {
-      status.textContent = 'Stopp fehlgeschlagen. Details siehe Konsole.';
-    }
   } finally {
     if (button) {
       setTimeout(() => {
@@ -315,6 +346,7 @@ async function loadExistingTelegrams() {
 
 function initBeobachten() {
   bindControls();
+  fetchConnectionStatusSnapshot();
   loadExistingTelegrams().finally(() => {
     connectEventStream();
   });

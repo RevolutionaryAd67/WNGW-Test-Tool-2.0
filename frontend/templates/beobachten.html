@@ -83,7 +83,16 @@
     .monitoring-status {
         margin-top: 0.35rem;
         font-size: 0.9rem;
-        color: rgba(0, 0, 0, 0.6);
+        color: #000;
+        font-weight: 600;
+    }
+
+    .monitoring-status--active {
+        color: #0f8a28;
+    }
+
+    .monitoring-status--inactive {
+        color: #000;
     }
 
     .telegram-feed {
@@ -157,7 +166,7 @@
         <div class="monitoring-header">
             <div>
                 <h2>Client</h2>
-                <p class="monitoring-status" data-status="client">Bereit zum Start.</p>
+                <p class="monitoring-status monitoring-status--inactive" data-status="client">Client ist nicht aktiv</p>
             </div>
             <div class="monitoring-actions">
                 <button type="button" class="monitoring-button monitoring-button--secondary" data-action="clear-client">Verlauf leeren</button>
@@ -174,7 +183,7 @@
         <div class="monitoring-header">
             <div>
                 <h2>Server</h2>
-                <p class="monitoring-status" data-status="server">Bereit zum Start.</p>
+                <p class="monitoring-status monitoring-status--inactive" data-status="server">Server ist nicht aktiv</p>
             </div>
             <div class="monitoring-actions">
                 <button type="button" class="monitoring-button monitoring-button--secondary" data-action="clear-server">Verlauf leeren</button>
