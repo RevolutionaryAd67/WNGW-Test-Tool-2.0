@@ -236,7 +236,6 @@ class IEC104ServerProcess(_BaseEndpoint):
         self.publish_tcp("SYN", "incoming")
         self.publish_tcp("SYN ACK", "outgoing")
         self.publish_tcp("ACK", "incoming")
-        last_activity = time.time()
         while True:
             ready, _, _ = select.select([conn], [], [], 1.0)
             if ready:
@@ -259,10 +258,6 @@ class IEC104ServerProcess(_BaseEndpoint):
                         ):
                             self._send_general_interrogation_response(conn)
                         self._send_s_frame(conn)
-                last_activity = time.time()
-            if time.time() - last_activity > KEEPALIVE_INTERVAL:
-                self._send_u_frame(conn, 0x43, "TESTFR ACT")
-                last_activity = time.time()
 
     def _send_u_frame(self, conn: socket.socket, command: int, label: str) -> None:
         payload = build_u_frame(command)
