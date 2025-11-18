@@ -246,8 +246,11 @@ class IEC104ServerProcess(_BaseEndpoint):
                 for frame in self._parser.feed(data):
                     telegram = decode_frame(frame)
                     self.publish_frame(telegram, "incoming")
-                    if telegram.frame_family == "U" and telegram.label == "STARTDT ACT":
-                        self._send_u_frame(conn, 0x0B, "STARTDT CON")
+                    if telegram.frame_family == "U":
+                        if telegram.label == "STARTDT ACT":
+                            self._send_u_frame(conn, 0x0B, "STARTDT CON")
+                        if telegram.label == "TESTFR ACT":
+                            self._send_u_frame(conn, 0x83, "TESTFR CON")
                     if telegram.frame_family == "I":
                         self._recv_sequence += 1
                         if (
