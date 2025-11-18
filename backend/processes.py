@@ -80,6 +80,10 @@ class _BaseEndpoint:
             {
                 "side": self.side,
                 "connected": bool(connected),
+                "local_ip": self.local_ip,
+                "remote_ip": self.remote_ip,
+                "local_endpoint": f"{self.local_ip}:{self.local_port}",
+                "remote_endpoint": f"{self.remote_ip}:{self.remote_port}",
             },
         )
 

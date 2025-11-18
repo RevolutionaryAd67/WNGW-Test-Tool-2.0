@@ -32,7 +32,16 @@ class BackendController:
         self._server: Optional[_ManagedProcess] = None
         self.history = CommunicationHistory(Path("data/telegrams"))
         self._status_lock = threading.Lock()
-        self._connection_state = {"client": False, "server": False}
+        self._connection_state = {
+            side: {
+                "connected": False,
+                "local_ip": None,
+                "remote_ip": None,
+                "local_endpoint": None,
+                "remote_endpoint": None,
+            }
+            for side in ("client", "server")
+        }
         atexit.register(self.shutdown)
 
     def _start_process(self, target, label: str) -> bool:
@@ -67,9 +76,9 @@ class BackendController:
             pass
         setattr(self, label, None)
         if label == "_client":
-            self._update_connection_state("client", False)
+            self._update_connection_state({"side": "client", "connected": False})
         elif label == "_server":
-            self._update_connection_state("server", False)
+            self._update_connection_state({"side": "server", "connected": False})
         return is_alive
 
     def start_client(self) -> bool:
@@ -109,9 +118,7 @@ class BackendController:
                 event_type = data.get("type")
                 if event_type == "status":
                     payload = data.get("payload") or {}
-                    side = payload.get("side")
-                    connected = bool(payload.get("connected"))
-                    self._update_connection_state(side, connected)
+                    self._update_connection_state(payload)
                 self.history.record(data)
                 self.event_bus.publish(data)
 
@@ -119,15 +126,22 @@ class BackendController:
         for label in ("_client", "_server"):
             self._stop_process(label)
 
-    def _update_connection_state(self, side: str, connected: bool) -> None:
+    def _update_connection_state(self, payload: Dict[str, Any]) -> None:
+        side = payload.get("side")
         if side not in self._connection_state:
             return
         with self._status_lock:
-            self._connection_state[side] = bool(connected)
+            state = self._connection_state[side]
+            state["connected"] = bool(payload.get("connected"))
+            for key in ("local_ip", "remote_ip", "local_endpoint", "remote_endpoint"):
+                if key in payload:
+                    state[key] = payload.get(key)
+            if not state["connected"]:
+                state.setdefault("local_ip", None)
+                state.setdefault("remote_ip", None)
+                state["local_endpoint"] = None
+                state["remote_endpoint"] = None
 
-    def get_connection_status(self) -> Dict[str, Dict[str, bool]]:
+    def get_connection_status(self) -> Dict[str, Dict[str, Any]]:
         with self._status_lock:
-            return {
-                side: {"connected": state}
-                for side, state in self._connection_state.items()
-            }
+            return {side: state.copy() for side, state in self._connection_state.items()}

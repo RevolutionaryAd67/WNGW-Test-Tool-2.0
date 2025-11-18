@@ -30,16 +30,34 @@ const DIRECTION_ARROW = {
 
 let eventSource = null;
 
-function updateConnectionIndicator(side, connected) {
+function formatListeningIp(statusInfo) {
+  if (!statusInfo) {
+    return '';
+  }
+  if (statusInfo.local_ip) {
+    return statusInfo.local_ip;
+  }
+  if (typeof statusInfo.local_endpoint === 'string') {
+    return statusInfo.local_endpoint.split(':')[0];
+  }
+  return '';
+}
+
+function updateConnectionIndicator(side, statusInfo) {
   const status = document.querySelector(`.monitoring-status[data-status="${side}"]`);
   if (!status) {
     return;
   }
-  const isActive = Boolean(connected);
+  const isActive = Boolean(statusInfo && statusInfo.connected);
   const labels = STATUS_MESSAGES[side] || {};
   const activeText = labels.active || 'Aktiv';
   const inactiveText = labels.inactive || 'Nicht aktiv';
-  status.textContent = isActive ? activeText : inactiveText;
+  if (isActive) {
+    const listeningIp = formatListeningIp(statusInfo);
+    status.textContent = listeningIp ? `${activeText} - ${listeningIp}` : activeText;
+  } else {
+    status.textContent = inactiveText;
+  }
   status.classList.toggle('monitoring-status--active', isActive);
   status.classList.toggle('monitoring-status--inactive', !isActive);
 }
@@ -52,8 +70,8 @@ async function fetchConnectionStatusSnapshot() {
     }
     const snapshot = await response.json();
     Object.keys(STATUS_MESSAGES).forEach((side) => {
-      const connected = Boolean(snapshot && snapshot[side] && snapshot[side].connected);
-      updateConnectionIndicator(side, connected);
+      const statusInfo = snapshot && snapshot[side] ? snapshot[side] : null;
+      updateConnectionIndicator(side, statusInfo);
     });
   } catch (error) {
     console.warn('Konnte Verbindungsstatus nicht laden', error);
@@ -231,7 +249,7 @@ function handleStreamMessage(event) {
     if (payload.type === 'status' && payload.payload) {
       const side = payload.payload.side;
       if (side) {
-        updateConnectionIndicator(side, payload.payload.connected);
+        updateConnectionIndicator(side, payload.payload);
       }
     }
   } catch (err) {
