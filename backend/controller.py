@@ -31,6 +31,8 @@ class BackendController:
         self._client: Optional[_ManagedProcess] = None
         self._server: Optional[_ManagedProcess] = None
         self.history = CommunicationHistory(Path("data/telegrams"))
+        self._status_lock = threading.Lock()
+        self._connection_state = {"client": False, "server": False}
         atexit.register(self.shutdown)
 
     def _start_process(self, target, label: str) -> bool:
@@ -64,6 +66,10 @@ class BackendController:
         except Exception:
             pass
         setattr(self, label, None)
+        if label == "_client":
+            self._update_connection_state("client", False)
+        elif label == "_server":
+            self._update_connection_state("server", False)
         return is_alive
 
     def start_client(self) -> bool:
@@ -100,9 +106,28 @@ class BackendController:
             if data is None:
                 break
             if isinstance(data, dict):
+                event_type = data.get("type")
+                if event_type == "status":
+                    payload = data.get("payload") or {}
+                    side = payload.get("side")
+                    connected = bool(payload.get("connected"))
+                    self._update_connection_state(side, connected)
                 self.history.record(data)
                 self.event_bus.publish(data)
 
     def shutdown(self) -> None:
         for label in ("_client", "_server"):
             self._stop_process(label)
+
+    def _update_connection_state(self, side: str, connected: bool) -> None:
+        if side not in self._connection_state:
+            return
+        with self._status_lock:
+            self._connection_state[side] = bool(connected)
+
+    def get_connection_status(self) -> Dict[str, Dict[str, bool]]:
+        with self._status_lock:
+            return {
+                side: {"connected": state}
+                for side, state in self._connection_state.items()
+            }

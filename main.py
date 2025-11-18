@@ -223,6 +223,10 @@ def create_app() -> Flask:
         history = backend_controller.history.load_all()
         return jsonify(history)
 
+    @app.get("/api/backend/status")
+    def api_backend_status():
+        return jsonify(backend_controller.get_connection_status())
+
     @app.post("/api/backend/history/<side>/clear")
     def api_history_clear(side: str):
         try:
