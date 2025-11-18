@@ -114,6 +114,25 @@ function appendTelegram(side, telegram) {
   container.scrollTop = container.scrollHeight;
 }
 
+function addEmptyState(container) {
+  if (!container.querySelector('.telegram-feed__empty')) {
+    const empty = document.createElement('div');
+    empty.className = 'telegram-feed__empty';
+    empty.textContent = 'Noch keine Telegramme erfasst.';
+    container.appendChild(empty);
+  }
+}
+
+function clearTelegrams(side) {
+  const container = document.querySelector(`.telegram-feed[data-telegrams="${side}"]`);
+  if (!container || !TELEGRAM_STATE[side]) {
+    return;
+  }
+  TELEGRAM_STATE[side] = [];
+  container.innerHTML = '';
+  addEmptyState(container);
+}
+
 function handleTelegramEvent(raw) {
   const target = raw.side;
   if (!target || !TELEGRAM_STATE[target]) {
@@ -199,11 +218,19 @@ async function startComponent(kind) {
 function bindControls() {
   const clientButton = document.querySelector('[data-action="start-client"]');
   const serverButton = document.querySelector('[data-action="start-server"]');
+  const clearClientButton = document.querySelector('[data-action="clear-client"]');
+  const clearServerButton = document.querySelector('[data-action="clear-server"]');
   if (clientButton) {
     clientButton.addEventListener('click', () => startComponent('client'));
   }
   if (serverButton) {
     serverButton.addEventListener('click', () => startComponent('server'));
+  }
+  if (clearClientButton) {
+    clearClientButton.addEventListener('click', () => clearTelegrams('client'));
+  }
+  if (clearServerButton) {
+    clearServerButton.addEventListener('click', () => clearTelegrams('server'));
   }
 }
 
