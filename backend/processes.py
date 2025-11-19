@@ -1,4 +1,9 @@
-"""Worker process implementations for IEC-104 client and server."""
+#   IEC-104-Kommunikationsprozesse
+#
+#   Das Skript übernimmt 2 Aufgaben:
+#       1. Client: Starten, Verbindungen aufbauen, Telegrammen bestätigen, Keep-Alive
+#       2. Server: Starten, auf Verbindungen warten, eingehende Telegramme beantworten, auf GA reagieren
+
 from __future__ import annotations
 
 import select
@@ -18,14 +23,18 @@ from .iec104.protocol import (
     decode_frame,
 )
 
+
+# Wartezeit zwischen neuen Verbindungsversuchen
 RETRY_DELAY = 5.0
+# Intervall für Keep-Alive-U-Frames (in Sekunden)
 KEEPALIVE_INTERVAL = 15.0
 
 
+# Schreibt ein Ereignis in die Queue, die vom Hauptprozess ausgewertet wird
 def _publish_event(queue, event_type: str, payload: Dict) -> None:
     queue.put({"type": event_type, "payload": payload})
 
-
+# Gemeinsame Hilfsfunktion für Client- und Serverprozesse
 class _BaseEndpoint:
     def __init__(
         self,
@@ -49,14 +58,17 @@ class _BaseEndpoint:
         self._last_event_ts = time.time()
         self._event_index = 0
 
+    # gibt die nächste Sendesequenznummer zurück
     def next_sequence(self) -> int:
         value = self._sequence
         self._sequence += 1
         return value
 
+    # Aktualisiert die erwartetet Empfangssequenznummer
     def update_recv_sequence(self, seq: int) -> None:
         self._recv_sequence = seq
 
+    # Erweitert Ereignisse um Metadaten und publiziert sie
     def _publish(self, payload: Dict) -> None:
         timestamp = time.time()
         delta = max(0.0, timestamp - self._last_event_ts)
@@ -73,6 +85,7 @@ class _BaseEndpoint:
         event.update(payload)
         _publish_event(self.queue, "telegram", event)
 
+    # Meldetet Verbindungsstatusänderungen
     def publish_connection_status(self, connected: bool) -> None:
         _publish_event(
             self.queue,
@@ -87,6 +100,7 @@ class _BaseEndpoint:
             },
         )
 
+    # Erzeugt ein protokolliertes TCP-Ereignis
     def publish_tcp(self, label: str, direction: str) -> None:
         self._publish(
             {
@@ -96,6 +110,7 @@ class _BaseEndpoint:
             }
         )
 
+    # Publiziert ein dekodiertes IEC-104-Telegramm
     def publish_frame(self, telegram, direction: str) -> None:
         payload = {
             "frame_family": telegram.frame_family,
@@ -142,6 +157,7 @@ class _BaseEndpoint:
         self._publish(payload)
 
 
+# Initialisiert Client-spezifische Ressourcen
 class IEC104ClientProcess(_BaseEndpoint):
     def __init__(self, queue, settings: ClientSettings, stop_event: MpEvent) -> None:
         super().__init__(
@@ -158,6 +174,7 @@ class IEC104ClientProcess(_BaseEndpoint):
         self._sock: Optional[socket.socket] = None
         self._last_keepalive = 0.0
 
+    # Hauptschleife: Versucht Verbindungen aufzubauen und verarbeitet sie
     def run(self) -> None:
         while not self.stop_event.is_set():
             try:
@@ -176,6 +193,7 @@ class IEC104ClientProcess(_BaseEndpoint):
                 if not self.stop_event.is_set():
                     time.sleep(RETRY_DELAY)
 
+    # Stellt die TCP-verbindung her und sendet STARTDT
     def _connect(self) -> None:
         self._close_socket()
         self._recv_sequence = 0
@@ -193,6 +211,7 @@ class IEC104ClientProcess(_BaseEndpoint):
         self._send_u_frame(0x07, "STARTDT ACT")
         self.publish_connection_status(True)
 
+    # Schließt die Socket-Verbindung sicher 
     def _close_socket(self, publish_reset: bool = False) -> None:
         had_socket = self._sock is not None
         if self._sock:
@@ -204,21 +223,25 @@ class IEC104ClientProcess(_BaseEndpoint):
         if publish_reset and had_socket:
             self.publish_tcp("RST ACK", "outgoing")
 
+    # Sendet rohen Payload über den aktiven Socket
     def _send(self, payload: bytes) -> None:
         if not self._sock:
             raise RuntimeError("Socket not connected")
         self._sock.sendall(payload)
 
+    # Sendet einen U-Frame und protokolliert ihn
     def _send_u_frame(self, command: int, label: str) -> None:
         payload = build_u_frame(command)
         self._send(payload)
         self.publish_custom("U", label, "outgoing")
 
+    # Sendet einen S-Frame als Quittung
     def _send_s_frame(self) -> None:
         payload = build_s_frame(self._recv_sequence)
         self._send(payload)
         self.publish_custom("S", "S-FRAME", "outgoing")
 
+    # Verarbeitet eingehende Daten und reagiert auf Keep-Alive-Zeitüberschreitungen
     def _loop(self) -> None:
         if not self._sock:
             return
@@ -249,6 +272,7 @@ class IEC104ClientProcess(_BaseEndpoint):
         self.publish_connection_status(False)
 
 
+# Serverprozess, der IEC-104-Verbindungen entgegen nimmt
 class IEC104ServerProcess(_BaseEndpoint):
     def __init__(self, queue, settings: ServerSettings, stop_event: MpEvent) -> None:
         super().__init__(
@@ -264,6 +288,7 @@ class IEC104ServerProcess(_BaseEndpoint):
         self._parser = FrameParser()
         self._send_sequence = 0
 
+    # Startet einen TCP-Listener und bearbeitet eingehende Verbindungen
     def run(self) -> None:
         while not self.stop_event.is_set():
             with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as server:
@@ -281,6 +306,7 @@ class IEC104ServerProcess(_BaseEndpoint):
                     if self.stop_event.is_set():
                         break
 
+    # Verarbeitet eine einzelne Client-Verbindung
     def _handle_connection(self, conn: socket.socket, addr) -> None:
         self._recv_sequence = 0
         self._send_sequence = 0
@@ -320,16 +346,19 @@ class IEC104ServerProcess(_BaseEndpoint):
             self.publish_tcp("RST ACK", "outgoing")
         self.publish_connection_status(False)
 
+    # Hilfsfunktion zum Versenden eines U-Frames
     def _send_u_frame(self, conn: socket.socket, command: int, label: str) -> None:
         payload = build_u_frame(command)
         conn.sendall(payload)
         self.publish_custom("U", label, "outgoing")
 
+    # Hilfsfunktion zum Versenden eines S-Frames
     def _send_s_frame(self, conn: socket.socket) -> None:
         payload = build_s_frame(self._recv_sequence)
         conn.sendall(payload)
         self.publish_custom("S", "S-FRAME", "outgoing")
 
+    # Antwortet auf eine Generalabfrage mit GENERALABFRAGE CON und END
     def _send_general_interrogation_response(self, conn: socket.socket) -> None:
         for cot in (7, 10):
             frame = build_i_frame(
@@ -357,11 +386,13 @@ class IEC104ServerProcess(_BaseEndpoint):
             self._send_sequence += 1
 
 
+# Startet den Client
 def run_client_process(queue, stop_event: MpEvent) -> None:
     settings = load_client_settings()
     IEC104ClientProcess(queue, settings, stop_event).run()
 
 
+# Startet den Server
 def run_server_process(queue, stop_event: MpEvent) -> None:
     settings = load_server_settings()
     IEC104ServerProcess(queue, settings, stop_event).run()
