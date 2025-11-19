@@ -7,8 +7,6 @@ const TELEGRAM_SIDES = ['client', 'server'];
 const VIEW_OPTIONS = TELEGRAM_SIDES.reduce((acc, side) => {
   acc[side] = {
     detailMode: 'expanded',
-    autoScrollMode: 'auto',
-    autoScrollPaused: false,
   };
   return acc;
 }, {});
@@ -52,11 +50,6 @@ function isNearBottom(container) {
   return distance <= SCROLL_TOLERANCE;
 }
 
-function shouldAutoScroll(side) {
-  const state = VIEW_OPTIONS[side];
-  return Boolean(state && state.autoScrollMode === 'auto' && !state.autoScrollPaused);
-}
-
 function applyDetailMode(side) {
   const container = getFeedElement(side);
   if (!container || !VIEW_OPTIONS[side]) {
@@ -75,48 +68,6 @@ function setDetailMode(side, mode) {
   }
   VIEW_OPTIONS[side].detailMode = mode;
   applyDetailMode(side);
-}
-
-function updateAutoScrollPauseFromPosition(side) {
-  const container = getFeedElement(side);
-  const state = VIEW_OPTIONS[side];
-  if (!container || !state) {
-    return;
-  }
-  state.autoScrollPaused = !isNearBottom(container);
-  if (!state.autoScrollPaused) {
-    container.scrollTop = container.scrollHeight;
-  }
-}
-
-function setAutoScrollMode(side, mode) {
-  const state = VIEW_OPTIONS[side];
-  if (!state || (mode !== 'auto' && mode !== 'manual')) {
-    return;
-  }
-  if (state.autoScrollMode === mode) {
-    if (mode === 'auto') {
-      updateAutoScrollPauseFromPosition(side);
-    }
-    return;
-  }
-  state.autoScrollMode = mode;
-  state.autoScrollPaused = false;
-  if (mode === 'auto') {
-    updateAutoScrollPauseFromPosition(side);
-  }
-}
-
-function handleFeedScroll(side) {
-  const state = VIEW_OPTIONS[side];
-  if (!state || state.autoScrollMode !== 'auto') {
-    return;
-  }
-  const container = getFeedElement(side);
-  if (!container) {
-    return;
-  }
-  state.autoScrollPaused = !isNearBottom(container);
 }
 
 function formatListeningIp(statusInfo) {
@@ -263,9 +214,10 @@ function appendTelegram(side, telegram) {
   if (!container) {
     return;
   }
+  const shouldStickToBottom = isNearBottom(container);
   removeEmptyState(container);
   container.appendChild(createTelegramElement(telegram));
-  if (shouldAutoScroll(side)) {
+  if (shouldStickToBottom) {
     container.scrollTop = container.scrollHeight;
   }
 }
@@ -287,9 +239,6 @@ function resetTelegrams(side) {
   TELEGRAM_STATE[side] = [];
   container.innerHTML = '';
   addEmptyState(container);
-  if (VIEW_OPTIONS[side]) {
-    VIEW_OPTIONS[side].autoScrollPaused = false;
-  }
   applyDetailMode(side);
 }
 
@@ -331,12 +280,6 @@ function handleMenuOption(side, option) {
       break;
     case 'expand-details':
       setDetailMode(side, 'expanded');
-      break;
-    case 'auto-scroll':
-      setAutoScrollMode(side, 'auto');
-      break;
-    case 'manual-scroll':
-      setAutoScrollMode(side, 'manual');
       break;
     default:
       break;
@@ -387,7 +330,6 @@ function bindFeedInteractions() {
       return;
     }
     applyDetailMode(side);
-    container.addEventListener('scroll', () => handleFeedScroll(side));
   });
 }
 
