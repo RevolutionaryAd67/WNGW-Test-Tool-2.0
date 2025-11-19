@@ -24,6 +24,8 @@ REQUIRED_SIGNAL_HEADERS = {
     "IEC104- Typ",
 }
 
+DEFAULT_HISTORY_LIMIT = 3000
+
 
 def create_app() -> Flask:
     app = Flask(
@@ -478,7 +480,14 @@ def create_app() -> Flask:
 
     @app.get("/api/backend/history")
     def api_history():
-        history = backend_controller.history.load_all()
+        raw_limit = request.args.get("limit", type=int)
+        if raw_limit is None:
+            limit = DEFAULT_HISTORY_LIMIT
+        elif raw_limit <= 0:
+            limit = None
+        else:
+            limit = raw_limit
+        history = backend_controller.history.load_all(limit=limit)
         return jsonify(history)
 
     @app.get("/api/backend/status")
