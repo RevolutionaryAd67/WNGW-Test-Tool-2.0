@@ -1,0 +1,66 @@
+.configurator--starter {
+    min-height: 70vh;
+}
+
+.starter-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 1rem;
+    flex-wrap: wrap;
+}
+
+.starter-header__title h2 {
+    margin: 0;
+}
+
+.starter-header__actions {
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+    margin-left: auto;
+}
+
+.monitoring-button {
+    background-color: #0078d4;
+    color: #fff;
+    border: none;
+    border-radius: 999px;
+    padding: 0.45rem 1.6rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.2s ease-in-out;
+}
+
+.monitoring-button--secondary {
+    background-color: #e7ecf3;
+    color: #0b2548;
+}
+
+.monitoring-button--danger {
+    background-color: #c53030;
+}
+
+.monitoring-button--secondary:hover:not(:disabled),
+.monitoring-button--secondary:focus-visible:not(:disabled) {
+    background-color: #d7e0ec;
+}
+
+.monitoring-button--danger:hover:not(:disabled),
+.monitoring-button--danger:focus-visible:not(:disabled) {
+    background-color: #9b1c1c;
+}
+
+.monitoring-button:disabled {
+    opacity: 0.6;
+    cursor: wait;
+}
+
+.monitoring-button:hover:not(:disabled),
+.monitoring-button:focus-visible:not(:disabled) {
+    background-color: #005ea8;
+}
+
+.ablauf-table__status {
+    color: rgba(0, 0, 0, 0.65);
+}
