@@ -36,6 +36,35 @@ const DIRECTION_ARROW = {
   outgoing: '&rarr;',
 };
 
+const CAUSE_MEANINGS = {
+  1: 'Zyklisch',
+  2: 'Hintergrundabfrage',
+  3: 'Spontan',
+  4: 'Initialisiert',
+  6: 'Aktivierung',
+  7: 'Bestätigung der Aktivierung',
+  8: 'Abbruch der Aktivierung',
+  9: 'Bestätigung des Abbruchs der Aktivierung',
+  10: 'Beendigung der Aktivierung',
+  11: 'Rückmeldung verursacht durch Fernbefehl',
+  12: 'Rückmeldung verursacht durch örtlichen Befehl',
+  20: 'Generalabfrage',
+};
+
+const ORIGINATOR_MEANINGS = {
+  0: 'Herkunftsadresse nicht vorhanden',
+  10: 'Fernsteuerung von Verteilnetz-Anlagen',
+  11: 'Steuerung von Kundenanlagen',
+  12: 'Fernsteuerung von Verteilnetz-Anlagen',
+  13: 'Fernsteuerung von Verteilnetz-Anlagen',
+  14: 'Fernsteuerung von Verteilnetz-Anlagen',
+  15: 'Niederspannungsmessung',
+  16: 'Fernsteuerung von Verteilnetz-Anlagen',
+  17: 'Fernsteuerung von Verteilnetz-Anlagen',
+  18: 'Fernsteuerung von Verteilnetz-Anlagen',
+  19: 'Fernsteuerung von Verteilnetz-Anlagen',
+};
+
 let eventSource = null;
 
 function getFeedElement(side) {
@@ -191,10 +220,14 @@ function createTelegramElement(telegram) {
   details.appendChild(createLine('Typ', typeValue.trim()));
 
   if (telegram.frameFamily === 'I' && typeof telegram.cause === 'number') {
-    details.appendChild(createLine('Ursache', String(telegram.cause)));
+    const meaning = CAUSE_MEANINGS[telegram.cause];
+    const causeText = meaning ? `${telegram.cause} (${meaning})` : String(telegram.cause);
+    details.appendChild(createLine('Ursache', causeText));
   }
   if (telegram.frameFamily === 'I' && typeof telegram.originator === 'number') {
-    details.appendChild(createLine('Herkunft', String(telegram.originator)));
+    const meaning = ORIGINATOR_MEANINGS[telegram.originator];
+    const originatorText = meaning ? `${telegram.originator} (${meaning})` : String(telegram.originator);
+    details.appendChild(createLine('Herkunft', originatorText));
   }
   if (telegram.frameFamily === 'I' && typeof telegram.station === 'number') {
     details.appendChild(createLine('Station', String(telegram.station)));
