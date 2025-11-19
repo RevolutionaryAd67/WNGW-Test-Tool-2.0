@@ -84,7 +84,7 @@
     flex: 1 1 300px;
     display: flex;
     flex-direction: column;
-    gap: 1.25rem;
+    gap: 2rem;
 }
 
 .configurator__title {
@@ -196,7 +196,7 @@
 }
 
 .config-box__body {
-    padding: 1.25rem;
+    padding: 0 1.25rem 1.25rem;
 }
 
 .add-step {
