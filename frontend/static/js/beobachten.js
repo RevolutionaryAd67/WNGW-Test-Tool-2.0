@@ -23,6 +23,9 @@ const STATUS_MESSAGES = {
     inactive: 'Server ist nicht aktiv',
   },
 };
+const CONNECTING_STATUS_MESSAGE = 'Kommunikation wird aufgebaut';
+const CONNECTING_TIMEOUT_MS = 30000;
+const pendingStatusTimers = {};
 
 const FRAME_LABELS = {
   I: 'I-Format',
@@ -112,12 +115,50 @@ function formatListeningIp(statusInfo) {
   return '';
 }
 
+function getMonitoringStatusElement(side) {
+  return document.querySelector(`.monitoring-status[data-status="${side}"]`);
+}
+
+function setNeutralMonitoringStatus(statusEl, text) {
+  if (!statusEl) {
+    return;
+  }
+  statusEl.textContent = text;
+  statusEl.classList.remove('monitoring-status--active', 'monitoring-status--inactive');
+}
+
+function clearPendingStatus(side) {
+  if (!pendingStatusTimers[side]) {
+    return;
+  }
+  clearTimeout(pendingStatusTimers[side]);
+  pendingStatusTimers[side] = null;
+}
+
+function showConnectingStatus(side) {
+  const statusEl = getMonitoringStatusElement(side);
+  if (!statusEl) {
+    return;
+  }
+  clearPendingStatus(side);
+  setNeutralMonitoringStatus(statusEl, CONNECTING_STATUS_MESSAGE);
+  pendingStatusTimers[side] = setTimeout(() => {
+    pendingStatusTimers[side] = null;
+    updateConnectionIndicator(side, null);
+  }, CONNECTING_TIMEOUT_MS);
+}
+
 function updateConnectionIndicator(side, statusInfo) {
-  const status = document.querySelector(`.monitoring-status[data-status="${side}"]`);
+  const status = getMonitoringStatusElement(side);
   if (!status) {
     return;
   }
   const isActive = Boolean(statusInfo && statusInfo.connected);
+  if (isActive) {
+    clearPendingStatus(side);
+  } else if (pendingStatusTimers[side]) {
+    return;
+  }
   const labels = STATUS_MESSAGES[side] || {};
   const activeText = labels.active || 'Aktiv';
   const inactiveText = labels.inactive || 'Nicht aktiv';
@@ -479,7 +520,10 @@ function bindControls() {
     clientButton.addEventListener('click', () => startComponent('client'));
   }
   if (serverButton) {
-    serverButton.addEventListener('click', () => startComponent('server'));
+    serverButton.addEventListener('click', () => {
+      showConnectingStatus('server');
+      startComponent('server');
+    });
   }
   if (stopClientButton) {
     stopClientButton.addEventListener('click', () => stopComponent('client'));
