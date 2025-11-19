@@ -80,8 +80,18 @@
     align-items: flex-start;
 }
 
-.configurator__name-field {
+.configurator__title-group {
     flex: 1 1 300px;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.configurator__title {
+    margin: 0;
+}
+
+.configurator__name-field {
     display: flex;
     flex-direction: column;
     gap: 0.5rem;
