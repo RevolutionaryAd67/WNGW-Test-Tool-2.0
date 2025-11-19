@@ -1,4 +1,10 @@
-"""Utilities for persisting and loading communication history."""
+#   Kommunikationsverlauf in JSON-Datei speichern
+#
+#   Aufgaben des Skripts
+#       1. Verwaltet das Dateiverzeichnis, in dem Kommunikationsverläufe getrennt nach Client und Server gespeichert werden
+#       2. Speichert neue Telegramme als JSON-Zeile in die entsprechende Datei
+#       3. Lädt und bereinigt die Daten in den Dateien
+
 from __future__ import annotations
 
 import json
@@ -8,22 +14,24 @@ from collections import deque
 from typing import Dict, List, Optional
 
 
+# Funktionen, um Telegramme in JSON-Dateien zu speichern
 class CommunicationHistory:
-    """Store telegram payloads per side inside JSONL files."""
-
+    
+    # Erzeugt das Wurzelverzeichnis, falls es nicht existiert
     def __init__(self, base_dir: Path | str) -> None:
         self.base_dir = Path(base_dir)
         self.base_dir.mkdir(parents=True, exist_ok=True)
         self._lock = threading.Lock()
         self._valid_sides = {"client", "server"}
 
+    # Jede Seite besitzt ihre eigene JSONL-Datei (client.jsonl und server.jsonl)
     def _file_for(self, side: str) -> Path:
         if side not in self._valid_sides:
             raise ValueError(f"Unknown history side: {side}")
         return self.base_dir / f"{side}.jsonl"
 
+    # Nur Telegram-Ereignisse mit valider Seitenangabe werden akzeptiert
     def record(self, event: Dict) -> None:
-        """Persist a telegram event to the corresponding history file."""
         if not isinstance(event, dict) or event.get("type") != "telegram":
             return
         payload = event.get("payload")
@@ -38,14 +46,8 @@ class CommunicationHistory:
             with file_path.open("a", encoding="utf-8") as handle:
                 handle.write(line + "\n")
 
+    # Telegramme aus den JSON-Dateien lesen
     def load(self, side: str, limit: Optional[int] = None) -> List[Dict]:
-        """Load the stored telegrams for a given side.
-
-        Args:
-            side: Which history file to load ("client" or "server").
-            limit: Optional maximum amount of telegrams to return. When set,
-                only the newest entries up to the given limit are returned.
-        """
         file_path = self._file_for(side)
         if not file_path.exists():
             return []
@@ -68,16 +70,15 @@ class CommunicationHistory:
                 continue
         return entries
 
+    # Telegramme aus den JSON-Dateien mit optionalem Limi zurückgeben
     def load_all(self, limit: Optional[int] = None) -> Dict[str, List[Dict]]:
-        """Return the history for all sides respecting the optional limit."""
         return {
             side: self.load(side, limit=limit)
             for side in sorted(self._valid_sides)
         }
 
+    # Alle Telegramme aus einer JSON-Datei entfernen
     def clear(self, side: str) -> None:
-        """Remove all entries for the given side."""
         file_path = self._file_for(side)
         with self._lock:
             file_path.write_text("", encoding="utf-8")
-
