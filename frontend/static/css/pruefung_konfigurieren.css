@@ -214,6 +214,10 @@
     table-layout: fixed;
 }
 
+.ablauf-table {
+    table-layout: auto;
+}
+
 .add-step__table {
     min-width: 450px;
 }
@@ -286,10 +290,16 @@
     color: rgba(0, 0, 0, 0.5);
 }
 
+.ablauf-table th:last-child,
 .ablauf-table td:last-child {
-    display: flex;
+    width: 1%;
+    white-space: nowrap;
+}
+
+.ablauf-table__actions {
+    display: inline-flex;
     align-items: center;
-    gap: 2.0rem;
+    gap: 2rem;
 }
 
 .icon-button {
