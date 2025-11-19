@@ -1,8 +1,10 @@
 .configurator {
     display: flex;
     gap: 1.5rem;
-    height: 100%;
-    min-height: 0;
+    /* Allow the white cards to expand together with their content */
+    height: auto;
+    min-height: 100%;
+    align-items: flex-start;
 }
 
 .configurator__sidebar {
@@ -142,6 +144,8 @@
     border: 1px solid var(--border-color);
     border-radius: 1rem;
     overflow: hidden;
+    /* Allow the box to grow with its content instead of shrinking in the flex column */
+    flex: 0 0 auto;
 }
 
 .config-box__header {
