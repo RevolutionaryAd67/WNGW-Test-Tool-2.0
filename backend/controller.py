@@ -1,3 +1,5 @@
+# 
+
 """Controller for launching IEC-104 client and server worker processes."""
 from __future__ import annotations
 
@@ -15,6 +17,7 @@ from .history import CommunicationHistory
 from .processes import run_client_process, run_server_process
 
 
+# Hält Referenzen auf alle Ressourcen, die zu einem Worker gehören
 @dataclass
 class _ManagedProcess:
     process: mp.Process
@@ -23,9 +26,11 @@ class _ManagedProcess:
     stop_event: MpEvent
 
 
+# Koordiniert backend client/server-worker Prozesse und Event-Streaming
 class BackendController:
-    """Coordinates backend client/server worker processes and event streaming."""
 
+    # Erstellt EventBus als zentrale Event-Verteilstation
+    # Erstellt die Kommunikationshistorie im Ordner data/beobachten/
     def __init__(self) -> None:
         self.event_bus = EventBus()
         self._client: Optional[_ManagedProcess] = None
@@ -44,6 +49,7 @@ class BackendController:
         }
         atexit.register(self.shutdown)
 
+    # Hifsfunktion, um Worker-Prozess (Client oder Server) zu starten
     def _start_process(self, target, label: str) -> bool:
         existing = getattr(self, label)
         if existing and existing.process.is_alive():
@@ -59,6 +65,7 @@ class BackendController:
         setattr(self, label, _ManagedProcess(process, queue, listener, stop_event))
         return True
 
+    # Hilfsfunktion, um einen Worker-Prozess (Client oder Server) zu beenden
     def _stop_process(self, label: str) -> bool:
         managed = getattr(self, label)
         if not managed:
@@ -81,31 +88,33 @@ class BackendController:
             self._update_connection_state({"side": "server", "connected": False})
         return is_alive
 
+    # API, um IEC-104-Client zu starten
     def start_client(self) -> bool:
-        """Start the IEC-104 client worker if not already running."""
         return self._start_process(run_client_process, "_client")
 
+    # API, um den IEC-104-Server zu starten
     def start_server(self) -> bool:
-        """Start the IEC-104 server worker if not already running."""
         return self._start_process(run_server_process, "_server")
 
+    # API, um den IEC-104-Client zu stoppen
     def stop_client(self) -> bool:
-        """Stop the IEC-104 client worker if running."""
         return self._stop_process("_client")
 
+    # API, um den IEC-104-Server zu stoppen
     def stop_server(self) -> bool:
-        """Stop the IEC-104 server worker if running."""
         return self._stop_process("_server")
 
-    # properties for compatibility
+    # Stellt den Client lesend zur Verfügung
     @property
     def client_process(self) -> Optional[_ManagedProcess]:
         return self._client
 
+    # Stellt den Server lesend zur Verfügung 
     @property
     def server_process(self) -> Optional[_ManagedProcess]:
         return self._server
 
+    # Hintergrund-Thread liest Meldungen aus der Queue des Prozesses und verteilt sie
     def _drain_queue(self, queue: mp.Queue) -> None:
         while True:
             try:
@@ -122,10 +131,12 @@ class BackendController:
                 self.history.record(data)
                 self.event_bus.publish(data)
 
+    # Stoppt beide Prozesse (Client und Server)
     def shutdown(self) -> None:
         for label in ("_client", "_server"):
             self._stop_process(label)
 
+    # Hilfsfunktion zur Pflege des Verbindungsstatus für client oder server
     def _update_connection_state(self, payload: Dict[str, Any]) -> None:
         side = payload.get("side")
         if side not in self._connection_state:
@@ -142,6 +153,7 @@ class BackendController:
                 state["local_endpoint"] = None
                 state["remote_endpoint"] = None
 
+    # API: Stellt den aktuellen Verbindungsstatus von Client und Server nach außen zur Verfügung
     def get_connection_status(self) -> Dict[str, Dict[str, Any]]:
         with self._status_lock:
             return {side: state.copy() for side, state in self._connection_state.items()}
