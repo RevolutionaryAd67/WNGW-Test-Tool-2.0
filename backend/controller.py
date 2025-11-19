@@ -1,6 +1,9 @@
+#   Stellt eine API zum Starten und Beenden von Client- und Server-Prozessen bereit
 # 
+#   Aufgaben des Skripts:
+#       1. Stellt API zum Starten und Beenden von Client und Server
+#       2. Stellt Hilfsfunktionen zur Veröffentlichung des Verbindungsstatus von Client und Server
 
-"""Controller for launching IEC-104 client and server worker processes."""
 from __future__ import annotations
 
 import atexit
