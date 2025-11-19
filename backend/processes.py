@@ -1,6 +1,6 @@
 #   IEC-104-Kommunikationsprozesse
 #
-#   Das Skript übernimmt 2 Aufgaben:
+#   Aufgaben des Skripts:
 #       1. Client: Starten, Verbindungen aufbauen, Telegrammen bestätigen, Keep-Alive
 #       2. Server: Starten, auf Verbindungen warten, eingehende Telegramme beantworten, auf GA reagieren
 
