@@ -87,7 +87,7 @@
             emptyRow.className = 'ablauf-table__empty';
             const cell = document.createElement('td');
             cell.colSpan = 4;
-            cell.textContent = 'Noch keine Teilprüfung hinzugefügt.';
+            cell.textContent = '/';
             emptyRow.appendChild(cell);
             tbody.appendChild(emptyRow);
         } else {
