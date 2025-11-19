@@ -145,7 +145,6 @@
 }
 
 .config-box__header {
-    background: rgba(0, 0, 0, 0.03);
     padding: 1rem 1.25rem;
 }
 
@@ -160,22 +159,49 @@
     flex-wrap: wrap;
 }
 
-.add-step__table {
+.add-step__table,
+.ablauf-table {
+    width: 100%;
     border-collapse: collapse;
+    font-size: 0.95rem;
+    table-layout: fixed;
+}
+
+.add-step__table {
     min-width: 450px;
 }
 
 .add-step__table th,
-.add-step__table td {
-    border: 1px solid var(--border-color);
+.add-step__table td,
+.ablauf-table th,
+.ablauf-table td {
+    border: 1px solid #e0e0e0;
     padding: 0.75rem;
-    font-size: 0.95rem;
+    vertical-align: middle;
+    overflow-wrap: anywhere;
+}
+
+.add-step__table thead th,
+.ablauf-table thead th {
+    background-color: #f4f4f4;
+    font-weight: 600;
+    text-align: left;
+}
+
+.add-step__table th:first-child,
+.add-step__table td:first-child {
+    width: 60px;
+    text-align: center;
 }
 
 .add-step__index {
-    text-align: center;
     font-weight: 600;
+}
+
+.ablauf-table th:first-child,
+.ablauf-table td:first-child {
     width: 60px;
+    text-align: center;
 }
 
 .add-step__note {
@@ -206,18 +232,6 @@
 
 .table-wrapper {
     overflow-x: auto;
-}
-
-.ablauf-table {
-    width: 100%;
-    border-collapse: collapse;
-}
-
-.ablauf-table th,
-.ablauf-table td {
-    border: 1px solid var(--border-color);
-    padding: 0.75rem;
-    text-align: left;
 }
 
 .ablauf-table__empty td {
