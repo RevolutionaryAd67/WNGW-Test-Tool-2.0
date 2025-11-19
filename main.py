@@ -1,8 +1,12 @@
 from __future__ import annotations
 
+import io
 import json
+import uuid
+import zipfile
 from pathlib import Path
 from typing import Any, Dict, List
+from xml.etree import ElementTree as ET
 
 from flask import Flask, Response, jsonify, render_template, request, send_from_directory
 from jinja2 import ChoiceLoader, FileSystemLoader
@@ -10,6 +14,15 @@ from jinja2 import ChoiceLoader, FileSystemLoader
 from backend import backend_controller
 
 DATA_DIR = Path("data")
+CONFIG_DIR = DATA_DIR / "pruefungskonfigurationen"
+EXCEL_NAMESPACE = "{http://schemas.openxmlformats.org/spreadsheetml/2006/main}"
+REQUIRED_SIGNAL_HEADERS = {
+    "Datenpunkt / Meldetext",
+    "IOA 3",
+    "IOA 2",
+    "IOA 1",
+    "IEC104- Typ",
+}
 
 
 def create_app() -> Flask:
@@ -101,6 +114,180 @@ def create_app() -> Flask:
                 pass
         return defaults
 
+    def _configurations_directory() -> Path:
+        CONFIG_DIR.mkdir(parents=True, exist_ok=True)
+        return CONFIG_DIR
+
+    def _configuration_file_path(config_id: str) -> Path:
+        directory = _configurations_directory()
+        safe_id = Path(config_id).name
+        file_path = (directory / f"{safe_id}.json").resolve()
+        if not str(file_path).startswith(str(directory.resolve())):
+            raise ValueError("Ungültiger Konfigurationspfad")
+        return file_path
+
+    def _list_configurations() -> List[Dict[str, str]]:
+        configurations: List[Dict[str, str]] = []
+        directory = _configurations_directory()
+        for file in directory.glob("*.json"):
+            try:
+                data = json.loads(file.read_text(encoding="utf-8"))
+            except json.JSONDecodeError:
+                continue
+            config_id = data.get("id") or file.stem
+            configurations.append({
+                "id": config_id,
+                "name": data.get("name", "Unbenannte Prüfung"),
+            })
+        return configurations
+
+    def _load_configuration(config_id: str) -> Dict[str, Any]:
+        file_path = _configuration_file_path(config_id)
+        if not file_path.exists():
+            raise FileNotFoundError
+        data = json.loads(file_path.read_text(encoding="utf-8"))
+        data["id"] = data.get("id") or config_id
+        teilpruefungen = data.get("teilpruefungen")
+        if isinstance(teilpruefungen, list):
+            for index, teil in enumerate(teilpruefungen, start=1):
+                teil["index"] = index
+        else:
+            data["teilpruefungen"] = []
+        return data
+
+    def _column_index(cell_ref: str) -> int:
+        letters = "".join(ch for ch in cell_ref if ch.isalpha())
+        result = 0
+        for char in letters:
+            result = result * 26 + (ord(char.upper()) - 64)
+        return result
+
+    def _load_shared_strings(zf: zipfile.ZipFile) -> List[str]:
+        if "xl/sharedStrings.xml" not in zf.namelist():
+            return []
+        with zf.open("xl/sharedStrings.xml") as shared_file:
+            root = ET.parse(shared_file).getroot()
+        strings: List[str] = []
+        for si in root.findall(f"{EXCEL_NAMESPACE}si"):
+            parts = [t.text or "" for t in si.findall(f".//{EXCEL_NAMESPACE}t")]
+            strings.append("".join(parts))
+        return strings
+
+    def _read_sheet_rows(zf: zipfile.ZipFile, sheet_name: str, shared_strings: List[str]) -> List[Dict[int, str]]:
+        with zf.open(sheet_name) as sheet_file:
+            root = ET.parse(sheet_file).getroot()
+        sheet_data = root.find(f"{EXCEL_NAMESPACE}sheetData")
+        rows: List[Dict[int, str]] = []
+        if sheet_data is None:
+            return rows
+        for row in sheet_data.findall(f"{EXCEL_NAMESPACE}row"):
+            row_values: Dict[int, str] = {}
+            for cell in row.findall(f"{EXCEL_NAMESPACE}c"):
+                ref = cell.attrib.get("r")
+                if not ref:
+                    continue
+                col_index = _column_index(ref)
+                cell_type = cell.attrib.get("t")
+                value = ""
+                if cell_type == "s":
+                    value_node = cell.find(f"{EXCEL_NAMESPACE}v")
+                    if value_node is not None and value_node.text is not None:
+                        shared_index = int(value_node.text)
+                        if 0 <= shared_index < len(shared_strings):
+                            value = shared_strings[shared_index]
+                elif cell_type == "inlineStr":
+                    text_parts = [t.text or "" for t in cell.findall(f".//{EXCEL_NAMESPACE}t")]
+                    value = "".join(text_parts)
+                else:
+                    value_node = cell.find(f"{EXCEL_NAMESPACE}v")
+                    if value_node is not None and value_node.text is not None:
+                        value = value_node.text
+                row_values[col_index] = value
+            rows.append(row_values)
+        return rows
+
+    def _parse_excel_table(file_bytes: bytes) -> Dict[str, Any]:
+        try:
+            with zipfile.ZipFile(io.BytesIO(file_bytes)) as zf:
+                sheet_names = sorted(
+                    name
+                    for name in zf.namelist()
+                    if name.startswith("xl/worksheets/sheet") and name.endswith(".xml")
+                )
+                if not sheet_names:
+                    raise ValueError("Keine Tabellenblätter gefunden.")
+                shared_strings = _load_shared_strings(zf)
+                rows = _read_sheet_rows(zf, sheet_names[0], shared_strings)
+        except zipfile.BadZipFile as exc:
+            raise ValueError("Die Datei ist keine gültige Excel-Datei.") from exc
+        headers: List[str] = []
+        parsed_rows: List[Dict[str, str]] = []
+        for row_index, row_values in enumerate(rows, start=1):
+            if row_index == 1:
+                max_col = max(row_values.keys(), default=0)
+                headers = [str(row_values.get(col, "")).strip() for col in range(1, max_col + 1)]
+            else:
+                if not headers:
+                    break
+                entry: Dict[str, str] = {}
+                non_empty = False
+                for col_offset, header in enumerate(headers, start=1):
+                    value = row_values.get(col_offset, "")
+                    text_value = "" if value is None else str(value)
+                    if text_value:
+                        non_empty = True
+                    entry[header] = text_value
+                if non_empty:
+                    parsed_rows.append(entry)
+        return {"headers": headers, "rows": parsed_rows}
+
+    def _validate_signal_headers(headers: List[str]) -> List[str]:
+        available = set(headers)
+        return sorted(header for header in REQUIRED_SIGNAL_HEADERS if header not in available)
+
+    def _store_configuration(payload: Dict[str, Any]) -> Dict[str, Any]:
+        name = (payload.get("name") or "").strip()
+        if not name:
+            raise ValueError("Ein Name für die Prüfung ist erforderlich.")
+        teilpruefungen = payload.get("teilpruefungen")
+        if not isinstance(teilpruefungen, list):
+            teilpruefungen = []
+        normalized: List[Dict[str, Any]] = []
+        for index, teil in enumerate(teilpruefungen, start=1):
+            pruefungsart = teil.get("pruefungsart")
+            signalliste = teil.get("signalliste")
+            if not pruefungsart or not isinstance(signalliste, dict):
+                continue
+            headers = signalliste.get("headers") or []
+            missing = _validate_signal_headers(headers)
+            if missing:
+                raise ValueError(
+                    f"Signalliste '{signalliste.get('filename', 'Unbenannt')}' fehlt: {', '.join(missing)}"
+                )
+            rows_data = signalliste.get("rows")
+            if not isinstance(rows_data, list):
+                rows_data = []
+            normalized.append(
+                {
+                    "index": index,
+                    "pruefungsart": pruefungsart,
+                    "signalliste": {
+                        "filename": signalliste.get("filename", ""),
+                        "headers": headers,
+                        "rows": rows_data,
+                    },
+                }
+            )
+        config_id = payload.get("id") or uuid.uuid4().hex
+        file_path = _configuration_file_path(config_id)
+        data = {
+            "id": config_id,
+            "name": name,
+            "teilpruefungen": normalized,
+        }
+        file_path.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
+        return data
+
     @app.context_processor
     def inject_input_box_helpers():
         return {
@@ -138,7 +325,14 @@ def create_app() -> Flask:
 
     @app.route("/pruefung/konfigurieren")
     def pruefung_konfigurieren():
-        return render_page("pruefung_konfigurieren", "pruefung_konfigurieren")
+        page = pages.get("pruefung_konfigurieren", {})
+        return render_template(
+            "pruefung_konfigurieren.html",
+            title=page.get("heading", "WNGW"),
+            heading=page.get("heading", ""),
+            description=page.get("description", ""),
+            active_page="pruefung_konfigurieren",
+        )
 
     @app.route("/pruefung/protokolle")
     def pruefprotokolle():
@@ -193,6 +387,70 @@ def create_app() -> Flask:
     @app.route("/components/<path:filename>")
     def component_asset(filename: str):
         return send_from_directory("frontend/components", filename)
+
+    @app.get("/api/pruefungskonfigurationen")
+    def api_list_configurations():
+        configs = sorted(
+            _list_configurations(), key=lambda item: item.get("name", "").lower()
+        )
+        return jsonify({"configurations": configs})
+
+    @app.get("/api/pruefungskonfigurationen/<config_id>")
+    def api_get_configuration(config_id: str):
+        try:
+            configuration = _load_configuration(config_id)
+        except FileNotFoundError:
+            return jsonify({"status": "error", "message": "Konfiguration nicht gefunden."}), 404
+        except ValueError:
+            return jsonify({"status": "error", "message": "Ungültige Konfiguration."}), 400
+        return jsonify({"configuration": configuration})
+
+    @app.post("/api/pruefungskonfigurationen")
+    def api_save_configuration():
+        payload = request.get_json(silent=True) or {}
+        try:
+            configuration = _store_configuration(payload)
+        except ValueError as exc:
+            return jsonify({"status": "error", "message": str(exc)}), 400
+        return jsonify({"status": "success", "configuration": configuration})
+
+    @app.delete("/api/pruefungskonfigurationen/<config_id>")
+    def api_delete_configuration(config_id: str):
+        try:
+            file_path = _configuration_file_path(config_id)
+        except ValueError:
+            return jsonify({"status": "error", "message": "Ungültige Konfiguration."}), 400
+        if not file_path.exists():
+            return jsonify({"status": "error", "message": "Konfiguration nicht gefunden."}), 404
+        file_path.unlink()
+        return jsonify({"status": "success"})
+
+    @app.post("/api/pruefungskonfigurationen/signalliste")
+    def api_upload_signalliste():
+        file = request.files.get("signalliste")
+        if file is None or file.filename == "":
+            return jsonify({"status": "error", "message": "Keine Datei ausgewählt."}), 400
+        filename = file.filename
+        if not filename.lower().endswith(".xlsx"):
+            return jsonify({"status": "error", "message": "Es werden nur .xlsx-Dateien unterstützt."}), 400
+        file_bytes = file.read()
+        try:
+            parsed = _parse_excel_table(file_bytes)
+        except ValueError as exc:
+            return jsonify({"status": "error", "message": str(exc)}), 400
+        missing = _validate_signal_headers(parsed.get("headers", []))
+        if missing:
+            return (
+                jsonify(
+                    {
+                        "status": "error",
+                        "message": "Signalliste unvollständig: " + ", ".join(missing),
+                    }
+                ),
+                400,
+            )
+        parsed["filename"] = filename
+        return jsonify(parsed)
 
     @app.post("/api/backend/client/start")
     def api_start_client():
