@@ -286,12 +286,17 @@
     color: rgba(0, 0, 0, 0.5);
 }
 
+.ablauf-table td:last-child {
+    display: flex;
+    align-items: center;
+    gap: 2.0rem;
+}
+
 .icon-button {
     border: none;
     background: transparent;
     cursor: pointer;
     font-size: 1.1rem;
-    margin-right: 0.35rem;
 }
 
 .icon-button:disabled {
