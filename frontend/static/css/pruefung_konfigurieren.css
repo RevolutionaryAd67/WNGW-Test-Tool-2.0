@@ -1,0 +1,250 @@
+.configurator {
+    display: flex;
+    gap: 1.5rem;
+    height: 100%;
+    min-height: 0;
+}
+
+.configurator__sidebar {
+    flex: 0 0 22%;
+    background: #fff;
+    border-radius: 1rem;
+    padding: 1.5rem;
+    box-shadow: 0 10px 24px rgba(0, 0, 0, 0.06);
+    border: 1px solid var(--border-color);
+    display: flex;
+    flex-direction: column;
+}
+
+.configurator__sidebar-header h2 {
+    font-size: 1.35rem;
+    margin-bottom: 1rem;
+}
+
+.configurator__sidebar-subtitle {
+    font-size: 0.85rem;
+    color: rgba(0, 0, 0, 0.6);
+}
+
+.config-list {
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    overflow-y: auto;
+    margin-top: 0.5rem;
+}
+
+.config-list__item {
+    width: 100%;
+}
+
+.config-list__button {
+    width: 100%;
+    background: rgba(0, 0, 0, 0.04);
+    border: 1px solid transparent;
+    border-radius: 0.75rem;
+    padding: 0.85rem 1rem;
+    text-align: left;
+    cursor: pointer;
+    font-size: 0.95rem;
+    transition: background-color 0.2s ease, border-color 0.2s ease;
+}
+
+.config-list__button:hover,
+.config-list__button--active {
+    background: rgba(17, 40, 76, 0.08);
+    border-color: rgba(17, 40, 76, 0.2);
+}
+
+.configurator__main {
+    flex: 1 1 auto;
+    background: #fff;
+    border-radius: 1rem;
+    padding: 1.5rem;
+    box-shadow: 0 10px 24px rgba(0, 0, 0, 0.06);
+    border: 1px solid var(--border-color);
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+    min-width: 0;
+}
+
+.configurator__header {
+    display: flex;
+    justify-content: space-between;
+    gap: 1rem;
+    flex-wrap: wrap;
+}
+
+.configurator__name-field {
+    flex: 1 1 300px;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.configurator__name-field input {
+    padding: 0.75rem 1rem;
+    border-radius: 0.75rem;
+    border: 1px solid var(--border-color);
+    font-size: 1rem;
+}
+
+.configurator__actions {
+    display: flex;
+    gap: 0.75rem;
+    align-items: flex-end;
+}
+
+.button {
+    border: none;
+    border-radius: 0.75rem;
+    padding: 0.75rem 1.25rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: filter 0.2s ease;
+}
+
+.button--ghost {
+    background: transparent;
+    border: 1px solid rgba(0, 0, 0, 0.25);
+}
+
+.button--primary {
+    background: #2b59c3;
+    color: #fff;
+}
+
+.button--secondary {
+    background: var(--accent);
+}
+
+.button:hover {
+    filter: brightness(0.95);
+}
+
+.config-feedback {
+    min-height: 1.5rem;
+    font-size: 0.95rem;
+    color: rgba(0, 0, 0, 0.7);
+}
+
+.config-feedback[data-state="error"] {
+    color: #b00020;
+}
+
+.config-feedback[data-state="success"] {
+    color: #0a7a28;
+}
+
+.config-box {
+    border: 1px solid var(--border-color);
+    border-radius: 1rem;
+    overflow: hidden;
+}
+
+.config-box__header {
+    background: rgba(0, 0, 0, 0.03);
+    padding: 1rem 1.25rem;
+}
+
+.config-box__body {
+    padding: 1.25rem;
+}
+
+.add-step {
+    display: flex;
+    align-items: center;
+    gap: 1.5rem;
+    flex-wrap: wrap;
+}
+
+.add-step__table {
+    border-collapse: collapse;
+    min-width: 450px;
+}
+
+.add-step__table th,
+.add-step__table td {
+    border: 1px solid var(--border-color);
+    padding: 0.75rem;
+    font-size: 0.95rem;
+}
+
+.add-step__index {
+    text-align: center;
+    font-weight: 600;
+    width: 60px;
+}
+
+.add-step__note {
+    font-size: 0.85rem;
+    color: rgba(0, 0, 0, 0.6);
+}
+
+.file-input {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    cursor: pointer;
+}
+
+.file-input input {
+    display: none;
+}
+
+.file-input span {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0.5rem 1rem;
+    border-radius: 0.75rem;
+    border: 1px dashed rgba(0, 0, 0, 0.3);
+    width: 100%;
+}
+
+.table-wrapper {
+    overflow-x: auto;
+}
+
+.ablauf-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.ablauf-table th,
+.ablauf-table td {
+    border: 1px solid var(--border-color);
+    padding: 0.75rem;
+    text-align: left;
+}
+
+.ablauf-table__empty td {
+    text-align: center;
+    color: rgba(0, 0, 0, 0.5);
+}
+
+.icon-button {
+    border: none;
+    background: transparent;
+    cursor: pointer;
+    font-size: 1.1rem;
+    margin-right: 0.35rem;
+}
+
+.icon-button:disabled {
+    opacity: 0.3;
+    cursor: default;
+}
+
+@media (max-width: 1200px) {
+    .configurator {
+        flex-direction: column;
+        height: auto;
+    }
+
+    .configurator__sidebar {
+        flex: none;
+    }
+}

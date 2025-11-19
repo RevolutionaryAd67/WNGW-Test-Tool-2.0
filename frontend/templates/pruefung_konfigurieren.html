@@ -1,0 +1,102 @@
+{% extends "base.html" %}
+
+{% block extra_css %}
+    {{ super() }}
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/pruefung_konfigurieren.css') }}">
+{% endblock %}
+
+{% block content %}
+<div class="configurator">
+    <aside class="configurator__sidebar">
+        <div class="configurator__sidebar-header">
+            <p class="configurator__sidebar-subtitle">Bitte auswählen:</p>
+            <h2>Prüfungen</h2>
+        </div>
+        <ul class="config-list" id="config-list" aria-live="polite"></ul>
+    </aside>
+    <section class="configurator__main">
+        <div class="configurator__header">
+            <label class="configurator__name-field">
+                <span class="label">Name der Prüfung festlegen</span>
+                <input type="text" id="config-name" placeholder="Name" autocomplete="off">
+            </label>
+            <div class="configurator__actions">
+                <button id="delete-config" class="button button--ghost" type="button">Prüfung löschen</button>
+                <button id="save-config" class="button button--primary" type="button">Prüfung speichern</button>
+            </div>
+        </div>
+
+        <div id="config-feedback" class="config-feedback" role="status" aria-live="polite"></div>
+
+        <section class="config-box">
+            <header class="config-box__header">
+                <h3>Teilprüfung hinzufügen</h3>
+            </header>
+            <div class="config-box__body">
+                <div class="add-step">
+                    <table class="add-step__table">
+                        <thead>
+                            <tr>
+                                <th scope="col" class="add-step__index-label"></th>
+                                <th scope="col">Prüfungsart</th>
+                                <th scope="col">Signalliste hochladen</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td class="add-step__index" id="next-step-index">1</td>
+                                <td>
+                                    <select id="teilpruefung-type">
+                                        <option value="GA-Prüfung">GA-Prüfung</option>
+                                    </select>
+                                </td>
+                                <td>
+                                    <label class="file-input">
+                                        <input type="file" id="signalliste-file" accept=".xlsx">
+                                        <span id="signalliste-label">Excel-Datei auswählen</span>
+                                    </label>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td></td>
+                                <td colspan="2" class="add-step__note">Erforderliche Spalten: Datenpunkt / Meldetext, IOA 3, IOA 2, IOA 1, IEC104- Typ</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                    <button id="add-step-button" class="button button--secondary" type="button">Hinzufügen</button>
+                </div>
+            </div>
+        </section>
+
+        <section class="config-box">
+            <header class="config-box__header">
+                <h3>Prüfungsablauf</h3>
+            </header>
+            <div class="config-box__body">
+                <div class="table-wrapper">
+                    <table class="ablauf-table" id="ablauf-table">
+                        <thead>
+                            <tr>
+                                <th scope="col">#</th>
+                                <th scope="col">Prüfungsart</th>
+                                <th scope="col">Signalliste</th>
+                                <th scope="col">Verwaltung</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr class="ablauf-table__empty">
+                                <td colspan="4">Noch keine Teilprüfung hinzugefügt.</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+    </section>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+    {{ super() }}
+    <script src="{{ url_for('static', filename='js/pruefung_konfigurieren.js') }}" defer></script>
+{% endblock %}
