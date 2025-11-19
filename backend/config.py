@@ -1,4 +1,9 @@
-"""Helpers to load IEC-104 settings from JSON storage."""
+#   Liest die Client- und Server-Einstellungen aus den jeweiligen JSON-Dateien
+#
+#   Aufgaben des Skripts:
+#       1. Liest die Einstellungen für den Client aus seiner JSON-Datei
+#       2. Liest die Einstellungen für den Server aus seiner JSON-Datei
+
 from __future__ import annotations
 
 import json
@@ -6,10 +11,12 @@ from dataclasses import dataclass
 from pathlib import Path
 
 
+# Verzeichnis, indem die JSON-Dateien liegen
 BASE_DIR = Path(__file__).resolve().parent.parent
 DATA_DIR = BASE_DIR / "data"
 
 
+# Informationen, die in den JSON-Dateien für die Einstellungen des Clients enthalten sind
 @dataclass
 class ClientSettings:
     local_ip: str
@@ -20,6 +27,7 @@ class ClientSettings:
     originator_address: int
 
 
+# Informationen, die in den JSON-Dateien für die Einstellungen des Servers enthalten sind
 @dataclass
 class ServerSettings:
     local_ip: str
@@ -30,6 +38,7 @@ class ServerSettings:
     common_address: int
 
 
+# Liest den Wert eines Schlüssels aus einer JSON-Datei 
 def _read_value(file_path: Path, key: str, fallback: str = "0") -> str:
     try:
         payload = json.loads(file_path.read_text(encoding="utf-8"))
@@ -42,6 +51,7 @@ def _read_value(file_path: Path, key: str, fallback: str = "0") -> str:
     return str(value) if value is not None else fallback
 
 
+# Lädt sämtliche Client-Einstellungen aus den JSON-Dateien
 def load_client_settings() -> ClientSettings:
     client_dir = DATA_DIR / "einstellungen_client"
     local_ip = _read_value(client_dir / "tcp_konnektivitaet.json", "tcp_ip_address_client", "0.0.0.0")
@@ -59,6 +69,7 @@ def load_client_settings() -> ClientSettings:
     )
 
 
+# Lädt sämtliche Server-Einstellungen aus den JSON-Dateien
 def load_server_settings() -> ServerSettings:
     server_dir = DATA_DIR / "einstellungen_server"
     local_ip = _read_value(server_dir / "tcp_konnektivitaet.json", "tcp_ip_address_server", "0.0.0.0")
