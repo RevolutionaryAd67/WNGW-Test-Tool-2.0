@@ -133,7 +133,7 @@ function createTelegramElement(telegram) {
   indexSpan.textContent = telegram.sequence;
   const messageSpan = document.createElement('span');
   messageSpan.textContent = telegram.label || 'Telegramm';
-  headline.append(indexSpan, document.createTextNode(' : '), messageSpan);
+  headline.append(indexSpan, messageSpan);
   article.appendChild(headline);
 
   const timeValue = `${telegram.timestampText} (d = ${telegram.deltaText} s)`;
