@@ -323,7 +323,14 @@ def create_app() -> Flask:
 
     @app.route("/pruefung/starten")
     def pruefung_starten():
-        return render_page("pruefung_starten", "pruefung_starten")
+        page = pages.get("pruefung_starten", {})
+        return render_template(
+            "pruefung_starten.html",
+            title=page.get("heading", "WNGW"),
+            heading=page.get("heading", ""),
+            description=page.get("description", ""),
+            active_page="pruefung_starten",
+        )
 
     @app.route("/pruefung/konfigurieren")
     def pruefung_konfigurieren():

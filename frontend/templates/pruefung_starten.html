@@ -1,0 +1,61 @@
+{% extends "base.html" %}
+
+{% block extra_css %}
+    {{ super() }}
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/pruefung_konfigurieren.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/pruefung_starten.css') }}">
+{% endblock %}
+
+{% block page_intro %}{% endblock %}
+
+{% block content %}
+<div class="configurator configurator--starter">
+    <aside class="configurator__sidebar">
+        <div class="configurator__sidebar-header">
+            <h2>Prüfungen</h2>
+        </div>
+        <ul class="config-list" id="config-list" aria-live="polite"></ul>
+    </aside>
+    <section class="configurator__main">
+        <header class="starter-header">
+            <div class="starter-header__title">
+                <h2 id="selected-config-name">Prüfung auswählen</h2>
+            </div>
+            <div class="starter-header__actions">
+                <button type="button" class="monitoring-button monitoring-button--danger" id="abort-test-button">Prüfung abbrechen</button>
+                <button type="button" class="monitoring-button" id="start-test-button">Prüfung starten</button>
+            </div>
+        </header>
+
+        <section class="config-box">
+            <header class="config-box__header">
+                <h3>Prüfungsablauf</h3>
+            </header>
+            <div class="config-box__body">
+                <div class="table-wrapper">
+                    <table class="ablauf-table" id="ablauf-table">
+                        <thead>
+                            <tr>
+                                <th scope="col">#</th>
+                                <th scope="col">Prüfungsart</th>
+                                <th scope="col">Signalliste</th>
+                                <th scope="col">Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr class="ablauf-table__empty">
+                                <td colspan="4">Bitte eine Prüfung auswählen.</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+    </section>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+    {{ super() }}
+    <script src="{{ url_for('static', filename='js/pruefung_starten.js') }}" defer></script>
+{% endblock %}
