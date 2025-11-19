@@ -101,29 +101,47 @@
 
 .button {
     border: none;
-    border-radius: 0.75rem;
-    padding: 0.75rem 1.25rem;
+    border-radius: 999px;
+    padding: 0.45rem 1.6rem;
     font-weight: 600;
     cursor: pointer;
-    transition: filter 0.2s ease;
+    transition: background 0.2s ease-in-out, color 0.2s ease-in-out;
+    background-color: #0078d4;
+    color: #fff;
 }
 
-.button--ghost {
-    background: transparent;
-    border: 1px solid rgba(0, 0, 0, 0.25);
+.button:disabled {
+    opacity: 0.6;
+    cursor: wait;
+}
+
+.button:hover:not(:disabled),
+.button:focus-visible:not(:disabled) {
+    background-color: #005ea8;
 }
 
 .button--primary {
-    background: #2b59c3;
+    background-color: #0078d4;
     color: #fff;
 }
 
 .button--secondary {
-    background: var(--accent);
+    background-color: #e7ecf3;
+    color: #0b2548;
 }
 
-.button:hover {
-    filter: brightness(0.95);
+.button--secondary:hover:not(:disabled),
+.button--secondary:focus-visible:not(:disabled) {
+    background-color: #d7e0ec;
+}
+
+.button--danger {
+    background-color: #c53030;
+}
+
+.button--danger:hover:not(:disabled),
+.button--danger:focus-visible:not(:disabled) {
+    background-color: #9b1c1c;
 }
 
 .config-feedback {
