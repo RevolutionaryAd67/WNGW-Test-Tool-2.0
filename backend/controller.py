@@ -30,7 +30,7 @@ class BackendController:
         self.event_bus = EventBus()
         self._client: Optional[_ManagedProcess] = None
         self._server: Optional[_ManagedProcess] = None
-        self.history = CommunicationHistory(Path("data/telegrams"))
+        self.history = CommunicationHistory(Path("data/beobachten"))
         self._status_lock = threading.Lock()
         self._connection_state = {
             side: {
