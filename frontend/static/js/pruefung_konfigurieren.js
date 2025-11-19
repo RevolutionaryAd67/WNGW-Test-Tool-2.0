@@ -106,6 +106,9 @@
                 row.appendChild(fileCell);
 
                 const actionsCell = document.createElement('td');
+                const actionsWrapper = document.createElement('div');
+                actionsWrapper.className = 'ablauf-table__actions';
+
                 const deleteButton = document.createElement('button');
                 deleteButton.type = 'button';
                 deleteButton.className = 'icon-button';
@@ -129,9 +132,10 @@
                 downButton.disabled = index === state.current.teilpruefungen.length - 1;
                 downButton.addEventListener('click', () => moveStep(index, 1));
 
-                actionsCell.appendChild(deleteButton);
-                actionsCell.appendChild(upButton);
-                actionsCell.appendChild(downButton);
+                actionsWrapper.appendChild(deleteButton);
+                actionsWrapper.appendChild(upButton);
+                actionsWrapper.appendChild(downButton);
+                actionsCell.appendChild(actionsWrapper);
                 row.appendChild(actionsCell);
                 tbody.appendChild(row);
             });
