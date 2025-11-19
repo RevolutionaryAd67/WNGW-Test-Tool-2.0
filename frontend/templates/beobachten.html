@@ -80,6 +80,52 @@
         background-color: #005ea8;
     }
 
+    .monitoring-menu {
+        position: relative;
+    }
+
+    .monitoring-menu__toggle {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.35rem;
+    }
+
+    .monitoring-menu__dropdown {
+        position: absolute;
+        top: calc(100% + 0.35rem);
+        right: 0;
+        background: #fff;
+        border-radius: 0.75rem;
+        box-shadow: 0 12px 28px rgba(11, 37, 72, 0.18);
+        border: 1px solid rgba(11, 37, 72, 0.1);
+        display: none;
+        flex-direction: column;
+        min-width: 220px;
+        overflow: hidden;
+        z-index: 5;
+    }
+
+    .monitoring-menu--open .monitoring-menu__dropdown {
+        display: flex;
+    }
+
+    .monitoring-menu__item {
+        border: none;
+        background: transparent;
+        text-align: left;
+        padding: 0.75rem 1.25rem;
+        font-weight: 500;
+        font-size: 0.95rem;
+        color: #0b2548;
+        cursor: pointer;
+        transition: background 0.15s ease-in-out;
+    }
+
+    .monitoring-menu__item:hover,
+    .monitoring-menu__item:focus-visible {
+        background: rgba(0, 120, 212, 0.12);
+    }
+
     .monitoring-status {
         margin-top: 0.35rem;
         font-size: 0.9rem;
@@ -152,6 +198,16 @@
         margin-bottom: 0.25rem;
     }
 
+    .telegram__details {
+        display: flex;
+        flex-direction: column;
+        gap: 0.15rem;
+    }
+
+    .telegram-feed--collapsed .telegram__details {
+        display: none;
+    }
+
     .telegram__arrow {
         margin: 0 0.5rem;
     }
@@ -169,7 +225,18 @@
                 <p class="monitoring-status monitoring-status--inactive" data-status="client">Client ist nicht aktiv</p>
             </div>
             <div class="monitoring-actions">
-                <button type="button" class="monitoring-button monitoring-button--secondary" data-action="clear-client">Verlauf leeren</button>
+                <div class="monitoring-menu" data-menu="client">
+                    <button type="button" class="monitoring-button monitoring-button--secondary monitoring-menu__toggle" data-menu-toggle>
+                        Optionen
+                    </button>
+                    <div class="monitoring-menu__dropdown" role="menu">
+                        <button type="button" class="monitoring-menu__item" data-menu-option="clear-history">Verlauf leeren</button>
+                        <button type="button" class="monitoring-menu__item" data-menu-option="collapse-details">Details einklappen</button>
+                        <button type="button" class="monitoring-menu__item" data-menu-option="expand-details">Details ausklappen</button>
+                        <button type="button" class="monitoring-menu__item" data-menu-option="auto-scroll">Automatisch scrollen</button>
+                        <button type="button" class="monitoring-menu__item" data-menu-option="manual-scroll">Manuell scrollen</button>
+                    </div>
+                </div>
                 <button type="button" class="monitoring-button monitoring-button--danger" data-action="stop-client">Client stoppen</button>
                 <button type="button" class="monitoring-button" data-action="start-client">Client starten</button>
             </div>
@@ -186,7 +253,18 @@
                 <p class="monitoring-status monitoring-status--inactive" data-status="server">Server ist nicht aktiv</p>
             </div>
             <div class="monitoring-actions">
-                <button type="button" class="monitoring-button monitoring-button--secondary" data-action="clear-server">Verlauf leeren</button>
+                <div class="monitoring-menu" data-menu="server">
+                    <button type="button" class="monitoring-button monitoring-button--secondary monitoring-menu__toggle" data-menu-toggle>
+                        Optionen
+                    </button>
+                    <div class="monitoring-menu__dropdown" role="menu">
+                        <button type="button" class="monitoring-menu__item" data-menu-option="clear-history">Verlauf leeren</button>
+                        <button type="button" class="monitoring-menu__item" data-menu-option="collapse-details">Details einklappen</button>
+                        <button type="button" class="monitoring-menu__item" data-menu-option="expand-details">Details ausklappen</button>
+                        <button type="button" class="monitoring-menu__item" data-menu-option="auto-scroll">Automatisch scrollen</button>
+                        <button type="button" class="monitoring-menu__item" data-menu-option="manual-scroll">Manuell scrollen</button>
+                    </div>
+                </div>
                 <button type="button" class="monitoring-button monitoring-button--danger" data-action="stop-server">Server stoppen</button>
                 <button type="button" class="monitoring-button" data-action="start-server">Server starten</button>
             </div>

@@ -4,7 +4,16 @@ const TELEGRAM_STATE = {
 };
 
 const TELEGRAM_SIDES = ['client', 'server'];
+const VIEW_OPTIONS = TELEGRAM_SIDES.reduce((acc, side) => {
+  acc[side] = {
+    detailMode: 'expanded',
+    autoScrollMode: 'auto',
+    autoScrollPaused: false,
+  };
+  return acc;
+}, {});
 const HISTORY_LIMIT = 3000;
+const SCROLL_TOLERANCE = 8;
 const STATUS_ENDPOINT = '/api/backend/status';
 const STATUS_MESSAGES = {
   client: {
@@ -30,6 +39,85 @@ const DIRECTION_ARROW = {
 };
 
 let eventSource = null;
+
+function getFeedElement(side) {
+  return document.querySelector(`.telegram-feed[data-telegrams="${side}"]`);
+}
+
+function isNearBottom(container) {
+  if (!container) {
+    return false;
+  }
+  const distance = container.scrollHeight - container.scrollTop - container.clientHeight;
+  return distance <= SCROLL_TOLERANCE;
+}
+
+function shouldAutoScroll(side) {
+  const state = VIEW_OPTIONS[side];
+  return Boolean(state && state.autoScrollMode === 'auto' && !state.autoScrollPaused);
+}
+
+function applyDetailMode(side) {
+  const container = getFeedElement(side);
+  if (!container || !VIEW_OPTIONS[side]) {
+    return;
+  }
+  const collapsed = VIEW_OPTIONS[side].detailMode === 'collapsed';
+  container.classList.toggle('telegram-feed--collapsed', collapsed);
+}
+
+function setDetailMode(side, mode) {
+  if (!VIEW_OPTIONS[side] || (mode !== 'collapsed' && mode !== 'expanded')) {
+    return;
+  }
+  if (VIEW_OPTIONS[side].detailMode === mode) {
+    return;
+  }
+  VIEW_OPTIONS[side].detailMode = mode;
+  applyDetailMode(side);
+}
+
+function updateAutoScrollPauseFromPosition(side) {
+  const container = getFeedElement(side);
+  const state = VIEW_OPTIONS[side];
+  if (!container || !state) {
+    return;
+  }
+  state.autoScrollPaused = !isNearBottom(container);
+  if (!state.autoScrollPaused) {
+    container.scrollTop = container.scrollHeight;
+  }
+}
+
+function setAutoScrollMode(side, mode) {
+  const state = VIEW_OPTIONS[side];
+  if (!state || (mode !== 'auto' && mode !== 'manual')) {
+    return;
+  }
+  if (state.autoScrollMode === mode) {
+    if (mode === 'auto') {
+      updateAutoScrollPauseFromPosition(side);
+    }
+    return;
+  }
+  state.autoScrollMode = mode;
+  state.autoScrollPaused = false;
+  if (mode === 'auto') {
+    updateAutoScrollPauseFromPosition(side);
+  }
+}
+
+function handleFeedScroll(side) {
+  const state = VIEW_OPTIONS[side];
+  if (!state || state.autoScrollMode !== 'auto') {
+    return;
+  }
+  const container = getFeedElement(side);
+  if (!container) {
+    return;
+  }
+  state.autoScrollPaused = !isNearBottom(container);
+}
 
 function formatListeningIp(statusInfo) {
   if (!statusInfo) {
@@ -136,44 +224,50 @@ function createTelegramElement(telegram) {
   headline.append(indexSpan, messageSpan);
   article.appendChild(headline);
 
+  const details = document.createElement('div');
+  details.className = 'telegram__details';
   const timeValue = `${telegram.timestampText} (d = ${telegram.deltaText} s)`;
-  article.appendChild(createLine('Time', timeValue));
+  details.appendChild(createLine('Time', timeValue));
 
   const arrow = DIRECTION_ARROW[variant] || '&rarr;';
   const ipValue = `${telegram.localEndpoint} <span class="telegram__arrow">${arrow}</span> ${telegram.remoteEndpoint}`;
-  article.appendChild(createLine('IP:Port', ipValue));
+  details.appendChild(createLine('IP:Port', ipValue));
 
   const frameLabel = FRAME_LABELS[telegram.frameFamily] || telegram.frameFamily;
   const typeValue = telegram.frameFamily === 'I'
     ? `${telegram.typeId ?? ''} (${frameLabel})`
     : `(${frameLabel})`;
-  article.appendChild(createLine('Typ', typeValue.trim()));
+  details.appendChild(createLine('Typ', typeValue.trim()));
 
   if (telegram.frameFamily === 'I' && typeof telegram.cause === 'number') {
-    article.appendChild(createLine('Ursache', String(telegram.cause)));
+    details.appendChild(createLine('Ursache', String(telegram.cause)));
   }
   if (telegram.frameFamily === 'I' && typeof telegram.originator === 'number') {
-    article.appendChild(createLine('Herkunft', String(telegram.originator)));
+    details.appendChild(createLine('Herkunft', String(telegram.originator)));
   }
   if (telegram.frameFamily === 'I' && typeof telegram.station === 'number') {
-    article.appendChild(createLine('Station', String(telegram.station)));
+    details.appendChild(createLine('Station', String(telegram.station)));
   }
   if (telegram.frameFamily === 'I' && typeof telegram.ioa === 'number') {
     const ioaSegments = splitIoa(telegram.ioa).join(' - ');
-    article.appendChild(createLine('IOA', ioaSegments));
+    details.appendChild(createLine('IOA', ioaSegments));
   }
+
+  article.appendChild(details);
 
   return article;
 }
 
 function appendTelegram(side, telegram) {
-  const container = document.querySelector(`.telegram-feed[data-telegrams="${side}"]`);
+  const container = getFeedElement(side);
   if (!container) {
     return;
   }
   removeEmptyState(container);
   container.appendChild(createTelegramElement(telegram));
-  container.scrollTop = container.scrollHeight;
+  if (shouldAutoScroll(side)) {
+    container.scrollTop = container.scrollHeight;
+  }
 }
 
 function addEmptyState(container) {
@@ -186,19 +280,23 @@ function addEmptyState(container) {
 }
 
 function resetTelegrams(side) {
-  const container = document.querySelector(`.telegram-feed[data-telegrams="${side}"]`);
+  const container = getFeedElement(side);
   if (!container || !TELEGRAM_STATE[side]) {
     return;
   }
   TELEGRAM_STATE[side] = [];
   container.innerHTML = '';
   addEmptyState(container);
+  if (VIEW_OPTIONS[side]) {
+    VIEW_OPTIONS[side].autoScrollPaused = false;
+  }
+  applyDetailMode(side);
 }
 
 async function clearHistory(side) {
-  const button = document.querySelector(`[data-action="clear-${side}"]`);
-  if (button) {
-    button.disabled = true;
+  const menuToggle = document.querySelector(`.monitoring-menu[data-menu="${side}"] [data-menu-toggle]`);
+  if (menuToggle) {
+    menuToggle.disabled = true;
   }
   try {
     const response = await fetch(`/api/backend/history/${side}/clear`, { method: 'POST' });
@@ -209,10 +307,88 @@ async function clearHistory(side) {
   } catch (error) {
     console.error('Verlauf konnte nicht gelöscht werden', error);
   } finally {
-    if (button) {
-      button.disabled = false;
+    if (menuToggle) {
+      menuToggle.disabled = false;
     }
   }
+}
+
+function closeAllMenus(except = null) {
+  document.querySelectorAll('.monitoring-menu').forEach((menu) => {
+    if (menu !== except) {
+      menu.classList.remove('monitoring-menu--open');
+    }
+  });
+}
+
+function handleMenuOption(side, option) {
+  switch (option) {
+    case 'clear-history':
+      clearHistory(side);
+      break;
+    case 'collapse-details':
+      setDetailMode(side, 'collapsed');
+      break;
+    case 'expand-details':
+      setDetailMode(side, 'expanded');
+      break;
+    case 'auto-scroll':
+      setAutoScrollMode(side, 'auto');
+      break;
+    case 'manual-scroll':
+      setAutoScrollMode(side, 'manual');
+      break;
+    default:
+      break;
+  }
+}
+
+function bindOptionMenus() {
+  const menus = document.querySelectorAll('.monitoring-menu');
+  menus.forEach((menu) => {
+    const side = menu.dataset.menu;
+    const toggle = menu.querySelector('[data-menu-toggle]');
+    const dropdown = menu.querySelector('.monitoring-menu__dropdown');
+    if (!side || !toggle || !dropdown) {
+      return;
+    }
+    toggle.addEventListener('click', (event) => {
+      event.stopPropagation();
+      const isOpen = menu.classList.contains('monitoring-menu--open');
+      closeAllMenus(menu);
+      if (!isOpen) {
+        menu.classList.add('monitoring-menu--open');
+      } else {
+        menu.classList.remove('monitoring-menu--open');
+      }
+    });
+    dropdown.addEventListener('click', (event) => {
+      event.stopPropagation();
+      const optionButton = event.target.closest('[data-menu-option]');
+      if (!optionButton) {
+        return;
+      }
+      handleMenuOption(side, optionButton.dataset.menuOption);
+      menu.classList.remove('monitoring-menu--open');
+    });
+  });
+  document.addEventListener('click', () => closeAllMenus());
+  document.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape') {
+      closeAllMenus();
+    }
+  });
+}
+
+function bindFeedInteractions() {
+  TELEGRAM_SIDES.forEach((side) => {
+    const container = getFeedElement(side);
+    if (!container) {
+      return;
+    }
+    applyDetailMode(side);
+    container.addEventListener('scroll', () => handleFeedScroll(side));
+  });
 }
 
 function handleTelegramEvent(raw) {
@@ -324,8 +500,6 @@ function bindControls() {
   const serverButton = document.querySelector('[data-action="start-server"]');
   const stopClientButton = document.querySelector('[data-action="stop-client"]');
   const stopServerButton = document.querySelector('[data-action="stop-server"]');
-  const clearClientButton = document.querySelector('[data-action="clear-client"]');
-  const clearServerButton = document.querySelector('[data-action="clear-server"]');
   if (clientButton) {
     clientButton.addEventListener('click', () => startComponent('client'));
   }
@@ -337,12 +511,6 @@ function bindControls() {
   }
   if (stopServerButton) {
     stopServerButton.addEventListener('click', () => stopComponent('server'));
-  }
-  if (clearClientButton) {
-    clearClientButton.addEventListener('click', () => clearHistory('client'));
-  }
-  if (clearServerButton) {
-    clearServerButton.addEventListener('click', () => clearHistory('server'));
   }
 }
 
@@ -365,6 +533,8 @@ async function loadExistingTelegrams() {
 
 function initBeobachten() {
   bindControls();
+  bindOptionMenus();
+  bindFeedInteractions();
   fetchConnectionStatusSnapshot();
   loadExistingTelegrams().finally(() => {
     connectEventStream();
