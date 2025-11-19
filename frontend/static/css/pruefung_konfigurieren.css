@@ -84,7 +84,7 @@
     flex: 1 1 300px;
     display: flex;
     flex-direction: column;
-    gap: 0.5rem;
+    gap: 1.25rem;
 }
 
 .configurator__title {
@@ -158,9 +158,12 @@
 }
 
 .config-feedback {
-    min-height: 1.5rem;
     font-size: 0.95rem;
     color: rgba(0, 0, 0, 0.7);
+}
+
+.config-feedback:empty {
+    display: none;
 }
 
 .config-feedback[data-state="error"] {
