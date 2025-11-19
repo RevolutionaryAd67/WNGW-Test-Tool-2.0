@@ -4,6 +4,7 @@ const TELEGRAM_STATE = {
 };
 
 const TELEGRAM_SIDES = ['client', 'server'];
+const HISTORY_LIMIT = 3000;
 const STATUS_ENDPOINT = '/api/backend/status';
 const STATUS_MESSAGES = {
   client: {
@@ -347,7 +348,7 @@ function bindControls() {
 
 async function loadExistingTelegrams() {
   try {
-    const response = await fetch('/api/backend/history');
+    const response = await fetch(`/api/backend/history?limit=${HISTORY_LIMIT}`);
     if (!response.ok) {
       throw new Error('HTTP ' + response.status);
     }
