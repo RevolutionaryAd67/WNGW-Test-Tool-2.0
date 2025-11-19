@@ -146,6 +146,15 @@
 
 .config-box__header {
     padding: 1rem 1.25rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    flex-wrap: wrap;
+}
+
+.config-box__header h3 {
+    margin: 0;
 }
 
 .config-box__body {
