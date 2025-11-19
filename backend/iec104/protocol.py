@@ -1,10 +1,16 @@
-"""Low-level helpers for IEC-60870-5-104 frames."""
+#   Utilities zum Parsen, Dekodieren und Erzeugen von IEC-104-Frames
+#
+#   Aufgaben des Skripts:
+#       1. Bytes aus Telegrammen erkennen
+#       2. U-, S- und I-Frame bauen
+
 from __future__ import annotations
 
 from dataclasses import dataclass
 from typing import Dict, List, Optional
 
 
+# Bekannte Kontrollbefehle von bestimmten U-Frames und deren Bezeichnis
 U_FRAME_LABELS = {
     0x07: "STARTDT ACT",
     0x0B: "STARTDT CON",
@@ -14,10 +20,12 @@ U_FRAME_LABELS = {
     0x83: "TESTFR CON",
 }
 
+# Bekannte Typkennungen für I-Frames
 TYPE_LABELS = {
     100: "GENERALABFRAGE",
 }
 
+# Kombination aus Typ und COT zu menschenlesbaren labels
 COT_LABELS = {
     (100, 6): "GENERALABFRAGE ACT",
     (100, 7): "GENERALABFRAGE CON",
@@ -25,6 +33,7 @@ COT_LABELS = {
 }
 
 
+# Darstellung eines dekodierten Telegramms, wie es von decode_frame geliefert wird
 @dataclass
 class Telegram:
     frame_family: str
@@ -38,19 +47,21 @@ class Telegram:
     direction: str
 
 
+# Frame-Parser für Byte-Ströme
 class FrameParser:
-    """Incremental parser for IEC-104 frames."""
 
+    # Eingehende Daten werden gepuffert
     def __init__(self) -> None:
         self._buffer = bytearray()
 
+    # Füttert neue Bytes und liefert alle vollständig erkannten Frames
     def feed(self, data: bytes) -> List[bytes]:
         frames: List[bytes] = []
         self._buffer.extend(data)
         while True:
             if len(self._buffer) < 2:
                 break
-            if self._buffer[0] != 0x68:
+            if self._buffer[0] != 0x68: # Ungültiges Startbyte: so lange verwerfen bis wieder 0x68 auftaucht
                 self._buffer.pop(0)
                 continue
             length = self._buffer[1]
@@ -63,6 +74,7 @@ class FrameParser:
         return frames
 
 
+# Hilfsfunktion, um Sende-/Emfpangszähler aus Control-Feld zu lesen
 def _extract_sequences(frame: bytes) -> Dict[str, int]:
     if len(frame) < 6:
         return {"send": 0, "recv": 0}
@@ -71,6 +83,8 @@ def _extract_sequences(frame: bytes) -> Dict[str, int]:
     return {"send": send, "recv": recv}
 
 
+# Dekodiert ein Frame-Bytearray in ein Telegramm
+# Es werden anhand des ersten Kontrollbytes die drei Frametypen (I,S,U) unterschieden und die vorhandenen Feld jeweils bestmöglich extrahiert
 def decode_frame(frame: bytes) -> Telegram:
     control = frame[2:6]
     payload = frame[6:]
@@ -122,10 +136,12 @@ def decode_frame(frame: bytes) -> Telegram:
     )
 
 
+# Erzeugt U-Frame für den angegebenen Kommandocode
 def build_u_frame(command: int) -> bytes:
     return bytes([0x68, 0x04, command, 0x00, 0x00, 0x00])
 
 
+# Erzeugt S-Frame mit aktueller Empfangssequenz
 def build_s_frame(recv_sequence: int) -> bytes:
     recv_field = recv_sequence << 1
     return bytes(
@@ -140,6 +156,7 @@ def build_s_frame(recv_sequence: int) -> bytes:
     )
 
 
+# Baut einen vollständigen I-Frame mitsamt ASDU-Daten
 def build_i_frame(
     send_sequence: int,
     recv_sequence: int,
@@ -152,9 +169,6 @@ def build_i_frame(
 ) -> bytes:
     send_field = send_sequence << 1
     recv_field = recv_sequence << 1
-    # Length field covers the four control bytes plus the ASDU fields.
-    # ASDU without information elements is 9 bytes long, therefore
-    # the total length becomes len(information) + 13.
     header = bytes(
         [
             0x68,
