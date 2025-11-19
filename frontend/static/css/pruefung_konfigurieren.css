@@ -77,6 +77,7 @@
     justify-content: space-between;
     gap: 1rem;
     flex-wrap: wrap;
+    align-items: flex-start;
 }
 
 .configurator__name-field {
@@ -96,7 +97,9 @@
 .configurator__actions {
     display: flex;
     gap: 0.75rem;
-    align-items: flex-end;
+    align-items: flex-start;
+    align-self: flex-start;
+    margin-left: auto;
 }
 
 .button {
