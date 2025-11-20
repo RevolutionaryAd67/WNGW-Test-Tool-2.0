@@ -1,3 +1,10 @@
+#   Flask-Einstiegspunkt für das WNGW-Test-Tool
+#
+#   Aufgaben des Skripts:
+#       1. Startet das WNGW-Test-Tool
+#       2. Intitialisiert die Flask-Routen und stellt sämtliche API-Endpunkte bereit
+#       3. Übernimmt Speichern von Eingaben, Verwalten von Prüfkonfigurationen, Excel-Import, Steuerung der Statusabfrage
+
 from __future__ import annotations
 
 import io
@@ -24,9 +31,10 @@ REQUIRED_SIGNAL_HEADERS = {
     "IEC104- Typ",
 }
 
-DEFAULT_HISTORY_LIMIT = 3000
+DEFAULT_HISTORY_LIMIT = 1000
 
 
+# Flask-App mit Frontend-Templates und statischen Dateien initialisieren
 def create_app() -> Flask:
     app = Flask(
         __name__,
@@ -34,6 +42,7 @@ def create_app() -> Flask:
         static_folder="frontend/static",
     )
 
+    # Templates aus Seiten- und Komponentenverzeichnis laden
     app.jinja_loader = ChoiceLoader(
         [
             FileSystemLoader("frontend/templates"),
@@ -41,6 +50,7 @@ def create_app() -> Flask:
         ]
     )
 
+    # Meta-Informationen für die Seiten des Frontends
     pages = {
         "startseite": {
             "heading": "Startseite",
@@ -116,6 +126,7 @@ def create_app() -> Flask:
                 pass
         return defaults
 
+    # Sicherstellen, dass das Ablageverzeichnis existiert
     def _configurations_directory() -> Path:
         CONFIG_DIR.mkdir(parents=True, exist_ok=True)
         return CONFIG_DIR
@@ -128,6 +139,7 @@ def create_app() -> Flask:
             raise ValueError("Ungültiger Konfigurationspfad")
         return file_path
 
+    # Verfügbare Prüfkonfigurationen aus dem Dateisystem einlesen
     def _list_configurations() -> List[Dict[str, str]]:
         configurations: List[Dict[str, str]] = []
         directory = _configurations_directory()
@@ -157,6 +169,7 @@ def create_app() -> Flask:
             data["teilpruefungen"] = []
         return data
 
+    # Excel-Spaltenreferenz (z.B. AB12) in numerischen Index umwandeln
     def _column_index(cell_ref: str) -> int:
         letters = "".join(ch for ch in cell_ref if ch.isalpha())
         result = 0
@@ -175,7 +188,9 @@ def create_app() -> Flask:
             strings.append("".join(parts))
         return strings
 
-    def _read_sheet_rows(zf: zipfile.ZipFile, sheet_name: str, shared_strings: List[str]) -> List[Dict[int, str]]:
+    def _read_sheet_rows(
+        zf: zipfile.ZipFile, sheet_name: str, shared_strings: List[str]
+    ) -> List[Dict[int, str]]:
         with zf.open(sheet_name) as sheet_file:
             root = ET.parse(sheet_file).getroot()
         sheet_data = root.find(f"{EXCEL_NAMESPACE}sheetData")
@@ -208,6 +223,7 @@ def create_app() -> Flask:
             rows.append(row_values)
         return rows
 
+    # Erste Tabelle einer Excel-Datei auslesen und in Header/Row-Struktur umwandeln
     def _parse_excel_table(file_bytes: bytes) -> Dict[str, Any]:
         try:
             with zipfile.ZipFile(io.BytesIO(file_bytes)) as zf:
@@ -247,6 +263,7 @@ def create_app() -> Flask:
         available = set(headers)
         return sorted(header for header in REQUIRED_SIGNAL_HEADERS if header not in available)
 
+    # Eingereichte Prüfkonfiguration validieren und persistieren
     def _store_configuration(payload: Dict[str, Any]) -> Dict[str, Any]:
         name = (payload.get("name") or "").strip()
         if not name:
@@ -290,6 +307,7 @@ def create_app() -> Flask:
         file_path.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
         return data
 
+    # Hilfsfunktionen für Formulare im Template-Kontext verfügbar machen
     @app.context_processor
     def inject_input_box_helpers():
         return {
