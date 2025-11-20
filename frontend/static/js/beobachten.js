@@ -22,9 +22,11 @@ const VIEW_OPTIONS = TELEGRAM_SIDES.reduce((acc, side) => {
   };
   return acc;
 }, {});
+const SIGNAL_LIST_IOA_MAP = new Map();
 const HISTORY_LIMIT = 1000;
 const SCROLL_TOLERANCE = 8;
 const STATUS_ENDPOINT = '/api/backend/status';
+const SIGNAL_LIST_ENDPOINT = '/api/einstellungen/kommunikation/signalliste';
 const STATUS_MESSAGES = {
   client: {
     active: 'Client ist aktiv',
@@ -227,6 +229,77 @@ function formatTimestamp(epochSeconds) {
 // Formatiert eine Zeitdifferenz in Sekunden mit drei Nachkommastellen
 function formatDelta(deltaSeconds) {
   return deltaSeconds.toFixed(3).replace('.', ',');
+}
+
+// Extrahiert einen gültigen IOA-Bytewert (0-255) aus einem Signallisten-Eintrag
+function parseIoaPart(value) {
+  if (value === undefined || value === null) {
+    return null;
+  }
+  const parsed = Number.parseInt(String(value).trim(), 10);
+  if (Number.isNaN(parsed) || parsed < 0 || parsed > 255) {
+    return null;
+  }
+  return parsed;
+}
+
+// Berechnet die IOA-Zahl (LSB -> MSB) aus einer Zeile der Signalliste
+function extractIoaFromRow(row) {
+  const parts = [parseIoaPart(row['IOA 1']), parseIoaPart(row['IOA 2']), parseIoaPart(row['IOA 3'])];
+  if (parts.some((part) => part === null)) {
+    return null;
+  }
+  return parts[0] + (parts[1] << 8) + (parts[2] << 16);
+}
+
+// Baut ein Lookup für IOA -> Meldetext aus der Signalliste auf
+function buildSignalListLookup(signalliste) {
+  SIGNAL_LIST_IOA_MAP.clear();
+  if (!signalliste || !Array.isArray(signalliste.rows)) {
+    return;
+  }
+  signalliste.rows.forEach((row) => {
+    if (!row || typeof row !== 'object') {
+      return;
+    }
+    const label = typeof row['Datenpunkt / Meldetext'] === 'string' ? row['Datenpunkt / Meldetext'].trim() : '';
+    if (!label) {
+      return;
+    }
+    const ioa = extractIoaFromRow(row);
+    if (ioa === null) {
+      return;
+    }
+    SIGNAL_LIST_IOA_MAP.set(ioa, label);
+  });
+}
+
+// Lädt die Signalliste für die Kommunikationsanzeige und baut das Lookup auf
+async function loadSignalListMapping() {
+  try {
+    const response = await fetch(SIGNAL_LIST_ENDPOINT);
+    if (!response.ok) {
+      throw new Error('HTTP ' + response.status);
+    }
+    const payload = await response.json();
+    if (payload.status === 'success' && payload.signalliste) {
+      buildSignalListLookup(payload.signalliste);
+    }
+  } catch (error) {
+    console.warn('Konnte Signalliste nicht laden', error);
+    SIGNAL_LIST_IOA_MAP.clear();
+  }
+}
+
+// Ermittelt die anzuzeigende Beschriftung für ein Telegramm
+function resolveTelegramLabel(raw) {
+  if (raw && raw.frame_family === 'I' && typeof raw.ioa === 'number') {
+    const mapped = SIGNAL_LIST_IOA_MAP.get(raw.ioa);
+    if (mapped) {
+      return mapped;
+    }
+  }
+  return raw.label;
 }
 
 // Teilt eine IOA in ihre 3-Byte-Segmente auf und gibt sie als Zeichenketten zurück
@@ -455,7 +528,7 @@ function handleTelegramEvent(raw) {
 
   const telegram = {
     sequence: raw.sequence,
-    label: raw.label,
+    label: resolveTelegramLabel(raw),
     direction: raw.direction,
     frameFamily: raw.frame_family,
     localEndpoint: raw.local_endpoint,
@@ -600,14 +673,14 @@ async function loadExistingTelegrams() {
 }
 
 // Initialisiert die gesamte Beobachten-Seite inklusive Controls, Menüs und Livestream
-function initBeobachten() {
+async function initBeobachten() {
   bindControls();
   bindOptionMenus();
   bindFeedInteractions();
   fetchConnectionStatusSnapshot();
-  loadExistingTelegrams().finally(() => {
-    connectEventStream();
-  });
+  await loadSignalListMapping();
+  await loadExistingTelegrams();
+  connectEventStream();
 }
 
 window.addEventListener('beforeunload', () => {
