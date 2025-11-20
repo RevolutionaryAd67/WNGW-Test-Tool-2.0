@@ -2,6 +2,7 @@
     display: flex;
     flex-direction: column;
     gap: 1.5rem;
+    margin-top: 1rem;
 }
 
 .communication__box {
@@ -42,11 +43,12 @@
 .communication__save {
     border: none;
     border-radius: 999px;
-    padding: 0.55rem 1.6rem;
+    padding: 0.45rem 1.5rem;
     background-color: #0078d4;
     color: #fff;
     font-weight: 600;
     cursor: pointer;
+    transition: background-color 0.2s ease-in-out;
 }
 
 .communication__save:hover,
@@ -72,19 +74,25 @@
 
 .communication__table {
     width: 100%;
+    border: 1px solid #e0e0e0;
     border-collapse: collapse;
+    font-size: 0.95rem;
+    table-layout: fixed;
 }
 
 .communication__table th,
 .communication__table td {
-    padding: 0.75rem 0.5rem;
-    border-bottom: 1px solid var(--border-color);
+    padding: 0.75rem;
+    border: 1px solid #e0e0e0;
     text-align: left;
+    vertical-align: middle;
+    overflow-wrap: anywhere;
 }
 
-.communication__table th:first-child,
-.communication__table td:first-child {
-    width: 28%;
+.communication__table thead th,
+.communication__table tbody th {
+    background-color: #f4f4f4;
+    font-weight: 600;
 }
 
 .file-input {
@@ -109,7 +117,7 @@
 }
 
 .communication__note {
-    margin: 0;
+    margin: 1rem 0 0;
     font-size: 0.9rem;
-    color: rgba(0, 0, 0, 0.7);
+    color: #4b4b4b;
 }
