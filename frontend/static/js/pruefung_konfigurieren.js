@@ -1,9 +1,21 @@
+/*
+    Verwaltung der "Prüfung konfigurieren"-Seite
+
+    Aufgaben des Skripts:
+        1. Konfigurationen hinzufügen, verschieben und entfernen
+        2. Hochgeladene Signallisten auf Vollständigkeit prüfen
+        3. Prüfungen in JSON-Dateien abspeichern
+*/
+
 (function () {
+
+    // Globale Zustandsobjekte: Gespeicherte Konfigurationen 
     const state = {
         configs: [],
         current: createEmptyConfig(),
     };
 
+    // Referenzen auf relevante DOM-Elemente
     const elements = {
         list: document.getElementById('config-list'),
         nameInput: document.getElementById('config-name'),
@@ -18,6 +30,7 @@
         ablaufTableBody: document.querySelector('#ablauf-table tbody'),
     };
 
+    // Notwendige Spaltenüberschriften einer gültigen Signalliste
     const REQUIRED_HEADERS = [
         'Datenpunkt / Meldetext',
         'IOA 3',
@@ -26,6 +39,7 @@
         'IEC104- Typ',
     ];
 
+    // Erzeugt eine leere Konfiguration
     function createEmptyConfig() {
         return {
             id: null,
@@ -34,6 +48,7 @@
         };
     }
 
+    // Erstellt eine UUID (128-Bit-identifikator für den Namen der JSON-Datei je Konfiguration)
     function uuid() {
         if (window.crypto && 'randomUUID' in window.crypto) {
             return window.crypto.randomUUID();
@@ -41,11 +56,13 @@
         return `tmp-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
     }
 
+    // Zeigt ein Feedback im UI an
     function setFeedback(message, type = 'info') {
         elements.feedback.textContent = message || '';
         elements.feedback.dataset.state = type;
     }
 
+    // Baut die Seitenleiste mit allen verfügbaren Konfigurationen auf
     function renderConfigList() {
         if (!elements.list) return;
         elements.list.innerHTML = '';
@@ -78,6 +95,7 @@
         });
     }
 
+    // Stellt die Tabelle der Teilprüfungen dar
     function renderSteps() {
         const tbody = elements.ablaufTableBody;
         if (!tbody) return;
@@ -87,7 +105,7 @@
             emptyRow.className = 'ablauf-table__empty';
             const cell = document.createElement('td');
             cell.colSpan = 4;
-            cell.textContent = '/';
+           cell.textContent = '/';
             emptyRow.appendChild(cell);
             tbody.appendChild(emptyRow);
         } else {
@@ -143,12 +161,14 @@
         updateNextIndex();
     }
 
+    // Aktualisiert die Anzeige der nächsten Indexnummer im Eingabeformular
     function updateNextIndex() {
         if (elements.nextIndex) {
             elements.nextIndex.textContent = String(state.current.teilpruefungen.length + 1);
         }
     }
 
+    // Setzte den aktuellen Zustand auf die übergebene Konfiguration und rendert das UI neu
     function setCurrentConfig(config) {
         state.current = {
             id: config.id || null,
@@ -167,6 +187,7 @@
         renderSteps();
     }
 
+    // Setzt das Formular für das Hinzufügen einer Teilprüfung zurück
     function resetAddForm() {
         if (elements.fileInput) {
             elements.fileInput.value = '';
@@ -177,11 +198,13 @@
         setFeedback('');
     }
 
+    // Entfernt eine Teilprüfung anhand des Index
     function removeStep(index) {
         state.current.teilpruefungen.splice(index, 1);
         renderSteps();
     }
 
+    // Verschiebt die Teilprüfung innerhalb der Liste 
     function moveStep(index, direction) {
         const targetIndex = index + direction;
         if (targetIndex < 0 || targetIndex >= state.current.teilpruefungen.length) {
@@ -193,6 +216,7 @@
         renderSteps();
     }
 
+    // Lädt die Liste aller gespeicherten Konfigurationen 
     async function loadConfigList() {
         try {
             const response = await fetch('/api/pruefungskonfigurationen');
@@ -205,6 +229,7 @@
         }
     }
 
+    // Lädt eine konkrete Konfiguration anhand ihrer ID
     async function loadConfig(id) {
         try {
             const response = await fetch(`/api/pruefungskonfigurationen/${encodeURIComponent(id)}`);
@@ -218,6 +243,7 @@
         }
     }
 
+    // Lädt eine Signalliste hoch und validiert die enthaltenen Spalten
     async function uploadSignalliste(file) {
         const formData = new FormData();
         formData.append('signalliste', file);
@@ -232,6 +258,7 @@
         return response.json();
     }
 
+    // Fügt eine neue Teilprüfung hinzu, nachdem die Signalliste geprüft wurde
     async function handleAddStep() {
         const type = elements.typeSelect ? elements.typeSelect.value : '';
         const file = elements.fileInput && elements.fileInput.files ? elements.fileInput.files[0] : undefined;
@@ -263,6 +290,7 @@
         }
     }
 
+    // Speichert die aktuelle Konfiguration 
     async function saveConfig() {
         const name = elements.nameInput && typeof elements.nameInput.value === 'string'
             ? elements.nameInput.value.trim()
@@ -301,6 +329,7 @@
         }
     }
 
+    // Löscht die aktuelle Konfiguration
     async function deleteConfig() {
         if (!state.current.id) {
             setCurrentConfig(createEmptyConfig());
@@ -323,17 +352,20 @@
         }
     }
 
+    // Namensänderung
     function handleNameChange(event) {
         state.current.name = event.target.value;
         renderConfigList();
     }
 
+    // Aktualisiert das Label des Datei-Uploads mit dem Dateinamen
     function handleFileLabel() {
         if (!elements.fileInput || !elements.fileLabel) return;
         const file = elements.fileInput.files && elements.fileInput.files[0];
         elements.fileLabel.textContent = file ? file.name : 'Excel-Datei auswählen';
     }
 
+    // Registriert alle relevanten Event-Handler
     function registerEvents() {
         if (elements.addStepButton) {
             elements.addStepButton.addEventListener('click', handleAddStep);
@@ -352,6 +384,7 @@
         }
     }
 
+    // Initialisiert die Seite 
     function init() {
         registerEvents();
         renderConfigList();
