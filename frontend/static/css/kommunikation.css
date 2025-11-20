@@ -1,0 +1,115 @@
+.communication {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+}
+
+.communication__box {
+    background: #fff;
+    border-radius: 1rem;
+    border: 1px solid var(--border-color);
+    box-shadow: 0 10px 24px rgba(0, 0, 0, 0.06);
+    padding: 1.5rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.communication__header {
+    display: flex;
+    justify-content: space-between;
+    gap: 1rem;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+.communication__title {
+    margin: 0;
+}
+
+.communication__subtitle {
+    margin: 0.25rem 0 0;
+    color: rgba(0, 0, 0, 0.7);
+}
+
+.communication__actions {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin-left: auto;
+}
+
+.communication__save {
+    border: none;
+    border-radius: 999px;
+    padding: 0.55rem 1.6rem;
+    background-color: #0078d4;
+    color: #fff;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.communication__save:hover,
+.communication__save:focus-visible {
+    background-color: #005ea8;
+}
+
+.communication__status[data-state="success"] {
+    color: #0a7a28;
+}
+
+.communication__status[data-state="error"] {
+    color: #b00020;
+}
+
+.communication__status[data-state="pending"] {
+    color: rgba(0, 0, 0, 0.7);
+}
+
+.communication__table-wrapper {
+    overflow-x: auto;
+}
+
+.communication__table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.communication__table th,
+.communication__table td {
+    padding: 0.75rem 0.5rem;
+    border-bottom: 1px solid var(--border-color);
+    text-align: left;
+}
+
+.communication__table th:first-child,
+.communication__table td:first-child {
+    width: 28%;
+}
+
+.file-input {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    cursor: pointer;
+}
+
+.file-input input {
+    display: none;
+}
+
+.file-input span {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0.55rem 1rem;
+    border-radius: 0.75rem;
+    border: 1px dashed rgba(0, 0, 0, 0.3);
+    width: 100%;
+}
+
+.communication__note {
+    margin: 0;
+    font-size: 0.9rem;
+    color: rgba(0, 0, 0, 0.7);
+}
