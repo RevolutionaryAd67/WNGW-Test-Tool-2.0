@@ -22,6 +22,7 @@ from backend import backend_controller
 
 DATA_DIR = Path("data")
 CONFIG_DIR = DATA_DIR / "pruefungskonfigurationen"
+COMMUNICATION_DIR = DATA_DIR / "einstellungen_kommunikation"
 EXCEL_NAMESPACE = "{http://schemas.openxmlformats.org/spreadsheetml/2006/main}"
 REQUIRED_SIGNAL_HEADERS = {
     "Datenpunkt / Meldetext",
@@ -82,6 +83,10 @@ def create_app() -> Flask:
             "heading": "Server",
             "description": "Verwalten Sie serverseitige Parameter wie IP-Adressen, Zeitüberwachungen und Flusskontrollparameter. Der Server-Prozess nimmt im WNGW-Test-Tool die Rolle der Kundenstation ein.",
         },
+        "einstellungen_kommunikation": {
+            "heading": "Kommunikation",
+            "description": "Signallisten für den Server verwalten und bereitstellen.",
+        },
         "einstellungen_allgemein": {
             "heading": "Allgemein",
             "description": "Darstellung, Sprache und Reset-Optionen.",
@@ -135,6 +140,19 @@ def create_app() -> Flask:
     def _configurations_directory() -> Path:
         CONFIG_DIR.mkdir(parents=True, exist_ok=True)
         return CONFIG_DIR
+
+    # Ablageordner für Kommunikationssignallisten bereitstellen
+    def _communication_directory() -> Path:
+        COMMUNICATION_DIR.mkdir(parents=True, exist_ok=True)
+        return COMMUNICATION_DIR
+
+    # Standard-Dateipfad für die hinterlegte Kommunikations-Signalliste ermitteln
+    def _communication_file_path() -> Path:
+        directory = _communication_directory()
+        file_path = (directory / "signalliste.json").resolve()
+        if not str(file_path).startswith(str(directory.resolve())):
+            raise ValueError("Ungültiger Speicherpfad")
+        return file_path
 
     # Dateipfad für eine konkrete Prüfkonfiguration ermitteln
     def _configuration_file_path(config_id: str) -> Path:
@@ -405,6 +423,18 @@ def create_app() -> Flask:
             active_page="einstellungen_server",
         )
 
+    # Flask-Route: Seite "Kommunikation"
+    @app.route("/einstellungen/server/kommunikation")
+    def einstellungen_kommunikation():
+        page = pages.get("einstellungen_kommunikation", {})
+        return render_template(
+            "kommunikation.html",
+            title=page.get("heading", "WNGW"),
+            heading=page.get("heading", ""),
+            description=page.get("description", ""),
+            active_page="einstellungen_kommunikation",
+        )
+
     # Flask-Route: Seite "Allgemein"
     @app.route("/einstellungen/allgemein")
     def einstellungen_allgemein():
@@ -505,6 +535,58 @@ def create_app() -> Flask:
             )
         parsed["filename"] = filename
         return jsonify(parsed)
+
+    # Flask-Route: Signalliste für die Kommunikationsseite abrufen
+    @app.get("/api/einstellungen/kommunikation/signalliste")
+    def api_get_kommunikation_signalliste():
+        try:
+            file_path = _communication_file_path()
+        except ValueError:
+            return jsonify({"status": "error", "message": "Ungültiger Speicherort."}), 400
+        if not file_path.exists():
+            return jsonify({"status": "empty"})
+        try:
+            stored = json.loads(file_path.read_text(encoding="utf-8"))
+        except json.JSONDecodeError:
+            return jsonify({"status": "error", "message": "Gespeicherte Signalliste ist beschädigt."}), 500
+        return jsonify({"status": "success", "signalliste": stored})
+
+    # Flask-Route: Signalliste für die Kommunikationsseite speichern
+    @app.post("/api/einstellungen/kommunikation/signalliste")
+    def api_save_kommunikation_signalliste():
+        file = request.files.get("signalliste")
+        if file is None or file.filename == "":
+            return jsonify({"status": "error", "message": "Keine Datei ausgewählt."}), 400
+        filename = file.filename
+        if not filename.lower().endswith(".xlsx"):
+            return jsonify({"status": "error", "message": "Es werden nur .xlsx-Dateien unterstützt."}), 400
+        try:
+            parsed = _parse_excel_table(file.read())
+        except ValueError as exc:
+            return jsonify({"status": "error", "message": str(exc)}), 400
+        missing = _validate_signal_headers(parsed.get("headers", []))
+        if missing:
+            return (
+                jsonify(
+                    {
+                        "status": "error",
+                        "message": "Signalliste unvollständig: " + ", ".join(missing),
+                    }
+                ),
+                400,
+            )
+        payload = {
+            "filename": filename,
+            "headers": parsed.get("headers", []),
+            "rows": parsed.get("rows", []),
+        }
+        try:
+            file_path = _communication_file_path()
+        except ValueError:
+            return jsonify({"status": "error", "message": "Ungültiger Speicherort."}), 400
+        file_path.parent.mkdir(parents=True, exist_ok=True)
+        file_path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
+        return jsonify({"status": "success", "signalliste": payload})
 
     # Client starten
     @app.post("/api/backend/client/start")
