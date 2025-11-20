@@ -294,6 +294,9 @@ async function loadSignalListMapping() {
 // Ermittelt die anzuzeigende Beschriftung für ein Telegramm
 function resolveTelegramLabel(raw) {
   if (raw && raw.frame_family === 'I' && typeof raw.ioa === 'number') {
+    if (raw.ioa === 0) {
+      return raw.label;
+    }
     const mapped = SIGNAL_LIST_IOA_MAP.get(raw.ioa);
     if (mapped) {
       return mapped;
