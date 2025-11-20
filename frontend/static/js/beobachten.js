@@ -1,8 +1,20 @@
+/*
+    Verwaltung der "Beobachten"-Seite
+
+    Aufgaben des Skripts:
+        1. Vorhandene Telegrammverläufe aus JSON-Datei laden (client.jsonl und server.jsonl)
+        2. Live-Updates für Client- und Server-Events darstellen (z.B. ein- und ausgehende Telegrammer)
+        3. Verbindungszustände von Client und Server darstellen
+        4. Steuerelemente für die Seite "Beobachten" definieren
+*/
+
+// Telegramm-Historie getrennt nach Client und Server speichern
 const TELEGRAM_STATE = {
   client: [],
   server: [],
 };
 
+// Seiten (Client/Server), die im UI dargestellt werden
 const TELEGRAM_SIDES = ['client', 'server'];
 const VIEW_OPTIONS = TELEGRAM_SIDES.reduce((acc, side) => {
   acc[side] = {
@@ -10,7 +22,7 @@ const VIEW_OPTIONS = TELEGRAM_SIDES.reduce((acc, side) => {
   };
   return acc;
 }, {});
-const HISTORY_LIMIT = 3000;
+const HISTORY_LIMIT = 1000;
 const SCROLL_TOLERANCE = 8;
 const STATUS_ENDPOINT = '/api/backend/status';
 const STATUS_MESSAGES = {
@@ -74,6 +86,7 @@ function getFeedElement(side) {
   return document.querySelector(`.telegram-feed[data-telegrams="${side}"]`);
 }
 
+// Prüft, ob ein Feed nah am unteren Rand ist, um automatisches Scrollen zu steuern
 function isNearBottom(container) {
   if (!container) {
     return false;
@@ -82,6 +95,8 @@ function isNearBottom(container) {
   return distance <= SCROLL_TOLERANCE;
 }
 
+// Aktiviert/Deaktiviert die komprimierte Darstellung der Telegramm-Details
+// (Details einklappen / Details ausklappen)
 function applyDetailMode(side) {
   const container = getFeedElement(side);
   if (!container || !VIEW_OPTIONS[side]) {
@@ -119,6 +134,7 @@ function getMonitoringStatusElement(side) {
   return document.querySelector(`.monitoring-status[data-status="${side}"]`);
 }
 
+// Stellt den Status neutral dar (keine Aktiv/Inaktiv-Färbung)
 function setNeutralMonitoringStatus(statusEl, text) {
   if (!statusEl) {
     return;
@@ -127,6 +143,7 @@ function setNeutralMonitoringStatus(statusEl, text) {
   statusEl.classList.remove('monitoring-status--active', 'monitoring-status--inactive');
 }
 
+// Löscht einen laufenden Timeout, der einen neutralen Status zurücksetzt
 function clearPendingStatus(side) {
   if (!pendingStatusTimers[side]) {
     return;
@@ -135,6 +152,7 @@ function clearPendingStatus(side) {
   pendingStatusTimers[side] = null;
 }
 
+// Zeigt einen "Verbindung wird aufgebaut"-Hinweis und plant ein Zurücksetzen, falls keine Antwort kommt
 function showConnectingStatus(side) {
   const statusEl = getMonitoringStatusElement(side);
   if (!statusEl) {
@@ -207,6 +225,7 @@ function splitIoa(ioaValue) {
   return segments.map((value) => value.toString().padStart(3, ' '));
 }
 
+// Hilfsfunktion zum Erzeugen einer beschrifteten Zeile innerhalb eines Telegramms
 function createLine(label, value) {
   const line = document.createElement('div');
   line.className = 'telegram__line';
@@ -230,6 +249,7 @@ function removeEmptyState(container) {
   }
 }
 
+// Baut das HTML für ein einzelnes Telegramm zusammen
 function createTelegramElement(telegram) {
   const article = document.createElement('article');
   const variant = telegram.direction === 'incoming' ? 'incoming' : 'outgoing';
@@ -344,6 +364,7 @@ function closeAllMenus(except = null) {
   });
 }
 
+// Reagiert auf Einträge im Optionsmenü eines Telegramms-Feeds
 function handleMenuOption(side, option) {
   switch (option) {
     case 'clear-history':
@@ -397,6 +418,7 @@ function bindOptionMenus() {
   });
 }
 
+// Stellt initial die Detail-Ansicht der Feeds ein
 function bindFeedInteractions() {
   TELEGRAM_SIDES.forEach((side) => {
     const container = getFeedElement(side);
