@@ -517,7 +517,10 @@ function bindControls() {
   const stopClientButton = document.querySelector('[data-action="stop-client"]');
   const stopServerButton = document.querySelector('[data-action="stop-server"]');
   if (clientButton) {
-    clientButton.addEventListener('click', () => startComponent('client'));
+    clientButton.addEventListener('click', () => {
+      showConnectingStatus('client');
+      startComponent('client');
+    });
   }
   if (serverButton) {
     serverButton.addEventListener('click', () => {
