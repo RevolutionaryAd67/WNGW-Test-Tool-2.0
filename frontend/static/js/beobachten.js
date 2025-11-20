@@ -82,6 +82,7 @@ const ORIGINATOR_MEANINGS = {
 
 let eventSource = null;
 
+// Liefert das HTML-Element des Telegramm-Feeds
 function getFeedElement(side) {
   return document.querySelector(`.telegram-feed[data-telegrams="${side}"]`);
 }
@@ -106,6 +107,7 @@ function applyDetailMode(side) {
   container.classList.toggle('telegram-feed--collapsed', collapsed);
 }
 
+// Ändert den Detailmodus (eingeklappt/ausgeklappt) für einen Feed und aktualisiert die Ansicht
 function setDetailMode(side, mode) {
   if (!VIEW_OPTIONS[side] || (mode !== 'collapsed' && mode !== 'expanded')) {
     return;
@@ -117,6 +119,7 @@ function setDetailMode(side, mode) {
   applyDetailMode(side);
 }
 
+// Extrahiert eine lesbare IP aus einem Statusobjekt
 function formatListeningIp(statusInfo) {
   if (!statusInfo) {
     return '';
@@ -130,6 +133,7 @@ function formatListeningIp(statusInfo) {
   return '';
 }
 
+// Liefert das Element, das den aktuellen Monitoring-Status für eine Seite anzeigt
 function getMonitoringStatusElement(side) {
   return document.querySelector(`.monitoring-status[data-status="${side}"]`);
 }
@@ -166,6 +170,7 @@ function showConnectingStatus(side) {
   }, CONNECTING_TIMEOUT_MS);
 }
 
+// Aktualisiert die Anzeige des Verbindungsstatus für Client oder Server
 function updateConnectionIndicator(side, statusInfo) {
   const status = getMonitoringStatusElement(side);
   if (!status) {
@@ -190,6 +195,7 @@ function updateConnectionIndicator(side, statusInfo) {
   status.classList.toggle('monitoring-status--inactive', !isActive);
 }
 
+// Lädt einen einmaligen Snapshot des Verbindungsstatus 
 async function fetchConnectionStatusSnapshot() {
   try {
     const response = await fetch(STATUS_ENDPOINT);
@@ -206,20 +212,24 @@ async function fetchConnectionStatusSnapshot() {
   }
 }
 
+// Formatiert Zeilen zweistellig mit führenden Nullen
 function pad(value) {
   return value.toString().padStart(2, '0');
 }
 
+// Wandelt einen Unix-Timestamp in eine Uhrzeit mit Millisekunden um
 function formatTimestamp(epochSeconds) {
   const date = new Date(epochSeconds * 1000);
   const ms = date.getMilliseconds().toString().padStart(3, '0');
   return `${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}.${ms}`;
 }
 
+// Formatiert eine Zeitdifferenz in Sekunden mit drei Nachkommastellen
 function formatDelta(deltaSeconds) {
   return deltaSeconds.toFixed(3).replace('.', ',');
 }
 
+// Teilt eine IOA in ihre 3-Byte-Segmente auf und gibt sie als Zeichenketten zurück
 function splitIoa(ioaValue) {
   const segments = [ioaValue & 0xff, (ioaValue >> 8) & 0xff, (ioaValue >> 16) & 0xff];
   return segments.map((value) => value.toString().padStart(3, ' '));
@@ -242,6 +252,7 @@ function createLine(label, value) {
   return line;
 }
 
+// Entfernt die leere Platzhalternachricht aus einem Feed
 function removeEmptyState(container) {
   const empty = container.querySelector('.telegram-feed__empty');
   if (empty) {
@@ -303,6 +314,7 @@ function createTelegramElement(telegram) {
   return article;
 }
 
+// Hängt ein neues Telegramm an den entsprechenden Feed an und hält das Scroll-Verhalten konsistent
 function appendTelegram(side, telegram) {
   const container = getFeedElement(side);
   if (!container) {
@@ -316,6 +328,7 @@ function appendTelegram(side, telegram) {
   }
 }
 
+// Fügt eine leere Platzhalter-Nachricht hinzu, wenn keine Telegramme vorhanden sind
 function addEmptyState(container) {
   if (!container.querySelector('.telegram-feed__empty')) {
     const empty = document.createElement('div');
@@ -325,6 +338,7 @@ function addEmptyState(container) {
   }
 }
 
+// Setzt die lokal gespeicherten Telegramme und die Anzeige für eine Seite zurück
 function resetTelegrams(side) {
   const container = getFeedElement(side);
   if (!container || !TELEGRAM_STATE[side]) {
@@ -336,6 +350,7 @@ function resetTelegrams(side) {
   applyDetailMode(side);
 }
 
+// Löscht den Verlauf einer Seite aus der JSON-Datei und aktualisiert die Anzeige
 async function clearHistory(side) {
   const menuToggle = document.querySelector(`.monitoring-menu[data-menu="${side}"] [data-menu-toggle]`);
   if (menuToggle) {
@@ -356,6 +371,7 @@ async function clearHistory(side) {
   }
 }
 
+// Schließt alle offenen Optionsmenüs
 function closeAllMenus(except = null) {
   document.querySelectorAll('.monitoring-menu').forEach((menu) => {
     if (menu !== except) {
@@ -381,6 +397,7 @@ function handleMenuOption(side, option) {
   }
 }
 
+// Bindet die Events für die Optionsmenüs 
 function bindOptionMenus() {
   const menus = document.querySelectorAll('.monitoring-menu');
   menus.forEach((menu) => {
@@ -429,6 +446,7 @@ function bindFeedInteractions() {
   });
 }
 
+// Überführt rohe Telegramm-Daten aus dem Backend in UI-fähige Objekte und rendert sie
 function handleTelegramEvent(raw) {
   const target = raw.side;
   if (!target || !TELEGRAM_STATE[target]) {
@@ -455,6 +473,7 @@ function handleTelegramEvent(raw) {
   appendTelegram(target, telegram);
 }
 
+// Reagiert auf neue Nachrichten aus dem Event-Stream (Telegramme und Status-Updates)
 function handleStreamMessage(event) {
   try {
     const payload = JSON.parse(event.data);
@@ -472,6 +491,7 @@ function handleStreamMessage(event) {
   }
 }
 
+// Baut die SSE-verbindung zum Backend auf und versucht bei Verbindungsverlust einen Neuaufbau
 function connectEventStream() {
   if (eventSource) {
     eventSource.close();
@@ -487,6 +507,7 @@ function connectEventStream() {
   };
 }
 
+// Startet Client oder Server über die Backend-API und schützt den Button währenddessen
 async function startComponent(kind) {
   const endpoint = kind === 'client' ? '/api/backend/client/start' : '/api/backend/server/start';
   const button = document.querySelector(`[data-action="start-${kind}"]`);
@@ -510,6 +531,7 @@ async function startComponent(kind) {
   }
 }
 
+// Stoppt den Client oder Server über die Backend-API und verhindert doppelte Klicks
 async function stopComponent(kind) {
   const endpoint = kind === 'client' ? '/api/backend/client/stop' : '/api/backend/server/stop';
   const button = document.querySelector(`[data-action="stop-${kind}"]`);
@@ -533,6 +555,7 @@ async function stopComponent(kind) {
   }
 }
 
+// Bindet die Steuerelemente für Start/Stop und zeigt während des Aufbaus einen Status an
 function bindControls() {
   const clientButton = document.querySelector('[data-action="start-client"]');
   const serverButton = document.querySelector('[data-action="start-server"]');
@@ -558,6 +581,7 @@ function bindControls() {
   }
 }
 
+// Lädt die bisherigen Telegramme aus dem Backend und initialisiert die Feeds
 async function loadExistingTelegrams() {
   try {
     const response = await fetch(`/api/backend/history?limit=${HISTORY_LIMIT}`);
@@ -575,6 +599,7 @@ async function loadExistingTelegrams() {
   }
 }
 
+// Initialisiert die gesamte Beobachten-Seite inklusive Controls, Menüs und Livestream
 function initBeobachten() {
   bindControls();
   bindOptionMenus();
