@@ -31,6 +31,8 @@ REQUIRED_SIGNAL_HEADERS = {
     "IEC104- Typ",
 }
 
+# Beim Wechsel auf die "Beobachten"-Seite sollen 1000 Telegramme aus der JSON-Datei geladen und angezeigt werden
+# Wert muss ebenfalls im Skript "beobachten.js" bearbeitet werden
 DEFAULT_HISTORY_LIMIT = 1000
 
 
@@ -86,6 +88,7 @@ def create_app() -> Flask:
         },
     }
 
+    # Pfad für das Zwischenspeichern der Eingabefelder pro Seite/Komponente
     def _input_box_file_path(page_key: str, component_id: str) -> Path:
         relative = Path(page_key) / f"{component_id}.json"
         file_path = (DATA_DIR / relative).resolve()
@@ -93,6 +96,7 @@ def create_app() -> Flask:
             raise ValueError("Ungültiger Speicherpfad")
         return file_path
 
+    # Standardwerte für dynamische Eingabefelder erzeugen
     def _default_input_box_values(
         columns: List[Dict[str, Any]], rows: List[Dict[str, Any]]
     ) -> Dict[str, Dict[str, str]]:
@@ -106,6 +110,7 @@ def create_app() -> Flask:
                 defaults[row["id"]] = row_defaults
         return defaults
 
+    # Gespeicherte Eingabewerte laden und mit Standardwerten mergen
     def load_input_box_values(
         page_key: str, component_id: str, columns: List[Dict[str, Any]], rows: List[Dict[str, Any]]
     ) -> Dict[str, Dict[str, str]]:
@@ -126,11 +131,12 @@ def create_app() -> Flask:
                 pass
         return defaults
 
-    # Sicherstellen, dass das Ablageverzeichnis existiert
+    # Ablageordner für Prüfkonfigurationen bereitstellen
     def _configurations_directory() -> Path:
         CONFIG_DIR.mkdir(parents=True, exist_ok=True)
         return CONFIG_DIR
 
+    # Dateipfad für eine konkrete Prüfkonfiguration ermitteln
     def _configuration_file_path(config_id: str) -> Path:
         directory = _configurations_directory()
         safe_id = Path(config_id).name
@@ -139,7 +145,7 @@ def create_app() -> Flask:
             raise ValueError("Ungültiger Konfigurationspfad")
         return file_path
 
-    # Verfügbare Prüfkonfigurationen aus dem Dateisystem einlesen
+    # Alle vorhandenen Prüfkonfigurationen einsammeln
     def _list_configurations() -> List[Dict[str, str]]:
         configurations: List[Dict[str, str]] = []
         directory = _configurations_directory()
@@ -155,6 +161,7 @@ def create_app() -> Flask:
             })
         return configurations
 
+    # Einzelne Prüfkonfiguration auslesen und anreichern
     def _load_configuration(config_id: str) -> Dict[str, Any]:
         file_path = _configuration_file_path(config_id)
         if not file_path.exists():
@@ -177,6 +184,7 @@ def create_app() -> Flask:
             result = result * 26 + (ord(char.upper()) - 64)
         return result
 
+    # Gemeinsame Zeichenketten aus einer XLSX-Datei extrahieren
     def _load_shared_strings(zf: zipfile.ZipFile) -> List[str]:
         if "xl/sharedStrings.xml" not in zf.namelist():
             return []
@@ -188,6 +196,7 @@ def create_app() -> Flask:
             strings.append("".join(parts))
         return strings
 
+    # Zeileninhalt eines Tabellenblatts als Mapping auslesen
     def _read_sheet_rows(
         zf: zipfile.ZipFile, sheet_name: str, shared_strings: List[str]
     ) -> List[Dict[int, str]]:
@@ -259,11 +268,12 @@ def create_app() -> Flask:
                     parsed_rows.append(entry)
         return {"headers": headers, "rows": parsed_rows}
 
+    # Pflichtspalten der Signalliste prüfen und fehlende Felder melden
     def _validate_signal_headers(headers: List[str]) -> List[str]:
         available = set(headers)
         return sorted(header for header in REQUIRED_SIGNAL_HEADERS if header not in available)
 
-    # Eingereichte Prüfkonfiguration validieren und persistieren
+    # Eingehende Prüfkonfiguration validieren und dauerhaft speichern
     def _store_configuration(payload: Dict[str, Any]) -> Dict[str, Any]:
         name = (payload.get("name") or "").strip()
         if not name:
@@ -314,6 +324,7 @@ def create_app() -> Flask:
             "input_box_values": load_input_box_values,
         }
 
+    # Gemeinsame Renderer für die statischen Seiten bereitstellen
     def render_page(page_key: str, active_page: str):
         page = pages.get(page_key, {})
         return render_template(
@@ -324,10 +335,12 @@ def create_app() -> Flask:
             active_page=active_page,
         )
 
+    # Flask-Route: Seite "Startseite"
     @app.route("/")
     def startseite():
         return render_page("startseite", "startseite")
 
+    # Flask-Route: Seite "Beobachten"
     @app.route("/beobachten")
     def beobachten():
         page = pages.get("beobachten", {})
@@ -339,6 +352,7 @@ def create_app() -> Flask:
             active_page="beobachten",
         )
 
+    # Flask-Route: Seite "Prüfung starten"
     @app.route("/pruefung/starten")
     def pruefung_starten():
         page = pages.get("pruefung_starten", {})
@@ -350,6 +364,7 @@ def create_app() -> Flask:
             active_page="pruefung_starten",
         )
 
+    # Flask-Route: Seite "Prüfung konfigurieren"
     @app.route("/pruefung/konfigurieren")
     def pruefung_konfigurieren():
         page = pages.get("pruefung_konfigurieren", {})
@@ -361,10 +376,12 @@ def create_app() -> Flask:
             active_page="pruefung_konfigurieren",
         )
 
+    # Flask-Route: Seite "Prüfprotokolle"
     @app.route("/pruefung/protokolle")
     def pruefprotokolle():
         return render_page("pruefprotokolle", "pruefung_protokolle")
 
+    # Flask-Route: Seite "Client"
     @app.route("/einstellungen/client")
     def einstellungen_client():
         page = pages.get("einstellungen_client", {})
@@ -376,6 +393,7 @@ def create_app() -> Flask:
             active_page="einstellungen_client",
         )
 
+    # Flask-Route: Seite "Server"
     @app.route("/einstellungen/server")
     def einstellungen_server():
         page = pages.get("einstellungen_server", {})
@@ -387,10 +405,13 @@ def create_app() -> Flask:
             active_page="einstellungen_server",
         )
 
+    # Flask-Route: Seite "Allgemein"
     @app.route("/einstellungen/allgemein")
     def einstellungen_allgemein():
         return render_page("einstellungen_allgemein", "einstellungen_allgemein")
 
+    # Flask-Route: API-Endpunkte für UI-Interaktionen 
+    # Eingaben aus dynamischen Input-Boxen abspeichern
     @app.post("/api/components/input-box/save")
     def save_input_box():
         payload = request.get_json(silent=True) or {}
@@ -411,10 +432,12 @@ def create_app() -> Flask:
 
         return jsonify({"status": "success", "message": "Eingaben gespeichert."})
 
+    # Flask-Route: Statische Dateien für Komponenten ausliefern
     @app.route("/components/<path:filename>")
     def component_asset(filename: str):
         return send_from_directory("frontend/components", filename)
 
+    # Flask-Route: Verfügbare Prüfkonfigurationen als Liste zurückgeben
     @app.get("/api/pruefungskonfigurationen")
     def api_list_configurations():
         configs = sorted(
@@ -422,6 +445,7 @@ def create_app() -> Flask:
         )
         return jsonify({"configurations": configs})
 
+    # Flask-Route: Einzelne Prüfkonfiguration abrufen
     @app.get("/api/pruefungskonfigurationen/<config_id>")
     def api_get_configuration(config_id: str):
         try:
@@ -432,6 +456,7 @@ def create_app() -> Flask:
             return jsonify({"status": "error", "message": "Ungültige Konfiguration."}), 400
         return jsonify({"configuration": configuration})
 
+    # Flask-Route: Neue oder aktualisierte Prüfkonfiguration speichern
     @app.post("/api/pruefungskonfigurationen")
     def api_save_configuration():
         payload = request.get_json(silent=True) or {}
@@ -441,6 +466,7 @@ def create_app() -> Flask:
             return jsonify({"status": "error", "message": str(exc)}), 400
         return jsonify({"status": "success", "configuration": configuration})
 
+    # Flask-Route: Prüfkonfiguration löschen
     @app.delete("/api/pruefungskonfigurationen/<config_id>")
     def api_delete_configuration(config_id: str):
         try:
@@ -452,6 +478,7 @@ def create_app() -> Flask:
         file_path.unlink()
         return jsonify({"status": "success"})
 
+    # Flask-Route: Signalliste im XLSX-Format entgegennehmen und prüfen
     @app.post("/api/pruefungskonfigurationen/signalliste")
     def api_upload_signalliste():
         file = request.files.get("signalliste")
@@ -479,30 +506,35 @@ def create_app() -> Flask:
         parsed["filename"] = filename
         return jsonify(parsed)
 
+    # Client starten
     @app.post("/api/backend/client/start")
     def api_start_client():
         started = backend_controller.start_client()
         status = "started" if started else "already_running"
         return jsonify({"status": status})
 
+    # Server starten
     @app.post("/api/backend/server/start")
     def api_start_server():
         started = backend_controller.start_server()
         status = "started" if started else "already_running"
         return jsonify({"status": status})
 
+    # Client stoppen
     @app.post("/api/backend/client/stop")
     def api_stop_client():
         stopped = backend_controller.stop_client()
         status = "stopped" if stopped else "not_running"
         return jsonify({"status": status})
 
+    # Server stoppen
     @app.post("/api/backend/server/stop")
     def api_stop_server():
         stopped = backend_controller.stop_server()
         status = "stopped" if stopped else "not_running"
         return jsonify({"status": status})
 
+    # Kommunikationsverlauf aus dem Backend abrufen
     @app.get("/api/backend/history")
     def api_history():
         raw_limit = request.args.get("limit", type=int)
@@ -515,10 +547,12 @@ def create_app() -> Flask:
         history = backend_controller.history.load_all(limit=limit)
         return jsonify(history)
 
+    # Aktuellen Verbindungsstatus des Backends liefern
     @app.get("/api/backend/status")
     def api_backend_status():
         return jsonify(backend_controller.get_connection_status())
 
+    # Kommunikationsverlauf löschen
     @app.post("/api/backend/history/<side>/clear")
     def api_history_clear(side: str):
         try:
@@ -527,10 +561,12 @@ def create_app() -> Flask:
             return jsonify({"status": "error", "message": "Ungültige Seite."}), 400
         return jsonify({"status": "success"})
 
+    # Live-Events des Backends als Stream bereitstellen
     @app.route("/api/backend/stream")
     def api_backend_stream():
         subscriber = backend_controller.event_bus.subscribe()
 
+        # Ereignisse aus dem Backend als Server-Sent-Event ausliefern
         def event_stream():
             try:
                 while True:
@@ -543,9 +579,11 @@ def create_app() -> Flask:
 
         return Response(event_stream(), mimetype="text/event-stream")
 
+    # Vollständig konfigurierte Flask-App an den Aufruf zurückgeben
     return app
 
 
+# Lokaler Einstiegspunkt zum Starten der Anwendung 
 if __name__ == "__main__":
     app = create_app()
     app.run(debug=True)
