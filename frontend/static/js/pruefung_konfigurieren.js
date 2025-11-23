@@ -33,10 +33,16 @@
     // Notwendige Spaltenüberschriften einer gültigen Signalliste
     const REQUIRED_HEADERS = [
         'Datenpunkt / Meldetext',
+        'IEC104- Typ',
         'IOA 3',
         'IOA 2',
         'IOA 1',
-        'IEC104- Typ',
+        'Übertragungsursache',
+        'Herkunftsadresse',
+        'Wert',
+        'Quelle/Senke von der FWK betrachtet',
+        'Quelle/Senke von der NLS betrachtet',
+        'GA- Generalabfrage (keine Wischer)',
     ];
 
     // Erzeugt eine leere Konfiguration

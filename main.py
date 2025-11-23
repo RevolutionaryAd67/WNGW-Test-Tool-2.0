@@ -27,10 +27,16 @@ SERVER_DIR = DATA_DIR / "einstellungen_server"
 EXCEL_NAMESPACE = "{http://schemas.openxmlformats.org/spreadsheetml/2006/main}"
 REQUIRED_SIGNAL_HEADERS = {
     "Datenpunkt / Meldetext",
+    "IEC104- Typ",
     "IOA 3",
     "IOA 2",
     "IOA 1",
-    "IEC104- Typ",
+    "Übertragungsursache",
+    "Herkunftsadresse",
+    "Wert",
+    "Quelle/Senke von der FWK betrachtet",
+    "Quelle/Senke von der NLS betrachtet",
+    "GA- Generalabfrage (keine Wischer)",
 }
 
 # Beim Wechsel auf die "Beobachten"-Seite sollen 1000 Telegramme aus der JSON-Datei geladen und angezeigt werden
