@@ -22,6 +22,7 @@ U_FRAME_LABELS = {
 
 # Bekannte Typkennungen für I-Frames
 TYPE_LABELS = {
+    70: "Initialisierungsende",
     100: "GENERALABFRAGE",
 }
 
