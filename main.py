@@ -25,7 +25,7 @@ CONFIG_DIR = DATA_DIR / "pruefungskonfigurationen"
 COMMUNICATION_DIR = DATA_DIR / "einstellungen_kommunikation"
 SERVER_DIR = DATA_DIR / "einstellungen_server"
 EXCEL_NAMESPACE = "{http://schemas.openxmlformats.org/spreadsheetml/2006/main}"
-REQUIRED_SIGNAL_HEADERS = {
+REQUIRED_SIGNAL_HEADERS = (
     "Datenpunkt / Meldetext",
     "IEC104- Typ",
     "IOA 3",
@@ -37,7 +37,7 @@ REQUIRED_SIGNAL_HEADERS = {
     "Quelle/Senke von der FWK betrachtet",
     "Quelle/Senke von der NLS betrachtet",
     "GA- Generalabfrage (keine Wischer)",
-}
+)
 
 # Beim Wechsel auf die "Beobachten"-Seite sollen 1000 Telegramme aus der JSON-Datei geladen und angezeigt werden
 # Wert muss ebenfalls im Skript "beobachten.js" bearbeitet werden
@@ -309,7 +309,7 @@ def create_app() -> Flask:
     # Pflichtspalten der Signalliste prüfen und fehlende Felder melden
     def _validate_signal_headers(headers: List[str]) -> List[str]:
         available = set(headers)
-        return sorted(header for header in REQUIRED_SIGNAL_HEADERS if header not in available)
+        return [header for header in REQUIRED_SIGNAL_HEADERS if header not in available]
 
     # Eingehende Prüfkonfiguration validieren und dauerhaft speichern
     def _store_configuration(payload: Dict[str, Any]) -> Dict[str, Any]:
@@ -494,6 +494,11 @@ def create_app() -> Flask:
             _list_configurations(), key=lambda item: item.get("name", "").lower()
         )
         return jsonify({"configurations": configs})
+
+    # Flask-Route: Notwendige Spaltenüberschriften für Signallisten bereitstellen
+    @app.get("/api/pruefungskonfigurationen/required_headers")
+    def api_required_signal_headers():
+        return jsonify({"headers": list(REQUIRED_SIGNAL_HEADERS)})
 
     # Flask-Route: Einzelne Prüfkonfiguration abrufen
     @app.get("/api/pruefungskonfigurationen/<config_id>")

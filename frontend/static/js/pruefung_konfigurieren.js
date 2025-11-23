@@ -9,10 +9,11 @@
 
 (function () {
 
-    // Globale Zustandsobjekte: Gespeicherte Konfigurationen 
+    // Globale Zustandsobjekte: Gespeicherte Konfigurationen
     const state = {
         configs: [],
         current: createEmptyConfig(),
+        requiredHeaders: [],
     };
 
     // Referenzen auf relevante DOM-Elemente
@@ -29,21 +30,6 @@
         addStepButton: document.getElementById('add-step-button'),
         ablaufTableBody: document.querySelector('#ablauf-table tbody'),
     };
-
-    // Notwendige Spaltenüberschriften einer gültigen Signalliste
-    const REQUIRED_HEADERS = [
-        'Datenpunkt / Meldetext',
-        'IEC104- Typ',
-        'IOA 3',
-        'IOA 2',
-        'IOA 1',
-        'Übertragungsursache',
-        'Herkunftsadresse',
-        'Wert',
-        'Quelle/Senke von der FWK betrachtet',
-        'Quelle/Senke von der NLS betrachtet',
-        'GA- Generalabfrage (keine Wischer)',
-    ];
 
     // Erzeugt eine leere Konfiguration
     function createEmptyConfig() {
@@ -264,6 +250,21 @@
         return response.json();
     }
 
+    // Lädt die notwendigen Spaltenüberschriften aus dem Backend
+    async function loadRequiredHeaders() {
+        try {
+            const response = await fetch('/api/pruefungskonfigurationen/required_headers');
+            if (!response.ok) {
+                throw new Error('Erforderliche Spaltenüberschriften konnten nicht geladen werden.');
+            }
+            const data = await response.json();
+            state.requiredHeaders = Array.isArray(data.headers) ? data.headers : [];
+        } catch (error) {
+            state.requiredHeaders = [];
+            setFeedback(error.message, 'error');
+        }
+    }
+
     // Fügt eine neue Teilprüfung hinzu, nachdem die Signalliste geprüft wurde
     async function handleAddStep() {
         const type = elements.typeSelect ? elements.typeSelect.value : '';
@@ -276,10 +277,14 @@
             setFeedback('Bitte eine Signalliste auswählen.', 'error');
             return;
         }
+        if (!state.requiredHeaders.length) {
+            setFeedback('Erforderliche Spaltenüberschriften konnten nicht geladen werden.', 'error');
+            return;
+        }
         try {
             const signalliste = await uploadSignalliste(file);
             const headers = Array.isArray(signalliste.headers) ? signalliste.headers : [];
-            const missingHeaders = REQUIRED_HEADERS.filter((header) => headers.indexOf(header) === -1);
+            const missingHeaders = state.requiredHeaders.filter((header) => headers.indexOf(header) === -1);
             if (missingHeaders.length) {
                 throw new Error(`Signalliste unvollständig: ${missingHeaders.join(', ')}`);
             }
@@ -390,11 +395,12 @@
         }
     }
 
-    // Initialisiert die Seite 
-    function init() {
+    // Initialisiert die Seite
+    async function init() {
         registerEvents();
         renderConfigList();
         renderSteps();
+        await loadRequiredHeaders();
         loadConfigList();
     }
 
