@@ -23,6 +23,7 @@ from backend import backend_controller
 DATA_DIR = Path("data")
 CONFIG_DIR = DATA_DIR / "pruefungskonfigurationen"
 COMMUNICATION_DIR = DATA_DIR / "einstellungen_kommunikation"
+SERVER_DIR = DATA_DIR / "einstellungen_server"
 EXCEL_NAMESPACE = "{http://schemas.openxmlformats.org/spreadsheetml/2006/main}"
 REQUIRED_SIGNAL_HEADERS = {
     "Datenpunkt / Meldetext",
@@ -149,6 +150,19 @@ def create_app() -> Flask:
     # Standard-Dateipfad für die hinterlegte Kommunikations-Signalliste ermitteln
     def _communication_file_path() -> Path:
         directory = _communication_directory()
+        file_path = (directory / "signalliste.json").resolve()
+        if not str(file_path).startswith(str(directory.resolve())):
+            raise ValueError("Ungültiger Speicherpfad")
+        return file_path
+
+    # Ablageordner für die Server-Signalliste bereitstellen
+    def _server_directory() -> Path:
+        SERVER_DIR.mkdir(parents=True, exist_ok=True)
+        return SERVER_DIR
+
+    # Standard-Dateipfad für die hinterlegte Server-Signalliste ermitteln
+    def _server_signallist_file_path() -> Path:
+        directory = _server_directory()
         file_path = (directory / "signalliste.json").resolve()
         if not str(file_path).startswith(str(directory.resolve())):
             raise ValueError("Ungültiger Speicherpfad")
@@ -582,6 +596,53 @@ def create_app() -> Flask:
         }
         try:
             file_path = _communication_file_path()
+        except ValueError:
+            return jsonify({"status": "error", "message": "Ungültiger Speicherort."}), 400
+        file_path.parent.mkdir(parents=True, exist_ok=True)
+        file_path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
+        return jsonify({"status": "success", "signalliste": payload})
+
+    # Flask-Route: Signalliste für die Serverseite abrufen
+    @app.get("/api/einstellungen/server/signalliste")
+    def api_get_server_signalliste():
+        try:
+            file_path = _server_signallist_file_path()
+        except ValueError:
+            return jsonify({"status": "error", "message": "Ungültiger Speicherort."}), 400
+        if not file_path.exists():
+            return jsonify({"status": "empty"})
+        try:
+            stored = json.loads(file_path.read_text(encoding="utf-8"))
+        except json.JSONDecodeError:
+            return jsonify({"status": "error", "message": "Gespeicherte Signalliste ist beschädigt."}), 500
+        return jsonify({"status": "success", "signalliste": stored})
+
+    # Flask-Route: Signalliste für die Serverseite speichern
+    @app.post("/api/einstellungen/server/signalliste")
+    def api_save_server_signalliste():
+        file = request.files.get("signalliste")
+        if file is None or file.filename == "":
+            return jsonify({"status": "error", "message": "Keine Datei ausgewählt."}), 400
+        filename = file.filename
+        if not filename.lower().endswith(".xlsx"):
+            return jsonify({"status": "error", "message": "Es werden nur .xlsx-Dateien unterstützt."}), 400
+        try:
+            parsed = _parse_excel_table(file.read())
+        except ValueError as exc:
+            return jsonify({"status": "error", "message": str(exc)}), 400
+        missing = _validate_signal_headers(parsed.get("headers", []))
+        if missing:
+            return (
+                jsonify({"status": "error", "message": "Signalliste unvollständig: " + ", ".join(missing)}),
+                400,
+            )
+        payload = {
+            "filename": filename,
+            "headers": parsed.get("headers", []),
+            "rows": parsed.get("rows", []),
+        }
+        try:
+            file_path = _server_signallist_file_path()
         except ValueError:
             return jsonify({"status": "error", "message": "Ungültiger Speicherort."}), 400
         file_path.parent.mkdir(parents=True, exist_ok=True)
