@@ -384,6 +384,9 @@ function createTelegramElement(telegram) {
     const ioaSegments = splitIoa(telegram.ioa).join(' - ');
     details.appendChild(createLine('IOA', ioaSegments));
   }
+  if (telegram.frameFamily === 'I' && telegram.value !== null && telegram.value !== undefined) {
+    details.appendChild(createLine('Wert', String(telegram.value)));
+  }
 
   article.appendChild(details);
 
@@ -541,6 +544,7 @@ function handleTelegramEvent(raw) {
     originator: raw.originator ?? null,
     station: raw.station ?? null,
     ioa: typeof raw.ioa === 'number' ? raw.ioa : null,
+    value: raw.value ?? null,
     timestampText: formatTimestamp(raw.timestamp),
     deltaText: formatDelta(raw.delta ?? 0),
   };

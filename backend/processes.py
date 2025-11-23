@@ -8,8 +8,9 @@ from __future__ import annotations
 
 import select
 import socket
+import struct
 import time
-from typing import Dict, Optional
+from typing import Dict, Optional, Tuple
 
 from multiprocessing.synchronize import Event as MpEvent
 
@@ -28,6 +29,155 @@ from .iec104.protocol import (
 RETRY_DELAY = 5.0
 # Intervall für Keep-Alive-U-Frames (in Sekunden)
 KEEPALIVE_INTERVAL = 15.0
+
+
+# Anzahl der Bytes pro Informationselement (ohne IOA) je Typkennung für Telegramme
+# mit einfacher Informations-Satz-Struktur (inkl. Zeitstempel/Qualifier, falls
+# vorhanden). Für komplexere Typen wird auf Rohbytes zurückgegriffen.
+TYPE_INFORMATION_LENGTHS: Dict[int, int] = {
+    1: 1,    # M_SP_NA_1: 1x SIQ
+    3: 1,    # M_DP_NA_1: 1x DIQ
+    5: 2,    # M_ST_NA_1: 1x Byte + QDS
+    7: 5,    # M_BO_NA_1: 4x Byte + QDS
+    9: 3,    # M_ME_NA_1: 2x Byte + QDS
+    11: 3,   # M_ME_NB_1: 2x Byte + QDS
+    13: 5,   # M_ME_NC_1: 4x Float + QDS
+    15: 5,   # M_IT_NA_1: 4x Byte + QDS
+    30: 8,   # M_SP_TB_1: 1x SIQ + CP56Time2a
+    31: 8,   # M_DP_TB_1: 1x DIQ + CP56Time2a
+    36: 12,  # M_ME_TF_1: 4x Float + QDS + CP56Time2a
+    58: 7,   # C_CS_NA_1: CP56Time2a
+    59: 1,   # C_RP_NA_1: 1x QRP
+    63: 1,   # Reserviert/geräteabhängig
+    70: 1,   # M_EI_NA_1: 1x COI
+    100: 1,  # C_IC_NA_1: 1x QOI
+    103: 7,  # C_CS_NA_1 (Alternative): CP56Time2a
+}
+
+# Anzahl der Bytes, die den eigentlichen Wert (ohne Qualifier/Zeitsstempel)
+# eines Informationselements abbilden.
+TYPE_VALUE_FIELD_LENGTHS: Dict[int, int] = {
+    1: 1,    # SIQ (Statusbits eingeschlossen)
+    3: 1,    # DIQ (Statusbits eingeschlossen)
+    5: 1,    # Stellungswert ohne QDS
+    7: 4,    # 32-Bit-Bitstring ohne QDS
+    9: 2,    # 16-Bit-Messwert ohne QDS
+    11: 2,   # 16-Bit-Messwert ohne QDS
+    13: 4,   # Float ohne QDS
+    15: 4,   # Zählerwert ohne QDS
+    30: 1,   # SIQ ohne Zeitstempel
+    31: 1,   # DIQ ohne Zeitstempel
+    36: 4,   # Float ohne QDS/Zeitsstempel
+    58: 7,   # Zeitfeld
+    59: 1,   # QRP
+    63: 1,   # Geräteabhängig
+    70: 1,   # COI
+    100: 1,  # QOI
+    103: 7,  # Zeitfeld
+}
+
+
+def _extract_information_bytes(payload: bytes) -> Tuple[int, bytes]:
+    """Liest VSQ und gibt Objektanzahl sowie den Informationsbereich zurück."""
+
+    if len(payload) <= 9:
+        return 0, b""
+    vsq = payload[1]
+    count = max(1, vsq & 0x7F)
+    start = 9
+    return count, payload[start:]
+
+
+def _decode_siq(info_bytes: bytes) -> Optional[str]:
+    if not info_bytes:
+        return None
+    siq = info_bytes[0]
+    value = "Ein" if siq & 0x01 else "Aus"
+    return value
+
+
+def _decode_diq(info_bytes: bytes) -> Optional[str]:
+    if not info_bytes:
+        return None
+    diq = info_bytes[0] & 0x03
+    state_labels = {0: "Unbestimmt", 1: "Aus", 2: "Ein", 3: "Unbestimmt"}
+    label = state_labels.get(diq, "Unbekannt")
+    return label
+
+
+def _decode_step_position(info_bytes: bytes) -> Optional[str]:
+    if len(info_bytes) < 1:
+        return None
+    value = struct.unpack("<b", bytes([info_bytes[0]]))[0]
+    return str(value)
+
+
+def _decode_bitstring32(info_bytes: bytes) -> Optional[str]:
+    if len(info_bytes) < 4:
+        return None
+    value = int.from_bytes(info_bytes[:4], "little", signed=False)
+    return f"0b{value:032b}"
+
+
+def _decode_int16_value(info_bytes: bytes) -> Optional[str]:
+    if len(info_bytes) < 2:
+        return None
+    value = int.from_bytes(info_bytes[:2], "little", signed=True)
+    return str(value)
+
+
+def _decode_float_value(info_bytes: bytes) -> Optional[str]:
+    if len(info_bytes) < 4:
+        return None
+    value = struct.unpack("<f", info_bytes[:4])[0]
+    return str(value)
+
+
+def _decode_int32_value(info_bytes: bytes) -> Optional[str]:
+    if len(info_bytes) < 4:
+        return None
+    value = int.from_bytes(info_bytes[:4], "little", signed=True)
+    return str(value)
+
+
+TYPE_VALUE_DECODERS = {
+    1: _decode_siq,
+    3: _decode_diq,
+    5: _decode_step_position,
+    7: _decode_bitstring32,
+    9: _decode_int16_value,
+    11: _decode_int16_value,
+    13: _decode_float_value,
+    15: _decode_int32_value,
+    30: _decode_siq,
+    31: _decode_diq,
+    36: _decode_float_value,
+}
+
+
+def _decode_information_value(type_id: Optional[int], payload: bytes) -> Optional[str]:
+    """Dekodiert den Wert eines I-Frames entsprechend der Typkennung."""
+
+    if type_id is None:
+        return None
+    count, information_bytes = _extract_information_bytes(payload)
+    if not information_bytes:
+        return None
+
+    decoder = TYPE_VALUE_DECODERS.get(type_id)
+    if decoder:
+        value = decoder(information_bytes)
+        if value is not None:
+            return value
+
+    length = TYPE_VALUE_FIELD_LENGTHS.get(type_id) or TYPE_INFORMATION_LENGTHS.get(type_id)
+    if length and len(information_bytes) >= length:
+        relevant = information_bytes[:length]
+    else:
+        relevant = information_bytes
+    if not relevant:
+        return None
+    return " ".join(f"0x{byte:02X}" for byte in relevant)
 
 
 # Schreibt ein Ereignis in die Queue, die vom Hauptprozess ausgewertet wird
@@ -126,6 +276,10 @@ class _BaseEndpoint:
             payload["station"] = telegram.station
         if telegram.ioa is not None:
             payload["ioa"] = telegram.ioa
+        if telegram.frame_family == "I" and telegram.payload:
+            value = _decode_information_value(telegram.type_id, telegram.payload)
+            if value is not None:
+                payload["value"] = value
         self._publish(payload)
 
     def publish_custom(
