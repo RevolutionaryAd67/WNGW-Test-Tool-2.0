@@ -89,9 +89,8 @@ TYPE_VALUE_FIELD_LENGTHS: Dict[int, int] = {
 SIGNALLIST_PATH = DATA_DIR / "einstellungen_server" / "signalliste.json"
 
 
+# Liest VSQ und gibt Objektanzahl sowie den Informationsbereich zurück
 def _extract_information_bytes(payload: bytes) -> Tuple[int, bytes]:
-    """Liest VSQ und gibt Objektanzahl sowie den Informationsbereich zurück."""
-
     if len(payload) <= 9:
         return 0, b""
     vsq = payload[1]
@@ -100,6 +99,7 @@ def _extract_information_bytes(payload: bytes) -> Tuple[int, bytes]:
     return count, payload[start:]
 
 
+# Dekodiert ein einfaches Statusqualitätsbyte (SIQ) in einen Klartextwert
 def _decode_siq(info_bytes: bytes) -> Optional[str]:
     if not info_bytes:
         return None
@@ -108,6 +108,7 @@ def _decode_siq(info_bytes: bytes) -> Optional[str]:
     return value
 
 
+# Dekodiert ein doppeltes Statusqualitätsbyte (DIQ) in einen Klartextwert
 def _decode_diq(info_bytes: bytes) -> Optional[str]:
     if not info_bytes:
         return None
@@ -117,6 +118,7 @@ def _decode_diq(info_bytes: bytes) -> Optional[str]:
     return label
 
 
+# Dekodiert eine Stellungsinformation mit Vorzeichen in einen Textwert
 def _decode_step_position(info_bytes: bytes) -> Optional[str]:
     if len(info_bytes) < 1:
         return None
@@ -124,6 +126,7 @@ def _decode_step_position(info_bytes: bytes) -> Optional[str]:
     return str(value)
 
 
+# Wandelt einen 32-Bit-Bitstring in eine formatierte Binärdarstellung um
 def _decode_bitstring32(info_bytes: bytes) -> Optional[str]:
     if len(info_bytes) < 4:
         return None
@@ -131,6 +134,7 @@ def _decode_bitstring32(info_bytes: bytes) -> Optional[str]:
     return f"0b{value:032b}"
 
 
+# Dekodiert einen 16-Bit-Ganzzahlwert aus dem Informationsbereich
 def _decode_int16_value(info_bytes: bytes) -> Optional[str]:
     if len(info_bytes) < 2:
         return None
@@ -138,6 +142,7 @@ def _decode_int16_value(info_bytes: bytes) -> Optional[str]:
     return str(value)
 
 
+# Dekodiert einen Float-Wert aus dem Informationsbereich
 def _decode_float_value(info_bytes: bytes) -> Optional[str]:
     if len(info_bytes) < 4:
         return None
@@ -145,6 +150,7 @@ def _decode_float_value(info_bytes: bytes) -> Optional[str]:
     return str(value)
 
 
+# Dekodiert einen 32-Bit-Ganzzahlwert aus dem Informationsbereich
 def _decode_int32_value(info_bytes: bytes) -> Optional[str]:
     if len(info_bytes) < 4:
         return None
@@ -152,6 +158,7 @@ def _decode_int32_value(info_bytes: bytes) -> Optional[str]:
     return str(value)
 
 
+# Typkennungen und deren dazugehörige Decoder
 TYPE_VALUE_DECODERS = {
     1: _decode_siq,
     3: _decode_diq,
@@ -167,6 +174,7 @@ TYPE_VALUE_DECODERS = {
 }
 
 
+# Wählt den passenden Decoder für einen I-Frame und liefert den Nutzwert als Text
 def _decode_information_value(type_id: Optional[int], payload: bytes) -> Optional[str]:
     """Dekodiert den Wert eines I-Frames entsprechend der Typkennung."""
 
@@ -192,6 +200,7 @@ def _decode_information_value(type_id: Optional[int], payload: bytes) -> Optiona
     return " ".join(f"0x{byte:02X}" for byte in relevant)
 
 
+# Wandelt einen beliebigen Wert sicher in einen Integer um oder liefert einen Standardwert
 def _safe_int(value: object, default: int = 0) -> int:
     try:
         text = str(value).strip()
@@ -202,6 +211,7 @@ def _safe_int(value: object, default: int = 0) -> int:
         return default
 
 
+# Kodiert einen angegebenen Textwert passend zum Typ in Rohbytes der gewünschten Länge
 def _encode_value_bytes(type_id: int, value_text: str, length: int) -> bytes:
     if length <= 0:
         return b""
@@ -224,6 +234,7 @@ def _encode_value_bytes(type_id: int, value_text: str, length: int) -> bytes:
     return raw[:length]
 
 
+# Baut den Informationsbereich eines I-Frames anhand des Typs und eines Textwerts
 def _build_information_bytes(type_id: int, value_text: str) -> bytes:
     total_length = TYPE_INFORMATION_LENGTHS.get(type_id)
     value_length = TYPE_VALUE_FIELD_LENGTHS.get(type_id, total_length or 0)
@@ -238,6 +249,7 @@ def _build_information_bytes(type_id: int, value_text: str) -> bytes:
     return bytes(payload)
 
 
+# Lädt freigeschaltete GA-Signale aus der hinterlegten Signalliste
 def _load_general_signals() -> List[Dict[str, str]]:
     try:
         raw = Path(SIGNALLIST_PATH).read_text(encoding="utf-8")
@@ -285,7 +297,7 @@ class _BaseEndpoint:
         self._last_event_ts = time.time()
         self._event_index = 0
 
-    # gibt die nächste Sendesequenznummer zurück
+    # Gibt die nächste Sendesequenznummer zurück
     def next_sequence(self) -> int:
         value = self._sequence
         self._sequence += 1
@@ -359,6 +371,7 @@ class _BaseEndpoint:
                 payload["value"] = value
         self._publish(payload)
 
+    # Publiziert ein frei zusammenstellbares Telegramm-Ereignis
     def publish_custom(
         self,
         frame_family: str,
@@ -592,6 +605,7 @@ class IEC104ServerProcess(_BaseEndpoint):
         conn.sendall(payload)
         self.publish_custom("S", "S-FRAME", "outgoing")
 
+    # Sendet eine Bestätigung für eine Generalabfrage mit dem gewünschten COT
     def _send_general_confirmation(self, conn: socket.socket, cot: int) -> None:
         frame = build_i_frame(
             send_sequence=self._send_sequence,
@@ -617,6 +631,7 @@ class IEC104ServerProcess(_BaseEndpoint):
         )
         self._send_sequence += 1
 
+    # Baut ein I-Frame-Paket aus einer Signallistenzeile auf
     def _build_signal_frame(self, row: Dict[str, str]) -> Optional[Dict[str, object]]:
         type_id = _safe_int(row.get("IEC104- Typ"))
         if type_id <= 0:
