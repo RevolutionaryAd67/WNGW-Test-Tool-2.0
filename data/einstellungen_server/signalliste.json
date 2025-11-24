@@ -1,0 +1,75 @@
+{
+  "filename": "Mappe1.xlsx",
+  "headers": [
+    "",
+    "Datenpunkt / Meldetext",
+    "IEC104- Typ",
+    "IOA 3",
+    "IOA 2",
+    "IOA 1",
+    "Übertragungsursache",
+    "Herkunftsadresse",
+    "Wert",
+    "Quelle/Senke von der FWK betrachtet",
+    "Quelle/Senke von der NLS betrachtet",
+    "GA- Generalabfrage (keine Wischer)"
+  ],
+  "rows": [
+    {
+      "": "",
+      "Datenpunkt / Meldetext": "Test",
+      "IEC104- Typ": "30",
+      "IOA 3": "1",
+      "IOA 2": "1",
+      "IOA 1": "1",
+      "Übertragungsursache": "20",
+      "Herkunftsadresse": "0",
+      "Wert": "15",
+      "Quelle/Senke von der FWK betrachtet": "Q",
+      "Quelle/Senke von der NLS betrachtet": "S",
+      "GA- Generalabfrage (keine Wischer)": "o"
+    },
+    {
+      "": "",
+      "Datenpunkt / Meldetext": "Test 2",
+      "IEC104- Typ": "31",
+      "IOA 3": "1",
+      "IOA 2": "1",
+      "IOA 1": "2",
+      "Übertragungsursache": "20",
+      "Herkunftsadresse": "0",
+      "Wert": "16",
+      "Quelle/Senke von der FWK betrachtet": "Q",
+      "Quelle/Senke von der NLS betrachtet": "S",
+      "GA- Generalabfrage (keine Wischer)": "o"
+    },
+    {
+      "": "",
+      "Datenpunkt / Meldetext": "Test 3",
+      "IEC104- Typ": "36",
+      "IOA 3": "1",
+      "IOA 2": "1",
+      "IOA 1": "3",
+      "Übertragungsursache": "20",
+      "Herkunftsadresse": "0",
+      "Wert": "17",
+      "Quelle/Senke von der FWK betrachtet": "Q",
+      "Quelle/Senke von der NLS betrachtet": "S",
+      "GA- Generalabfrage (keine Wischer)": "o"
+    },
+    {
+      "": "",
+      "Datenpunkt / Meldetext": "Test 4",
+      "IEC104- Typ": "30",
+      "IOA 3": "1",
+      "IOA 2": "1",
+      "IOA 1": "4",
+      "Übertragungsursache": "20",
+      "Herkunftsadresse": "0",
+      "Wert": "18",
+      "Quelle/Senke von der FWK betrachtet": "Q",
+      "Quelle/Senke von der NLS betrachtet": "S",
+      "GA- Generalabfrage (keine Wischer)": "-"
+    }
+  ]
+}
