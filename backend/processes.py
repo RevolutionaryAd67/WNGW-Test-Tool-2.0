@@ -6,12 +6,10 @@
 
 from __future__ import annotations
 
-import json
 import select
 import socket
 import struct
 import time
-from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
 from multiprocessing.synchronize import Event as MpEvent
@@ -83,10 +81,6 @@ TYPE_VALUE_FIELD_LENGTHS: Dict[int, int] = {
     100: 1,  # QOI
     103: 7,  # Zeitfeld
 }
-
-
-# Signalliste, die auf der Seite "Server" zur Beantwortung der GA hinterlegt ist
-SIGNALLIST_PATH = DATA_DIR / "einstellungen_server" / "signalliste.json"
 
 
 # Liest VSQ und gibt Objektanzahl sowie den Informationsbereich zurück
@@ -247,26 +241,6 @@ def _build_information_bytes(type_id: int, value_text: str) -> bytes:
     if len(payload) < total_length:
         payload.extend(b"\x00" * (total_length - len(payload)))
     return bytes(payload)
-
-
-# Lädt freigeschaltete GA-Signale aus der hinterlegten Signalliste
-def _load_general_signals() -> List[Dict[str, str]]:
-    try:
-        raw = Path(SIGNALLIST_PATH).read_text(encoding="utf-8")
-        data = json.loads(raw)
-    except (FileNotFoundError, json.JSONDecodeError):
-        return []
-    rows = data.get("rows")
-    if not isinstance(rows, list):
-        return []
-    filtered: List[Dict[str, str]] = []
-    for row in rows:
-        if not isinstance(row, dict):
-            continue
-        flag = str(row.get("GA- Generalabfrage (keine Wischer)", "")).strip().lower()
-        if flag == "o":
-            filtered.append(row)
-    return filtered
 
 
 # Schreibt ein Ereignis in die Queue, die vom Hauptprozess ausgewertet wird
@@ -664,26 +638,9 @@ class IEC104ServerProcess(_BaseEndpoint):
             "value": str(row.get("Wert", "")),
         }
 
-    # Antwortet auf eine Generalabfrage mit GENERALABFRAGE CON, den Signalen und END
+    # Antwortet auf eine Generalabfrage ausschließlich mit GENERALABFRAGE CON und END
     def _send_general_interrogation_response(self, conn: socket.socket) -> None:
         self._send_general_confirmation(conn, 7)
-        for row in _load_general_signals():
-            built = self._build_signal_frame(row)
-            if not built:
-                continue
-            conn.sendall(built["frame"])
-            self.publish_custom(
-                "I",
-                built["label"],
-                "outgoing",
-                type_id=built["type_id"],
-                cause=built["cause"],
-                originator=built["originator"],
-                station=self.settings.common_address,
-                ioa=built["ioa"],
-                value=built["value"],
-            )
-            self._send_sequence += 1
         self._send_general_confirmation(conn, 10)
 
 
