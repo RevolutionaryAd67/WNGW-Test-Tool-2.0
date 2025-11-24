@@ -35,8 +35,8 @@
             <li class="dropdown {% if 'pruefung' in active_page %}active{% endif %}">
                 <span class="dropdown-toggle">Prüfung <span class="caret">&gt;</span></span>
                 <ul class="dropdown-menu">
-                    <li><a href="{{ url_for('pruefung_starten') }}">Prüfung starten</a></li>
                     <li><a href="{{ url_for('pruefung_konfigurieren') }}">Prüfung konfigurieren</a></li>
+                    <li><a href="{{ url_for('pruefung_starten') }}">Prüfung starten</a></li>
                     <li><a href="{{ url_for('pruefprotokolle') }}">Prüfprotokolle</a></li>
                 </ul>
             </li>
