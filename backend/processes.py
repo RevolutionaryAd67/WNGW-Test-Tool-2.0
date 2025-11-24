@@ -85,6 +85,7 @@ TYPE_VALUE_FIELD_LENGTHS: Dict[int, int] = {
 }
 
 
+# Signalliste, die auf der Seite "Server" zur Beantwortung der GA hinterlegt ist
 SIGNALLIST_PATH = DATA_DIR / "einstellungen_server" / "signalliste.json"
 
 
