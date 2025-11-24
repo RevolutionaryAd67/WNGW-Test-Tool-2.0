@@ -6,15 +6,23 @@
 
 from __future__ import annotations
 
+import json
 import select
 import socket
 import struct
 import time
-from typing import Dict, Optional, Tuple
+from pathlib import Path
+from typing import Dict, List, Optional, Tuple
 
 from multiprocessing.synchronize import Event as MpEvent
 
-from .config import ClientSettings, ServerSettings, load_client_settings, load_server_settings
+from .config import (
+    DATA_DIR,
+    ClientSettings,
+    ServerSettings,
+    load_client_settings,
+    load_server_settings,
+)
 from .iec104.protocol import (
     COT_LABELS,
     FrameParser,
@@ -75,6 +83,9 @@ TYPE_VALUE_FIELD_LENGTHS: Dict[int, int] = {
     100: 1,  # QOI
     103: 7,  # Zeitfeld
 }
+
+
+SIGNALLIST_PATH = DATA_DIR / "einstellungen_server" / "signalliste.json"
 
 
 def _extract_information_bytes(payload: bytes) -> Tuple[int, bytes]:
@@ -178,6 +189,71 @@ def _decode_information_value(type_id: Optional[int], payload: bytes) -> Optiona
     if not relevant:
         return None
     return " ".join(f"0x{byte:02X}" for byte in relevant)
+
+
+def _safe_int(value: object, default: int = 0) -> int:
+    try:
+        text = str(value).strip()
+        if not text:
+            return default
+        return int(text, 0)
+    except (TypeError, ValueError):
+        return default
+
+
+def _encode_value_bytes(type_id: int, value_text: str, length: int) -> bytes:
+    if length <= 0:
+        return b""
+    text = "" if value_text is None else str(value_text).strip()
+    try:
+        if type_id in (13, 36):
+            return struct.pack("<f", float(text or 0))
+    except (TypeError, ValueError):
+        pass
+    try:
+        number = int(text or 0, 0)
+    except (TypeError, ValueError):
+        number = 0
+    signed_types = {5, 9, 11, 13, 15, 36}
+    unsigned_types = {1, 3, 7, 30, 31}
+    signed = type_id in signed_types and type_id not in unsigned_types
+    raw = number.to_bytes(length, "little", signed=signed)
+    if len(raw) < length:
+        raw = raw + b"\x00" * (length - len(raw))
+    return raw[:length]
+
+
+def _build_information_bytes(type_id: int, value_text: str) -> bytes:
+    total_length = TYPE_INFORMATION_LENGTHS.get(type_id)
+    value_length = TYPE_VALUE_FIELD_LENGTHS.get(type_id, total_length or 0)
+    encoded_value = (
+        _encode_value_bytes(type_id, value_text, value_length) if value_length else b""
+    )
+    if total_length is None:
+        return encoded_value
+    payload = bytearray(encoded_value[:total_length])
+    if len(payload) < total_length:
+        payload.extend(b"\x00" * (total_length - len(payload)))
+    return bytes(payload)
+
+
+def _load_general_signals() -> List[Dict[str, str]]:
+    try:
+        raw = Path(SIGNALLIST_PATH).read_text(encoding="utf-8")
+        data = json.loads(raw)
+    except (FileNotFoundError, json.JSONDecodeError):
+        return []
+    rows = data.get("rows")
+    if not isinstance(rows, list):
+        return []
+    filtered: List[Dict[str, str]] = []
+    for row in rows:
+        if not isinstance(row, dict):
+            continue
+        flag = str(row.get("GA- Generalabfrage (keine Wischer)", "")).strip().lower()
+        if flag == "o":
+            filtered.append(row)
+    return filtered
 
 
 # Schreibt ein Ereignis in die Queue, die vom Hauptprozess ausgewertet wird
@@ -292,6 +368,7 @@ class _BaseEndpoint:
         originator: Optional[int] = None,
         station: Optional[int] = None,
         ioa: Optional[int] = None,
+        value: Optional[str] = None,
     ) -> None:
         payload = {
             "frame_family": frame_family,
@@ -308,6 +385,8 @@ class _BaseEndpoint:
             payload["station"] = station
         if ioa is not None:
             payload["ioa"] = ioa
+        if value is not None:
+            payload["value"] = value
         self._publish(payload)
 
 
@@ -512,32 +591,84 @@ class IEC104ServerProcess(_BaseEndpoint):
         conn.sendall(payload)
         self.publish_custom("S", "S-FRAME", "outgoing")
 
-    # Antwortet auf eine Generalabfrage mit GENERALABFRAGE CON und END
+    def _send_general_confirmation(self, conn: socket.socket, cot: int) -> None:
+        frame = build_i_frame(
+            send_sequence=self._send_sequence,
+            recv_sequence=self._recv_sequence,
+            type_id=100,
+            cause=cot,
+            originator=self.settings.originator_address,
+            common_address=self.settings.common_address,
+            ioa=0,
+            information=bytes([20]),
+        )
+        conn.sendall(frame)
+        label = COT_LABELS.get((100, cot), "GENERALABFRAGE")
+        self.publish_custom(
+            "I",
+            label,
+            "outgoing",
+            type_id=100,
+            cause=cot,
+            originator=self.settings.originator_address,
+            station=self.settings.common_address,
+            ioa=0,
+        )
+        self._send_sequence += 1
+
+    def _build_signal_frame(self, row: Dict[str, str]) -> Optional[Dict[str, object]]:
+        type_id = _safe_int(row.get("IEC104- Typ"))
+        if type_id <= 0:
+            return None
+        cause = _safe_int(row.get("Übertragungsursache"), default=20)
+        originator = _safe_int(row.get("Herkunftsadresse"), default=self.settings.originator_address)
+        ioa1 = _safe_int(row.get("IOA 1")) & 0xFF
+        ioa2 = _safe_int(row.get("IOA 2")) & 0xFF
+        ioa3 = _safe_int(row.get("IOA 3")) & 0xFF
+        ioa = ioa1 | (ioa2 << 8) | (ioa3 << 16)
+        information = _build_information_bytes(type_id, str(row.get("Wert", "")))
+        frame = build_i_frame(
+            send_sequence=self._send_sequence,
+            recv_sequence=self._recv_sequence,
+            type_id=type_id,
+            cause=cause,
+            originator=originator,
+            common_address=self.settings.common_address,
+            ioa=ioa,
+            information=information,
+        )
+        label = row.get("Datenpunkt / Meldetext") or COT_LABELS.get((100, cause), "GENERALABFRAGE")
+        return {
+            "frame": frame,
+            "label": label,
+            "type_id": type_id,
+            "cause": cause,
+            "originator": originator,
+            "ioa": ioa,
+            "value": str(row.get("Wert", "")),
+        }
+
+    # Antwortet auf eine Generalabfrage mit GENERALABFRAGE CON, den Signalen und END
     def _send_general_interrogation_response(self, conn: socket.socket) -> None:
-        for cot in (7, 10):
-            frame = build_i_frame(
-                send_sequence=self._send_sequence,
-                recv_sequence=self._recv_sequence,
-                type_id=100,
-                cause=cot,
-                originator=0,
-                common_address=self.settings.common_address,
-                ioa=0,
-                information=bytes([20]),
-            )
-            conn.sendall(frame)
-            label = COT_LABELS.get((100, cot), "GENERALABFRAGE")
+        self._send_general_confirmation(conn, 7)
+        for row in _load_general_signals():
+            built = self._build_signal_frame(row)
+            if not built:
+                continue
+            conn.sendall(built["frame"])
             self.publish_custom(
                 "I",
-                label,
+                built["label"],
                 "outgoing",
-                type_id=100,
-                cause=cot,
-                originator=0,
+                type_id=built["type_id"],
+                cause=built["cause"],
+                originator=built["originator"],
                 station=self.settings.common_address,
-                ioa=0,
+                ioa=built["ioa"],
+                value=built["value"],
             )
             self._send_sequence += 1
+        self._send_general_confirmation(conn, 10)
 
 
 # Startet den Client
