@@ -22,10 +22,6 @@
         .server-page .input-box {
             margin: 0;
         }
-
-        .server-page .communication {
-            margin-top: 0.5rem;
-        }
     </style>
 {% endblock %}
 
@@ -114,47 +110,6 @@
     {{ input_box_component.render(kommunikationspartner_box) }}
     {{ input_box_component.render(tcp_konnektivitaet_box) }}
     {{ input_box_component.render(asdu_parameter_box) }}
-
-    <section class="communication">
-        <div class="communication__box">
-            <header class="communication__header">
-                <div>
-                    <h2 class="communication__title">Signalliste hinterlegen</h2>
-                </div>
-                <div class="communication__actions">
-                    <span class="communication__status" id="server-signallist-status" aria-live="polite"></span>
-                    <button type="button" class="communication__save" id="server-signallist-save">Speichern</button>
-                </div>
-            </header>
-
-            <div class="communication__table-wrapper">
-                <table class="communication__table">
-                    <thead>
-                        <tr>
-                            <th scope="col">Objekt</th>
-                            <th scope="col">Hochladen</th>
-                            <th scope="col">Datei</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr>
-                            <th scope="row">Vollständige Signalliste</th>
-                            <td>
-                                <label class="file-input">
-                                    <input type="file" id="server-signallist-file" accept=".xlsx">
-                                    <span id="server-signallist-label">Excel-Datei auswählen</span>
-                                </label>
-                            </td>
-                            <td><span id="server-signallist-name">–</span></td>
-                        </tr>
-                    </tbody>
-                </table>
-            </div>
-            <p class="communication__note">
-                Signalliste hinterlegen, mit der der Server (Kundensimulation) die GENERALABFRAGE_ACT im Normalbetrieb beantwortet.
-            </p>
-        </div>
-    </section>
 </div>
 
 
@@ -166,5 +121,4 @@
 {% block extra_js %}
     {{ super() }}
     <script src="{{ url_for('component_asset', filename='input-box/input_box.js') }}" defer></script>
-    <script src="{{ url_for('static', filename='js/server.js') }}" defer></script>
 {% endblock %}
