@@ -1,5 +1,7 @@
-// Skript zum Laden, Anzeigen und Speichern der serverseitigen Signalliste im Einstellungsbereich.
-// Es verbindet das Frontend mit den entsprechenden API-Endpunkten und hält die UI-Elemente synchron.
+/*
+    Verwaltet die Signalliste, die auf der Seite "Server" hochgeladen wird
+*/
+
 (function () {
     const elements = {
         fileInput: document.getElementById('server-signallist-file'),
@@ -13,7 +15,7 @@
     const DEFAULT_LABEL = 'Excel-Datei auswählen';
     const DEFAULT_NAME = '–';
 
-    // Aktualisiert den Statusbereich mit Text und optionalem Zustand (success/error/pending).
+    // Aktualisiert den Statusbereich mit Text und optionmalem Zustand (success/error/pending)
     function setStatus(text, state) {
         if (!elements.status) return;
         elements.status.textContent = text || '';
@@ -24,14 +26,14 @@
         }
     }
 
-    // Setzt den Dateinamen in der Anzeige oder den Standardplatzhalter, falls kein Name vorhanden ist.
+    // Setzt den Dateinamen in der Anzeige oder den Standardplatzhalter, falls kein Name vorhanden ist
     function updateFileName(name) {
         if (elements.fileName) {
             elements.fileName.textContent = name || DEFAULT_NAME;
         }
     }
 
-    // Leert das Datei-Input-Feld und stellt das ursprüngliche Label wieder her.
+    // Leert das Datei-Input-Feld und stellt das ursprüngliche Label wieder her
     function resetFileInput() {
         if (elements.fileInput) {
             elements.fileInput.value = '';
@@ -41,7 +43,7 @@
         }
     }
 
-    // Lädt eine bereits gespeicherte Signalliste vom Server und zeigt deren Dateinamen an.
+    // Lädt eine bereits gespeicherte Signalliste vom Server und zeigt deren Dateinamen an
     async function loadExisting() {
         try {
             const response = await fetch(ENDPOINT);
@@ -60,7 +62,7 @@
         }
     }
 
-    // Reagiert auf Änderungen im Datei-Input und spiegelt den ausgewählten Dateinamen im Label wider.
+    // Reagiert auf Änderungen im Datei-Input und spiegelt den ausgewählten Dateinamen im Label wider 
     function handleFileChange() {
         if (!elements.fileInput) return;
         const file = elements.fileInput.files && elements.fileInput.files[0];
@@ -70,7 +72,7 @@
         }
     }
 
-    // Übermittelt die ausgewählte Signalliste an den Server, validiert Rückmeldungen und aktualisiert die Oberfläche.
+    // Übermittelt die ausgewählte Signalliste an den Server, validiert Rückmeldungen und aktualisiert die Oberfläche
     async function handleSave() {
         if (!elements.fileInput || !elements.saveButton) return;
         const file = elements.fileInput.files && elements.fileInput.files[0];
@@ -103,7 +105,7 @@
         }
     }
 
-    // Initialisiert das Skript nach dem Laden des DOMs und registriert alle benötigten Event Listener.
+    // Initialisiert das Skript nach dem Laden des DOMs und registriert alle benötigten Event Listener
     document.addEventListener('DOMContentLoaded', () => {
         loadExisting();
         if (elements.fileInput) {
