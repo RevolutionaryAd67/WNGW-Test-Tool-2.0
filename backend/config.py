@@ -36,6 +36,7 @@ class ServerSettings:
     remote_port: int
     remote_asdu: int
     common_address: int
+    originator_address: int
 
 
 # Liest den Wert eines Schlüssels aus einer JSON-Datei 
@@ -77,6 +78,7 @@ def load_server_settings() -> ServerSettings:
     remote_ip = _read_value(server_dir / "kommunikationspartner.json", "ip_address_wngw_server", "127.0.0.1")
     remote_asdu = int(_read_value(server_dir / "kommunikationspartner.json", "asdu_address_wngw_server", "0"))
     common_address = int(_read_value(server_dir / "asdu_parameter.json", "asdu_common_address_server", "1"))
+    originator = int(_read_value(server_dir / "asdu_parameter.json", "asdu_originator_address_server", "0"))
     return ServerSettings(
         local_ip=local_ip,
         local_port=local_port,
@@ -84,4 +86,5 @@ def load_server_settings() -> ServerSettings:
         remote_port=2404,
         remote_asdu=remote_asdu,
         common_address=common_address,
+        originator_address=originator,
     )
