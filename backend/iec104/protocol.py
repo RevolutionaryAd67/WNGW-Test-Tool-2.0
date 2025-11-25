@@ -167,7 +167,6 @@ def build_i_frame(
     common_address: int,
     ioa: int,
     information: bytes,
-    vsq: int = 0x01,
 ) -> bytes:
     send_field = send_sequence << 1
     recv_field = recv_sequence << 1
@@ -183,7 +182,7 @@ def build_i_frame(
     )
     body = bytearray()
     body.append(type_id)
-    body.append(vsq & 0xFF)  # VSQ
+    body.append(0x01)  # VSQ: 1 Objekt
     body.append(cause & 0xFF)
     body.append(originator & 0xFF)
     body.append(common_address & 0xFF)
