@@ -77,7 +77,7 @@ def load_server_settings() -> ServerSettings:
     local_port = int(_read_value(server_dir / "tcp_konnektivitaet.json", "tcp_port_server", "2404"))
     remote_ip = _read_value(server_dir / "kommunikationspartner.json", "ip_address_wngw_server", "127.0.0.1")
     remote_asdu = int(_read_value(server_dir / "kommunikationspartner.json", "asdu_address_wngw_server", "0"))
-    common_address = int(_read_value(server_dir / "asdu_parameter.json", "asdu_common_address_server", "1"))
+    common_address = remote_asdu
     originator = int(_read_value(server_dir / "asdu_parameter.json", "asdu_originator_address_server", "0"))
     return ServerSettings(
         local_ip=local_ip,

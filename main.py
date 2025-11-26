@@ -9,10 +9,13 @@ from __future__ import annotations
 
 import io
 import json
+import queue
+import threading
+import time
 import uuid
 import zipfile
 from pathlib import Path
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 from xml.etree import ElementTree as ET
 
 from flask import Flask, Response, jsonify, render_template, request, send_from_directory
@@ -22,8 +25,9 @@ from backend import backend_controller
 
 DATA_DIR = Path("data")
 CONFIG_DIR = DATA_DIR / "pruefungskonfigurationen"
+COMMUNICATION_LOG_DIR = DATA_DIR / "pruefungskommunikation"
 COMMUNICATION_DIR = DATA_DIR / "einstellungen_kommunikation"
-EXCEL_NAMESPACE = "{http://schemas.openxmlformats.org/spreadsheetml/2006/main}"
+EXCEL_NAMESPACE = "{http://schemas.openxmlformats.org/spreadsheetml/2006/main}" 
 REQUIRED_SIGNAL_HEADERS = (
     "Datenpunkt / Meldetext",
     "IEC104- Typ",
@@ -37,6 +41,501 @@ REQUIRED_SIGNAL_HEADERS = (
     "Quelle/Senke von der NLS betrachtet",
     "GA- Generalabfrage (keine Wischer)",
 )
+
+
+class TeilpruefungRecorder:
+    def __init__(self, base_dir: Path) -> None:
+        self.base_dir = Path(base_dir)
+        self.base_dir.mkdir(parents=True, exist_ok=True)
+        self._active = False
+        self._config_id: str = ""
+        self._run_id: str = ""
+        self._teil_index: int = 0
+        self._buffers: Dict[str, List[Dict[str, Any]]] = {}
+        self._started_at: Dict[str, Optional[float]] = {}
+
+    def begin(self, config_id: str, run_id: str, teil_index: int) -> None:
+        self._active = True
+        self._config_id = config_id or ""
+        self._run_id = run_id or ""
+        self._teil_index = teil_index
+        self._buffers = {"client": [], "server": []}
+        self._started_at = {"client": None, "server": None}
+
+    def observe(self, event: Dict[str, Any]) -> None:
+        if not self._active:
+            return
+        if not isinstance(event, dict) or event.get("type") != "telegram":
+            return
+        payload = event.get("payload")
+        if not isinstance(payload, dict):
+            return
+        side = payload.get("side")
+        if side not in ("client", "server"):
+            return
+        direction = payload.get("direction")
+        if self._started_at.get(side) is None:
+            if direction != "outgoing":
+                return
+            ts = payload.get("timestamp")
+            self._started_at[side] = ts if isinstance(ts, (int, float)) else time.time()
+        self._buffers[side].append(payload)
+
+    def finish(self, aborted: bool = False) -> None:
+        if not self._active:
+            return
+        finished_at = time.time()
+        for side, entries in self._buffers.items():
+            file_name = (
+                f"{self._config_id}_teil{self._teil_index + 1}_"
+                f"{self._run_id}_{side}_kommunikationsverlauf.json"
+            )
+            file_path = self.base_dir / file_name
+            content = {
+                "configurationId": self._config_id,
+                "runId": self._run_id,
+                "teilpruefungIndex": self._teil_index + 1,
+                "side": side,
+                "aborted": bool(aborted),
+                "startedAt": self._started_at.get(side),
+                "finishedAt": finished_at,
+                "entries": entries,
+            }
+            file_path.write_text(
+                json.dumps(content, ensure_ascii=False, indent=2), encoding="utf-8"
+            )
+        self._active = False
+
+
+# Ablageordner für Prüfkonfigurationen bereitstellen
+def _configurations_directory() -> Path:
+    CONFIG_DIR.mkdir(parents=True, exist_ok=True)
+    return CONFIG_DIR
+
+
+# Excel-Spaltenreferenz (z.B. AB12) in numerischen Index umwandeln
+def _column_index(cell_ref: str) -> int:
+    letters = "".join(ch for ch in cell_ref if ch.isalpha())
+    result = 0
+    for char in letters:
+        result = result * 26 + (ord(char.upper()) - 64)
+    return result
+
+
+# Gemeinsame Zeichenketten aus einer XLSX-Datei extrahieren
+def _load_shared_strings(zf: zipfile.ZipFile) -> List[str]:
+    if "xl/sharedStrings.xml" not in zf.namelist():
+        return []
+    with zf.open("xl/sharedStrings.xml") as shared_file:
+        root = ET.parse(shared_file).getroot()
+    strings: List[str] = []
+    for si in root.findall(f"{EXCEL_NAMESPACE}si"):
+        parts = [t.text or "" for t in si.findall(f".//{EXCEL_NAMESPACE}t")]
+        strings.append("".join(parts))
+    return strings
+
+
+# Zeileninhalt eines Tabellenblatts als Mapping auslesen
+def _read_sheet_rows(
+    zf: zipfile.ZipFile, sheet_name: str, shared_strings: List[str]
+) -> List[Dict[int, str]]:
+    with zf.open(sheet_name) as sheet_file:
+        root = ET.parse(sheet_file).getroot()
+    sheet_data = root.find(f"{EXCEL_NAMESPACE}sheetData")
+    rows: List[Dict[int, str]] = []
+    if sheet_data is None:
+        return rows
+    for row in sheet_data.findall(f"{EXCEL_NAMESPACE}row"):
+        row_values: Dict[int, str] = {}
+        for cell in row.findall(f"{EXCEL_NAMESPACE}c"):
+            ref = cell.attrib.get("r")
+            if not ref:
+                continue
+            col_index = _column_index(ref)
+            cell_type = cell.attrib.get("t")
+            value = ""
+            if cell_type == "s":
+                value_node = cell.find(f"{EXCEL_NAMESPACE}v")
+                if value_node is not None and value_node.text is not None:
+                    shared_index = int(value_node.text)
+                    if 0 <= shared_index < len(shared_strings):
+                        value = shared_strings[shared_index]
+            elif cell_type == "inlineStr":
+                text_parts = [t.text or "" for t in cell.findall(f".//{EXCEL_NAMESPACE}t")]
+                value = "".join(text_parts)
+            else:
+                value_node = cell.find(f"{EXCEL_NAMESPACE}v")
+                if value_node is not None and value_node.text is not None:
+                    value = value_node.text
+            row_values[col_index] = value
+        rows.append(row_values)
+    return rows
+
+
+# Erste Tabelle einer Excel-Datei auslesen und in Header/Row-Struktur umwandeln
+def _parse_excel_table(file_bytes: bytes) -> Dict[str, Any]:
+    try:
+        with zipfile.ZipFile(io.BytesIO(file_bytes)) as zf:
+            sheet_names = sorted(
+                name
+                for name in zf.namelist()
+                if name.startswith("xl/worksheets/sheet") and name.endswith(".xml")
+            )
+            if not sheet_names:
+                raise ValueError("Keine Tabellenblätter gefunden.")
+            shared_strings = _load_shared_strings(zf)
+            rows = _read_sheet_rows(zf, sheet_names[0], shared_strings)
+    except zipfile.BadZipFile as exc:
+        raise ValueError("Die Datei ist keine gültige Excel-Datei.") from exc
+    headers: List[str] = []
+    parsed_rows: List[Dict[str, str]] = []
+    for row_index, row_values in enumerate(rows, start=1):
+        if row_index == 1:
+            max_col = max(row_values.keys(), default=0)
+            headers = [str(row_values.get(col, "")).strip() for col in range(1, max_col + 1)]
+        else:
+            if not headers:
+                break
+            entry: Dict[str, str] = {}
+            non_empty = False
+            for col_offset, header in enumerate(headers, start=1):
+                value = row_values.get(col_offset, "")
+                text_value = "" if value is None else str(value)
+                if text_value:
+                    non_empty = True
+                entry[header] = text_value
+            if non_empty:
+                parsed_rows.append(entry)
+    return {"headers": headers, "rows": parsed_rows}
+
+
+# Pflichtspalten der Signalliste prüfen und fehlende Felder melden
+def _validate_signal_headers(headers: List[str]) -> List[str]:
+    available = set(headers)
+    return [header for header in REQUIRED_SIGNAL_HEADERS if header not in available]
+
+
+# Dateipfad für eine konkrete Prüfkonfiguration ermitteln
+def _configuration_file_path(config_id: str) -> Path:
+    directory = _configurations_directory()
+    safe_id = Path(config_id).name
+    file_path = (directory / f"{safe_id}.json").resolve()
+    if not str(file_path).startswith(str(directory.resolve())):
+        raise ValueError("Ungültiger Konfigurationspfad")
+    return file_path
+
+
+# Alle vorhandenen Prüfkonfigurationen einsammeln
+def _list_configurations() -> List[Dict[str, str]]:
+    configurations: List[Dict[str, str]] = []
+    directory = _configurations_directory()
+    for file in directory.glob("*.json"):
+        try:
+            data = json.loads(file.read_text(encoding="utf-8"))
+        except json.JSONDecodeError:
+            continue
+        config_id = data.get("id") or file.stem
+        configurations.append({
+            "id": config_id,
+            "name": data.get("name", "Unbenannte Prüfung"),
+        })
+    return configurations
+
+
+# Einzelne Prüfkonfiguration auslesen und anreichern
+def _load_configuration(config_id: str) -> Dict[str, Any]:
+    file_path = _configuration_file_path(config_id)
+    if not file_path.exists():
+        raise FileNotFoundError
+    data = json.loads(file_path.read_text(encoding="utf-8"))
+    data["id"] = data.get("id") or config_id
+    teilpruefungen = data.get("teilpruefungen")
+    if isinstance(teilpruefungen, list):
+        for index, teil in enumerate(teilpruefungen, start=1):
+            teil["index"] = index
+    else:
+        data["teilpruefungen"] = []
+    return data
+
+
+# Eingehende Prüfkonfiguration validieren und dauerhaft speichern
+def _store_configuration(payload: Dict[str, Any]) -> Dict[str, Any]:
+    name = (payload.get("name") or "").strip()
+    if not name:
+        raise ValueError("Ein Name für die Prüfung ist erforderlich.")
+    teilpruefungen = payload.get("teilpruefungen")
+    if not isinstance(teilpruefungen, list):
+        teilpruefungen = []
+    normalized: List[Dict[str, Any]] = []
+    for index, teil in enumerate(teilpruefungen, start=1):
+        pruefungsart = teil.get("pruefungsart")
+        signalliste = teil.get("signalliste")
+        if not pruefungsart or not isinstance(signalliste, dict):
+            continue
+        headers = signalliste.get("headers") or []
+        missing = _validate_signal_headers(headers)
+        if missing:
+            raise ValueError(
+                f"Signalliste '{signalliste.get('filename', 'Unbenannt')}' fehlt: {', '.join(missing)}"
+            )
+        rows_data = signalliste.get("rows")
+        if not isinstance(rows_data, list):
+            rows_data = []
+        normalized.append(
+            {
+                "index": index,
+                "pruefungsart": pruefungsart,
+                "signalliste": {
+                    "filename": signalliste.get("filename", ""),
+                    "headers": headers,
+                    "rows": rows_data,
+                },
+            }
+        )
+    config_id = payload.get("id") or uuid.uuid4().hex
+    file_path = _configuration_file_path(config_id)
+    data = {
+        "id": config_id,
+        "name": name,
+        "teilpruefungen": normalized,
+    }
+    file_path.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
+    return data
+
+
+class PruefungRunner:
+    def __init__(self, backend) -> None:
+        self.backend = backend
+        self._lock = threading.Lock()
+        self._stop_event = threading.Event()
+        self._thread: Optional[threading.Thread] = None
+        self._current_run: Optional[Dict[str, Any]] = None
+        self._events = backend.event_bus.subscribe()
+        self._last_incoming: Dict[str, float] = {"client": 0.0, "server": 0.0}
+        self._incoming_counts: Dict[str, int] = {"client": 0, "server": 0}
+        self._recorder = TeilpruefungRecorder(COMMUNICATION_LOG_DIR)
+
+    @staticmethod
+    def _should_send_from(value: object) -> bool:
+        text = str(value or "").upper()
+        return "Q" in text
+
+    def _set_status(self, index: int, status: str) -> None:
+        with self._lock:
+            if not self._current_run:
+                return
+            teilpruefungen = self._current_run.get("teilpruefungen", [])
+            if 0 <= index < len(teilpruefungen):
+                teilpruefungen[index]["status"] = status
+
+    def _expected_signature(self, row: Dict[str, Any]) -> Optional[tuple]:
+        type_id = int(row.get("IEC104- Typ", 0) or 0)
+        if type_id <= 0:
+            return None
+        cause = int(row.get("Übertragungsursache", 20) or 20)
+        ioa1 = int(row.get("IOA 1", 0) or 0) & 0xFF
+        ioa2 = int(row.get("IOA 2", 0) or 0) & 0xFF
+        ioa3 = int(row.get("IOA 3", 0) or 0) & 0xFF
+        ioa = ioa1 | (ioa2 << 8) | (ioa3 << 16)
+        return (type_id, cause, ioa)
+
+    def _pull_events(self, pending: Optional[Dict[str, List[tuple]]] = None) -> None:
+        while True:
+            try:
+                event = self._events.get_nowait()
+            except queue.Empty:
+                break
+            if not isinstance(event, dict):
+                continue
+            self._recorder.observe(event)
+            payload = event.get("payload") or {}
+            if not isinstance(payload, dict):
+                continue
+            if (
+                event.get("type") == "telegram"
+                and payload.get("frame_family") == "I"
+                and payload.get("direction") == "incoming"
+            ):
+                side = payload.get("side")
+                if side in self._last_incoming:
+                    self._last_incoming[side] = time.time()
+                    self._incoming_counts[side] = self._incoming_counts.get(side, 0) + 1
+                if pending is not None and isinstance(pending, dict):
+                    signature = (
+                        payload.get("type_id"),
+                        payload.get("cause"),
+                        payload.get("ioa"),
+                    )
+                    pending_list = pending.get(side)
+                    if pending_list is not None and signature[0] is not None:
+                        for index, expected in enumerate(list(pending_list)):
+                            if expected == signature:
+                                pending_list.pop(index)
+                                break
+
+    def _wait_for_turn(
+        self,
+        side: str,
+        pending: Dict[str, List[tuple]],
+        expected_counts: Dict[str, Optional[int]],
+    ) -> None:
+        start = time.time()
+        deadline = start + 5.0
+        while not self._stop_event.is_set():
+            self._pull_events(pending)
+            expected_target = expected_counts.get(side)
+            if expected_target is not None and self._incoming_counts.get(side, 0) >= expected_target:
+                expected_counts[side] = None
+            if not pending.get(side) and expected_counts.get(side) is None:
+                return
+            if time.time() >= deadline:
+                pending[side] = []
+                expected_counts[side] = None
+                return
+            time.sleep(0.05)
+
+    def _build_signal_segments(self, rows: List[Dict[str, Any]]):
+        sequence: List[Dict[str, Any]] = []
+        for row in rows:
+            sides: List[str] = []
+            if self._should_send_from(row.get("Quelle/Senke von der NLS betrachtet")):
+                sides.append("client")
+            if self._should_send_from(row.get("Quelle/Senke von der FWK betrachtet")):
+                sides.append("server")
+            for side in sides:
+                sequence.append({"side": side, "row": row})
+        segments: List[Dict[str, Any]] = []
+        for entry in sequence:
+            if segments and segments[-1]["side"] == entry["side"]:
+                segments[-1]["rows"].append(entry["row"])
+            else:
+                segments.append({"side": entry["side"], "rows": [entry["row"]]})
+        return segments
+
+    def _mark_finished(self, aborted: bool = False) -> None:
+        with self._lock:
+            if not self._current_run:
+                return
+            if aborted:
+                for teil in self._current_run.get("teilpruefungen", []):
+                    if teil.get("status") != "Abgeschlossen":
+                        teil["status"] = "Abgebrochen"
+            self._current_run["finished"] = True
+
+    def _copy_public_state(self) -> Optional[Dict[str, Any]]:
+        with self._lock:
+            if not self._current_run:
+                return None
+            clone = json.loads(json.dumps(self._current_run))
+            for teil in clone.get("teilpruefungen", []):
+                signalliste = teil.get("signalliste")
+                if isinstance(signalliste, dict):
+                    teil["signalliste"] = {"filename": signalliste.get("filename", "")}
+            return clone
+
+    def _dispatch_signals(self, rows: List[Dict[str, Any]]) -> None:
+        segments = self._build_signal_segments(rows)
+        pending: Dict[str, List[tuple]] = {"client": [], "server": []}
+        expected_counts: Dict[str, Optional[int]] = {"client": None, "server": None}
+        for index, segment in enumerate(segments):
+            if self._stop_event.is_set():
+                break
+            other_side = "server" if segment["side"] == "client" else "client"
+            if pending.get(segment["side"]) or expected_counts.get(segment["side"]) is not None:
+                self._wait_for_turn(segment["side"], pending, expected_counts)
+            for row in segment["rows"]:
+                if self._stop_event.is_set():
+                    break
+                self.backend.send_signal(segment["side"], row)
+                time.sleep(0.05)
+            expected_counts[other_side] = self._incoming_counts.get(other_side, 0) + len(segment["rows"])
+            for row in segment["rows"]:
+                signature = self._expected_signature(row)
+                if signature:
+                    pending.setdefault(other_side, []).append(signature)
+            self._pull_events(pending)
+
+    def _run(self, run_state: Dict[str, Any]) -> None:
+        aborted = False
+        self.backend.start_client()
+        self.backend.start_server()
+        self.backend.set_test_active(True)
+        try:
+            teilpruefungen = run_state.get("teilpruefungen", [])
+            config_id = run_state.get("configurationId", "")
+            for index, teil in enumerate(teilpruefungen):
+                self._recorder.begin(config_id, run_state.get("id", ""), index)
+                teil_aborted = False
+                if self._stop_event.is_set():
+                    aborted = True
+                    teil_aborted = True
+                    self._recorder.finish(aborted=True)
+                    break
+                self._set_status(index, "Vorbereiten")
+                rows = []
+                signalliste = teil.get("signalliste")
+                if isinstance(signalliste, dict):
+                    rows = signalliste.get("rows") or []
+                time.sleep(5)
+                if self._stop_event.is_set():
+                    aborted = True
+                    teil_aborted = True
+                    self._recorder.finish(aborted=True)
+                    break
+                self._set_status(index, "Wird durchgeführt")
+                self._dispatch_signals(rows)
+                self._pull_events()
+                if self._stop_event.is_set():
+                    aborted = True
+                    teil_aborted = True
+                    self._recorder.finish(aborted=True)
+                    break
+                self._set_status(index, "Abgeschlossen")
+                self._recorder.finish(aborted=False)
+        finally:
+            self.backend.set_test_active(False)
+            self._mark_finished(aborted=aborted)
+
+    def start(self, config_id: str) -> Dict[str, Any]:
+        configuration = _load_configuration(config_id)
+        teilpruefungen: List[Dict[str, Any]] = []
+        for teil in configuration.get("teilpruefungen", []):
+            teilpruefungen.append(
+                {
+                    "index": teil.get("index", len(teilpruefungen) + 1),
+                    "pruefungsart": teil.get("pruefungsart", ""),
+                    "signalliste": teil.get("signalliste", {}),
+                    "status": "In Warteschlange",
+                }
+            )
+
+        with self._lock:
+            if self._thread and self._thread.is_alive():
+                raise RuntimeError("Eine Prüfung läuft bereits.")
+            self._stop_event = threading.Event()
+            self._current_run = {
+                "id": uuid.uuid4().hex,
+                "configurationId": configuration.get("id", config_id),
+                "name": configuration.get("name", ""),
+                "teilpruefungen": teilpruefungen,
+                "finished": False,
+            }
+            thread = threading.Thread(
+                target=self._run, args=(self._current_run,), daemon=True
+            )
+            self._thread = thread
+            thread.start()
+        return self._copy_public_state() or {}
+
+    def abort(self) -> Optional[Dict[str, Any]]:
+        with self._lock:
+            if not self._current_run:
+                return None
+            self._stop_event.set()
+        return self._copy_public_state()
+
+    def status(self) -> Optional[Dict[str, Any]]:
+        return self._copy_public_state()
 
 # Beim Wechsel auf die "Beobachten"-Seite sollen 1000 Telegramme aus der JSON-Datei geladen und angezeigt werden
 # Wert muss ebenfalls im Skript "beobachten.js" bearbeitet werden
@@ -142,11 +641,6 @@ def create_app() -> Flask:
                 pass
         return defaults
 
-    # Ablageordner für Prüfkonfigurationen bereitstellen
-    def _configurations_directory() -> Path:
-        CONFIG_DIR.mkdir(parents=True, exist_ok=True)
-        return CONFIG_DIR
-
     # Ablageordner für Kommunikationssignallisten bereitstellen
     def _communication_directory() -> Path:
         COMMUNICATION_DIR.mkdir(parents=True, exist_ok=True)
@@ -160,186 +654,7 @@ def create_app() -> Flask:
             raise ValueError("Ungültiger Speicherpfad")
         return file_path
 
-    # Dateipfad für eine konkrete Prüfkonfiguration ermitteln
-    def _configuration_file_path(config_id: str) -> Path:
-        directory = _configurations_directory()
-        safe_id = Path(config_id).name
-        file_path = (directory / f"{safe_id}.json").resolve()
-        if not str(file_path).startswith(str(directory.resolve())):
-            raise ValueError("Ungültiger Konfigurationspfad")
-        return file_path
-
-    # Alle vorhandenen Prüfkonfigurationen einsammeln
-    def _list_configurations() -> List[Dict[str, str]]:
-        configurations: List[Dict[str, str]] = []
-        directory = _configurations_directory()
-        for file in directory.glob("*.json"):
-            try:
-                data = json.loads(file.read_text(encoding="utf-8"))
-            except json.JSONDecodeError:
-                continue
-            config_id = data.get("id") or file.stem
-            configurations.append({
-                "id": config_id,
-                "name": data.get("name", "Unbenannte Prüfung"),
-            })
-        return configurations
-
-    # Einzelne Prüfkonfiguration auslesen und anreichern
-    def _load_configuration(config_id: str) -> Dict[str, Any]:
-        file_path = _configuration_file_path(config_id)
-        if not file_path.exists():
-            raise FileNotFoundError
-        data = json.loads(file_path.read_text(encoding="utf-8"))
-        data["id"] = data.get("id") or config_id
-        teilpruefungen = data.get("teilpruefungen")
-        if isinstance(teilpruefungen, list):
-            for index, teil in enumerate(teilpruefungen, start=1):
-                teil["index"] = index
-        else:
-            data["teilpruefungen"] = []
-        return data
-
-    # Excel-Spaltenreferenz (z.B. AB12) in numerischen Index umwandeln
-    def _column_index(cell_ref: str) -> int:
-        letters = "".join(ch for ch in cell_ref if ch.isalpha())
-        result = 0
-        for char in letters:
-            result = result * 26 + (ord(char.upper()) - 64)
-        return result
-
-    # Gemeinsame Zeichenketten aus einer XLSX-Datei extrahieren
-    def _load_shared_strings(zf: zipfile.ZipFile) -> List[str]:
-        if "xl/sharedStrings.xml" not in zf.namelist():
-            return []
-        with zf.open("xl/sharedStrings.xml") as shared_file:
-            root = ET.parse(shared_file).getroot()
-        strings: List[str] = []
-        for si in root.findall(f"{EXCEL_NAMESPACE}si"):
-            parts = [t.text or "" for t in si.findall(f".//{EXCEL_NAMESPACE}t")]
-            strings.append("".join(parts))
-        return strings
-
-    # Zeileninhalt eines Tabellenblatts als Mapping auslesen
-    def _read_sheet_rows(
-        zf: zipfile.ZipFile, sheet_name: str, shared_strings: List[str]
-    ) -> List[Dict[int, str]]:
-        with zf.open(sheet_name) as sheet_file:
-            root = ET.parse(sheet_file).getroot()
-        sheet_data = root.find(f"{EXCEL_NAMESPACE}sheetData")
-        rows: List[Dict[int, str]] = []
-        if sheet_data is None:
-            return rows
-        for row in sheet_data.findall(f"{EXCEL_NAMESPACE}row"):
-            row_values: Dict[int, str] = {}
-            for cell in row.findall(f"{EXCEL_NAMESPACE}c"):
-                ref = cell.attrib.get("r")
-                if not ref:
-                    continue
-                col_index = _column_index(ref)
-                cell_type = cell.attrib.get("t")
-                value = ""
-                if cell_type == "s":
-                    value_node = cell.find(f"{EXCEL_NAMESPACE}v")
-                    if value_node is not None and value_node.text is not None:
-                        shared_index = int(value_node.text)
-                        if 0 <= shared_index < len(shared_strings):
-                            value = shared_strings[shared_index]
-                elif cell_type == "inlineStr":
-                    text_parts = [t.text or "" for t in cell.findall(f".//{EXCEL_NAMESPACE}t")]
-                    value = "".join(text_parts)
-                else:
-                    value_node = cell.find(f"{EXCEL_NAMESPACE}v")
-                    if value_node is not None and value_node.text is not None:
-                        value = value_node.text
-                row_values[col_index] = value
-            rows.append(row_values)
-        return rows
-
-    # Erste Tabelle einer Excel-Datei auslesen und in Header/Row-Struktur umwandeln
-    def _parse_excel_table(file_bytes: bytes) -> Dict[str, Any]:
-        try:
-            with zipfile.ZipFile(io.BytesIO(file_bytes)) as zf:
-                sheet_names = sorted(
-                    name
-                    for name in zf.namelist()
-                    if name.startswith("xl/worksheets/sheet") and name.endswith(".xml")
-                )
-                if not sheet_names:
-                    raise ValueError("Keine Tabellenblätter gefunden.")
-                shared_strings = _load_shared_strings(zf)
-                rows = _read_sheet_rows(zf, sheet_names[0], shared_strings)
-        except zipfile.BadZipFile as exc:
-            raise ValueError("Die Datei ist keine gültige Excel-Datei.") from exc
-        headers: List[str] = []
-        parsed_rows: List[Dict[str, str]] = []
-        for row_index, row_values in enumerate(rows, start=1):
-            if row_index == 1:
-                max_col = max(row_values.keys(), default=0)
-                headers = [str(row_values.get(col, "")).strip() for col in range(1, max_col + 1)]
-            else:
-                if not headers:
-                    break
-                entry: Dict[str, str] = {}
-                non_empty = False
-                for col_offset, header in enumerate(headers, start=1):
-                    value = row_values.get(col_offset, "")
-                    text_value = "" if value is None else str(value)
-                    if text_value:
-                        non_empty = True
-                    entry[header] = text_value
-                if non_empty:
-                    parsed_rows.append(entry)
-        return {"headers": headers, "rows": parsed_rows}
-
-    # Pflichtspalten der Signalliste prüfen und fehlende Felder melden
-    def _validate_signal_headers(headers: List[str]) -> List[str]:
-        available = set(headers)
-        return [header for header in REQUIRED_SIGNAL_HEADERS if header not in available]
-
-    # Eingehende Prüfkonfiguration validieren und dauerhaft speichern
-    def _store_configuration(payload: Dict[str, Any]) -> Dict[str, Any]:
-        name = (payload.get("name") or "").strip()
-        if not name:
-            raise ValueError("Ein Name für die Prüfung ist erforderlich.")
-        teilpruefungen = payload.get("teilpruefungen")
-        if not isinstance(teilpruefungen, list):
-            teilpruefungen = []
-        normalized: List[Dict[str, Any]] = []
-        for index, teil in enumerate(teilpruefungen, start=1):
-            pruefungsart = teil.get("pruefungsart")
-            signalliste = teil.get("signalliste")
-            if not pruefungsart or not isinstance(signalliste, dict):
-                continue
-            headers = signalliste.get("headers") or []
-            missing = _validate_signal_headers(headers)
-            if missing:
-                raise ValueError(
-                    f"Signalliste '{signalliste.get('filename', 'Unbenannt')}' fehlt: {', '.join(missing)}"
-                )
-            rows_data = signalliste.get("rows")
-            if not isinstance(rows_data, list):
-                rows_data = []
-            normalized.append(
-                {
-                    "index": index,
-                    "pruefungsart": pruefungsart,
-                    "signalliste": {
-                        "filename": signalliste.get("filename", ""),
-                        "headers": headers,
-                        "rows": rows_data,
-                    },
-                }
-            )
-        config_id = payload.get("id") or uuid.uuid4().hex
-        file_path = _configuration_file_path(config_id)
-        data = {
-            "id": config_id,
-            "name": name,
-            "teilpruefungen": normalized,
-        }
-        file_path.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
-        return data
+    pruefung_runner = PruefungRunner(backend_controller)
 
     # Hilfsfunktionen für Formulare im Template-Kontext verfügbar machen
     @app.context_processor
@@ -518,6 +833,30 @@ def create_app() -> Flask:
             return jsonify({"status": "error", "message": "Konfiguration nicht gefunden."}), 404
         file_path.unlink()
         return jsonify({"status": "success"})
+
+    @app.post("/api/pruefungslauf/start")
+    def api_start_pruefungslauf():
+        payload = request.get_json(silent=True) or {}
+        config_id = payload.get("configId")
+        if not config_id:
+            return jsonify({"status": "error", "message": "Keine Prüfung ausgewählt."}), 400
+        try:
+            run_state = pruefung_runner.start(config_id)
+        except FileNotFoundError:
+            return jsonify({"status": "error", "message": "Konfiguration nicht gefunden."}), 404
+        except RuntimeError as exc:
+            return jsonify({"status": "error", "message": str(exc)}), 400
+        return jsonify({"status": "success", "run": run_state})
+
+    @app.get("/api/pruefungslauf/status")
+    def api_status_pruefungslauf():
+        return jsonify({"run": pruefung_runner.status()})
+
+    @app.post("/api/pruefungslauf/abbrechen")
+    def api_abort_pruefungslauf():
+        state = pruefung_runner.abort()
+        status = "aborted" if state else "idle"
+        return jsonify({"status": status, "run": state})
 
     # Flask-Route: Signalliste im XLSX-Format entgegennehmen und prüfen
     @app.post("/api/pruefungskonfigurationen/signalliste")

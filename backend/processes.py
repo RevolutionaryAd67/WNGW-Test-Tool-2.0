@@ -10,6 +10,7 @@ import select
 import socket
 import struct
 import time
+from queue import Empty
 from typing import Dict, List, Optional, Tuple
 
 from multiprocessing.synchronize import Event as MpEvent
@@ -253,6 +254,7 @@ class _BaseEndpoint:
         self,
         side: str,
         queue,
+        command_queue,
         local_ip: str,
         local_port: int,
         remote_ip: str,
@@ -261,6 +263,7 @@ class _BaseEndpoint:
     ) -> None:
         self.side = side
         self.queue = queue
+        self.command_queue = command_queue
         self.local_ip = local_ip
         self.local_port = local_port
         self.remote_ip = remote_ip
@@ -270,6 +273,8 @@ class _BaseEndpoint:
         self._recv_sequence = 0
         self._last_event_ts = time.time()
         self._event_index = 0
+        self._pending_signals: List[Dict[str, str]] = []
+        self._test_active = False
 
     # Gibt die nächste Sendesequenznummer zurück
     def next_sequence(self) -> int:
@@ -377,13 +382,37 @@ class _BaseEndpoint:
             payload["value"] = value
         self._publish(payload)
 
+    def _process_commands(self) -> None:
+        while True:
+            try:
+                command = self.command_queue.get_nowait()
+            except Empty:
+                break
+            if not isinstance(command, dict):
+                continue
+            if command.get("action") == "send_signal":
+                row = command.get("row")
+                if isinstance(row, dict):
+                    self._pending_signals.append(row)
+            if command.get("action") == "set_test_active":
+                self._test_active = bool(command.get("active"))
+
+    def _flush_pending(self, sender) -> None:
+        while self._pending_signals and not self.stop_event.is_set():
+            row = self._pending_signals.pop(0)
+            sender(row)
+            time.sleep(0.02)
+
 
 # Initialisiert Client-spezifische Ressourcen
 class IEC104ClientProcess(_BaseEndpoint):
-    def __init__(self, queue, settings: ClientSettings, stop_event: MpEvent) -> None:
+    def __init__(
+        self, queue, command_queue, settings: ClientSettings, stop_event: MpEvent
+    ) -> None:
         super().__init__(
             side="client",
             queue=queue,
+            command_queue=command_queue,
             local_ip=settings.local_ip,
             local_port=settings.local_port,
             remote_ip=settings.remote_ip,
@@ -398,6 +427,7 @@ class IEC104ClientProcess(_BaseEndpoint):
     # Hauptschleife: Versucht Verbindungen aufzubauen und verarbeitet sie
     def run(self) -> None:
         while not self.stop_event.is_set():
+            self._process_commands()
             try:
                 self._connect()
                 self._loop()
@@ -418,6 +448,7 @@ class IEC104ClientProcess(_BaseEndpoint):
     def _connect(self) -> None:
         self._close_socket()
         self._recv_sequence = 0
+        self._sequence = 0
         self._parser = FrameParser()
         sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         sock.settimeout(10)
@@ -468,6 +499,8 @@ class IEC104ClientProcess(_BaseEndpoint):
             return
         self._last_keepalive = time.time()
         while not self.stop_event.is_set():
+            self._process_commands()
+            self._flush_pending(self._send_signal_from_row)
             ready, _, _ = select.select([self._sock], [], [], 1.0)
             if ready:
                 try:
@@ -492,13 +525,83 @@ class IEC104ClientProcess(_BaseEndpoint):
         self._close_socket(publish_reset=True)
         self.publish_connection_status(False)
 
+    def _build_signal_frame(self, row: Dict[str, str]) -> Optional[Dict[str, object]]:
+        type_id = _safe_int(row.get("IEC104- Typ"))
+        if type_id <= 0:
+            return None
+        cause = _safe_int(row.get("Übertragungsursache"), default=20)
+        originator = _safe_int(row.get("Herkunftsadresse"), default=self.settings.originator_address)
+        ioa1 = _safe_int(row.get("IOA 1")) & 0xFF
+        ioa2 = _safe_int(row.get("IOA 2")) & 0xFF
+        ioa3 = _safe_int(row.get("IOA 3")) & 0xFF
+        ioa = ioa1 | (ioa2 << 8) | (ioa3 << 16)
+        value_text = str(row.get("Wert", ""))
+        if type_id == 100 and cause == 6:
+            information = bytes([20])
+            value_text = "20" if not value_text.strip() else value_text
+        else:
+            information = _build_information_bytes(type_id, value_text)
+        frame = build_i_frame(
+            send_sequence=self._sequence,
+            recv_sequence=self._recv_sequence,
+            type_id=type_id,
+            cause=cause,
+            originator=originator,
+            common_address=self.settings.remote_asdu,
+            ioa=ioa,
+            information=information,
+        )
+        label = (
+            COT_LABELS.get((type_id, cause))
+            or row.get("Datenpunkt / Meldetext")
+            or COT_LABELS.get((100, cause), "GENERALABFRAGE")
+        )
+        return {
+            "frame": frame,
+            "label": label,
+            "type_id": type_id,
+            "cause": cause,
+            "originator": originator,
+            "ioa": ioa,
+            "value": value_text,
+        }
+
+    def _send_signal_from_row(self, row: Dict[str, str]) -> None:
+        if not self._sock:
+            self._pending_signals.insert(0, row)
+            return
+        telegram = self._build_signal_frame(row)
+        if not telegram:
+            return
+        try:
+            self._send(telegram["frame"])
+        except Exception as exc:
+            self._pending_signals.insert(0, row)
+            self.publish_tcp(f"Senden fehlgeschlagen: {exc}", "outgoing")
+            return
+        self.publish_custom(
+            "I",
+            telegram["label"],
+            "outgoing",
+            type_id=telegram.get("type_id"),
+            cause=telegram.get("cause"),
+            originator=telegram.get("originator"),
+            station=self.settings.remote_asdu,
+            ioa=telegram.get("ioa"),
+            value=telegram.get("value"),
+        )
+        self._sequence += 1
+
 
 # Serverprozess, der IEC-104-Verbindungen entgegen nimmt
 class IEC104ServerProcess(_BaseEndpoint):
-    def __init__(self, queue, settings: ServerSettings, stop_event: MpEvent) -> None:
+    def __init__(
+        self, queue, command_queue, settings: ServerSettings, stop_event: MpEvent
+    ) -> None:
         super().__init__(
             side="server",
             queue=queue,
+            command_queue=command_queue,
             local_ip=settings.local_ip,
             local_port=settings.local_port,
             remote_ip=settings.remote_ip,
@@ -520,6 +623,7 @@ class IEC104ServerProcess(_BaseEndpoint):
                 try:
                     conn, addr = server.accept()
                 except socket.timeout:
+                    self._process_commands()
                     continue
                 with conn:
                     conn.settimeout(None)
@@ -537,6 +641,8 @@ class IEC104ServerProcess(_BaseEndpoint):
         self.publish_tcp("ACK", "incoming")
         self.publish_connection_status(True)
         while not self.stop_event.is_set():
+            self._process_commands()
+            self._flush_pending(lambda row: self._send_signal_from_row(conn, row))
             ready, _, _ = select.select([conn], [], [], 1.0)
             if ready:
                 try:
@@ -560,6 +666,7 @@ class IEC104ServerProcess(_BaseEndpoint):
                         if (
                             telegram.type_id == 100
                             and telegram.cause == 6
+                            and not self._test_active
                         ):
                             self._send_general_interrogation_response(conn)
                         self._send_s_frame(conn)
@@ -627,7 +734,11 @@ class IEC104ServerProcess(_BaseEndpoint):
             ioa=ioa,
             information=information,
         )
-        label = row.get("Datenpunkt / Meldetext") or COT_LABELS.get((100, cause), "GENERALABFRAGE")
+        label = (
+            COT_LABELS.get((type_id, cause))
+            or row.get("Datenpunkt / Meldetext")
+            or COT_LABELS.get((100, cause), "GENERALABFRAGE")
+        )
         return {
             "frame": frame,
             "label": label,
@@ -643,14 +754,37 @@ class IEC104ServerProcess(_BaseEndpoint):
         self._send_general_confirmation(conn, 7)
         self._send_general_confirmation(conn, 10)
 
+    def _send_signal_from_row(self, conn: socket.socket, row: Dict[str, str]) -> None:
+        telegram = self._build_signal_frame(row)
+        if not telegram:
+            return
+        try:
+            conn.sendall(telegram["frame"])
+        except Exception as exc:
+            self._pending_signals.insert(0, row)
+            self.publish_tcp(f"Senden fehlgeschlagen: {exc}", "outgoing")
+            return
+        self.publish_custom(
+            "I",
+            telegram["label"],
+            "outgoing",
+            type_id=telegram.get("type_id"),
+            cause=telegram.get("cause"),
+            originator=telegram.get("originator"),
+            station=self.settings.common_address,
+            ioa=telegram.get("ioa"),
+            value=telegram.get("value"),
+        )
+        self._send_sequence += 1
+
 
 # Startet den Client
-def run_client_process(queue, stop_event: MpEvent) -> None:
+def run_client_process(queue, stop_event: MpEvent, command_queue) -> None:
     settings = load_client_settings()
-    IEC104ClientProcess(queue, settings, stop_event).run()
+    IEC104ClientProcess(queue, command_queue, settings, stop_event).run()
 
 
 # Startet den Server
-def run_server_process(queue, stop_event: MpEvent) -> None:
+def run_server_process(queue, stop_event: MpEvent, command_queue) -> None:
     settings = load_server_settings()
-    IEC104ServerProcess(queue, settings, stop_event).run()
+    IEC104ServerProcess(queue, command_queue, settings, stop_event).run()

@@ -2,12 +2,17 @@
     const state = {
         configs: [],
         currentId: null,
+        currentConfig: null,
+        run: null,
+        poller: null,
     };
 
     const elements = {
         list: document.getElementById('config-list'),
         name: document.getElementById('selected-config-name'),
         ablaufBody: document.querySelector('#ablauf-table tbody'),
+        startButton: document.getElementById('start-test-button'),
+        abortButton: document.getElementById('abort-test-button'),
     };
 
     function renderConfigList() {
@@ -37,11 +42,22 @@
 
     function updateSelection(configuration) {
         state.currentId = configuration ? configuration.id : null;
+        state.currentConfig = configuration || null;
+        if (state.run && configuration && state.run.configurationId !== configuration.id) {
+            stopPolling();
+            state.run = null;
+        }
         if (elements.name) {
             elements.name.textContent = configuration ? configuration.name || 'Unbenannte Prüfung' : 'Prüfung auswählen';
         }
         renderConfigList();
         renderSteps(configuration);
+    }
+
+    function getStatusForIndex(index) {
+        if (!state.run || !Array.isArray(state.run.teilpruefungen)) return '';
+        const match = state.run.teilpruefungen.find((teil) => Number(teil.index) === Number(index));
+        return match && match.status ? match.status : '';
     }
 
     function renderSteps(configuration) {
@@ -76,7 +92,7 @@
 
             const statusCell = document.createElement('td');
             statusCell.className = 'ablauf-table__status';
-            statusCell.textContent = '';
+            statusCell.textContent = getStatusForIndex(step.index || index + 1);
             row.appendChild(statusCell);
 
             elements.ablaufBody.appendChild(row);
@@ -112,5 +128,79 @@
         }
     }
 
-    document.addEventListener('DOMContentLoaded', loadConfigList);
+    function stopPolling() {
+        if (state.poller) {
+            clearInterval(state.poller);
+            state.poller = null;
+        }
+    }
+
+    function startPolling() {
+        if (state.poller) return;
+        state.poller = window.setInterval(fetchRunStatus, 1000);
+    }
+
+    function setRunState(run) {
+        state.run = run || null;
+        renderSteps(state.currentConfig);
+        if (state.run && !state.run.finished) {
+            startPolling();
+        } else {
+            stopPolling();
+        }
+    }
+
+    async function fetchRunStatus() {
+        try {
+            const response = await fetch('/api/pruefungslauf/status');
+            if (!response.ok) throw new Error('Status konnte nicht geladen werden.');
+            const data = await response.json();
+            setRunState(data.run || null);
+        } catch (error) {
+            console.error(error);
+        }
+    }
+
+    async function startRun() {
+        if (!state.currentId) return;
+        try {
+            const response = await fetch('/api/pruefungslauf/start', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ configId: state.currentId }),
+            });
+            const data = await response.json();
+            if (!response.ok) throw new Error(data.message || 'Prüfung konnte nicht gestartet werden.');
+            setRunState(data.run || null);
+        } catch (error) {
+            console.error(error);
+        }
+    }
+
+    async function abortRun() {
+        try {
+            const response = await fetch('/api/pruefungslauf/abbrechen', { method: 'POST' });
+            const data = await response.json();
+            setRunState(data.run || null);
+        } catch (error) {
+            console.error(error);
+        }
+    }
+
+    function registerControls() {
+        if (elements.startButton) {
+            elements.startButton.addEventListener('click', startRun);
+        }
+        if (elements.abortButton) {
+            elements.abortButton.addEventListener('click', abortRun);
+        }
+    }
+
+    async function init() {
+        registerControls();
+        await loadConfigList();
+        await fetchRunStatus();
+    }
+
+    document.addEventListener('DOMContentLoaded', init);
 })();
