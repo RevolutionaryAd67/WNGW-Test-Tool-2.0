@@ -27,6 +27,7 @@ class _ManagedProcess:
     queue: mp.Queue
     listener: threading.Thread
     stop_event: MpEvent
+    command_queue: mp.Queue
 
 
 # Koordiniert backend client/server-worker Prozesse und Event-Streaming
@@ -58,14 +59,21 @@ class BackendController:
         if existing and existing.process.is_alive():
             return False
         queue: mp.Queue = mp.Queue()
+        command_queue: mp.Queue = mp.Queue()
         stop_event = mp.Event()
-        process = mp.Process(target=target, args=(queue, stop_event), daemon=True)
+        process = mp.Process(
+            target=target, args=(queue, stop_event, command_queue), daemon=True
+        )
         process.start()
         listener = threading.Thread(
             target=self._drain_queue, args=(queue,), daemon=True
         )
         listener.start()
-        setattr(self, label, _ManagedProcess(process, queue, listener, stop_event))
+        setattr(
+            self,
+            label,
+            _ManagedProcess(process, queue, listener, stop_event, command_queue),
+        )
         return True
 
     # Hilfsfunktion, um einen Worker-Prozess (Client oder Server) zu beenden
@@ -90,6 +98,30 @@ class BackendController:
         elif label == "_server":
             self._update_connection_state({"side": "server", "connected": False})
         return is_alive
+
+    def send_signal(self, side: str, row: Dict[str, Any]) -> bool:
+        managed: Optional[_ManagedProcess] = None
+        if side == "client":
+            managed = self._client
+        elif side == "server":
+            managed = self._server
+        if not managed or not managed.process.is_alive():
+            return False
+        try:
+            managed.command_queue.put({"action": "send_signal", "row": row}, timeout=0.5)
+            return True
+        except Exception:
+            return False
+
+    def set_test_active(self, active: bool) -> None:
+        payload = {"action": "set_test_active", "active": bool(active)}
+        for managed in (self._client, self._server):
+            if not managed or not managed.process.is_alive():
+                continue
+            try:
+                managed.command_queue.put(payload, timeout=0.5)
+            except Exception:
+                continue
 
     # API, um IEC-104-Client zu starten
     def start_client(self) -> bool:
