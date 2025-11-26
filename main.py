@@ -476,7 +476,7 @@ class PruefungRunner:
                 signalliste = teil.get("signalliste")
                 if isinstance(signalliste, dict):
                     rows = signalliste.get("rows") or []
-                time.sleep(5)
+                time.sleep(35)
                 if self._stop_event.is_set():
                     aborted = True
                     teil_aborted = True
