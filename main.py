@@ -339,7 +339,11 @@ class PruefungRunner:
         ioa = ioa1 | (ioa2 << 8) | (ioa3 << 16)
         return (type_id, cause, ioa)
 
-    def _pull_events(self, pending: Optional[Dict[str, List[tuple]]] = None) -> None:
+    def _pull_events(
+        self,
+        pending: Optional[Dict[str, List[tuple]]] = None,
+        consider_from: Optional[float] = None,
+    ) -> None:
         while True:
             try:
                 event = self._events.get_nowait()
@@ -356,6 +360,13 @@ class PruefungRunner:
                 and payload.get("frame_family") == "I"
                 and payload.get("direction") == "incoming"
             ):
+                ts = payload.get("timestamp")
+                if (
+                    consider_from is not None
+                    and isinstance(ts, (int, float))
+                    and ts < consider_from
+                ):
+                    continue
                 side = payload.get("side")
                 if side in self._last_incoming:
                     self._last_incoming[side] = time.time()
@@ -378,11 +389,12 @@ class PruefungRunner:
         side: str,
         pending: Dict[str, List[tuple]],
         expected_counts: Dict[str, Optional[int]],
+        consider_from: Optional[float],
     ) -> None:
         start = time.time()
         deadline = start + 5.0
         while not self._stop_event.is_set():
-            self._pull_events(pending)
+            self._pull_events(pending, consider_from)
             expected_target = expected_counts.get(side)
             if expected_target is not None and self._incoming_counts.get(side, 0) >= expected_target:
                 expected_counts[side] = None
@@ -437,15 +449,20 @@ class PruefungRunner:
         segments = self._build_signal_segments(rows)
         pending: Dict[str, List[tuple]] = {"client": [], "server": []}
         expected_counts: Dict[str, Optional[int]] = {"client": None, "server": None}
+        consider_from: Optional[float] = None
+        self._incoming_counts = {"client": 0, "server": 0}
+        self._last_incoming = {"client": 0.0, "server": 0.0}
         for index, segment in enumerate(segments):
             if self._stop_event.is_set():
                 break
             other_side = "server" if segment["side"] == "client" else "client"
             if pending.get(segment["side"]) or expected_counts.get(segment["side"]) is not None:
-                self._wait_for_turn(segment["side"], pending, expected_counts)
+                self._wait_for_turn(segment["side"], pending, expected_counts, consider_from)
             for row in segment["rows"]:
                 if self._stop_event.is_set():
                     break
+                if consider_from is None:
+                    consider_from = time.time()
                 self.backend.send_signal(segment["side"], row)
                 time.sleep(0.05)
             expected_counts[other_side] = self._incoming_counts.get(other_side, 0) + len(segment["rows"])
@@ -453,7 +470,7 @@ class PruefungRunner:
                 signature = self._expected_signature(row)
                 if signature:
                     pending.setdefault(other_side, []).append(signature)
-            self._pull_events(pending)
+            self._pull_events(pending, consider_from)
 
     def _run(self, run_state: Dict[str, Any]) -> None:
         aborted = False
