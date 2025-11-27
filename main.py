@@ -309,6 +309,26 @@ def _load_protocol(protocol_id: str) -> Dict[str, Any]:
     return data
 
 
+def _delete_protocol(protocol_id: str, protocol: Optional[Dict[str, Any]] = None) -> None:
+    data = protocol or _load_protocol(protocol_id)
+    teilpruefungen = data.get("teilpruefungen") if isinstance(data, dict) else []
+    for teil in teilpruefungen or []:
+        if not isinstance(teil, dict):
+            continue
+        log_file = teil.get("logFile")
+        if not isinstance(log_file, str) or not log_file:
+            continue
+        try:
+            log_path = _communication_log_file_path(log_file)
+        except ValueError:
+            continue
+        if log_path.exists():
+            log_path.unlink()
+    file_path = _protokoll_file_path(protocol_id)
+    if file_path.exists():
+        file_path.unlink()
+
+
 # Excel-Spaltenreferenz (z.B. AB12) in numerischen Index umwandeln
 def _column_index(cell_ref: str) -> int:
     letters = "".join(ch for ch in cell_ref if ch.isalpha())
@@ -1123,6 +1143,21 @@ def create_app() -> Flask:
             as_attachment=True,
             download_name=log_path.name,
         )
+
+    @app.delete("/api/pruefprotokolle/<protocol_id>")
+    def api_delete_pruefprotokoll(protocol_id: str):
+        try:
+            protocol = _load_protocol(protocol_id)
+        except FileNotFoundError:
+            return jsonify({"status": "error", "message": "Protokoll nicht gefunden."}), 404
+        except ValueError as exc:
+            return jsonify({"status": "error", "message": str(exc)}), 500
+
+        try:
+            _delete_protocol(protocol_id, protocol)
+        except ValueError:
+            return jsonify({"status": "error", "message": "Ungültiger Protokollpfad."}), 400
+        return jsonify({"status": "success"})
 
     @app.post("/api/pruefungslauf/start")
     def api_start_pruefungslauf():

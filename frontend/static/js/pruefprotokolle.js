@@ -9,6 +9,7 @@
         list: document.getElementById('protocol-list'),
         title: document.getElementById('selected-protocol-name'),
         tableBody: document.querySelector('#protocol-table tbody'),
+        deleteButton: document.getElementById('delete-protocol'),
     };
 
     function renderProtocolList() {
@@ -98,6 +99,9 @@
         if (elements.title) {
             elements.title.textContent = protocol ? protocol.name || 'Prüfprotokoll' : 'Prüfprotokoll auswählen';
         }
+        if (elements.deleteButton) {
+            elements.deleteButton.disabled = !protocol;
+        }
         renderProtocolList();
         renderTable(protocol);
     }
@@ -130,7 +134,30 @@
     }
 
     async function init() {
+        if (elements.deleteButton) {
+            elements.deleteButton.addEventListener('click', deleteProtocol);
+        }
         await loadProtocolList();
+    }
+
+    async function deleteProtocol() {
+        if (!state.currentId) {
+            return;
+        }
+        try {
+            const response = await fetch(`/api/pruefprotokolle/${encodeURIComponent(state.currentId)}`, {
+                method: 'DELETE',
+            });
+            if (!response.ok) {
+                const error = await response.json().catch(() => ({ message: 'Löschen fehlgeschlagen.' }));
+                throw new Error(error.message || 'Löschen fehlgeschlagen.');
+            }
+            state.currentId = null;
+            state.currentProtocol = null;
+            await loadProtocolList();
+        } catch (error) {
+            console.error(error);
+        }
     }
 
     document.addEventListener('DOMContentLoaded', init);
