@@ -1,0 +1,33 @@
+.configurator--protocols .configurator__main {
+    gap: 1rem;
+}
+
+.protocols-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+.protocols-header__title h2 {
+    margin: 0;
+}
+
+.protocol-table__empty {
+    text-align: center;
+    color: rgba(0, 0, 0, 0.6);
+}
+
+.protocol-action {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    color: #0b2548;
+    font-weight: 600;
+    text-decoration: none;
+}
+
+.protocol-action:hover,
+.protocol-action:focus-visible {
+    text-decoration: underline;
+}
