@@ -259,6 +259,24 @@ body {
     font-weight: 600;
 }
 
+.footer-status__exam-label {
+    margin-left: 1.5rem;
+    font-weight: 500;
+    color: rgba(0, 0, 0, 0.7);
+}
+
+.footer-status__exam-value {
+    font-weight: 700;
+}
+
+.footer-status__exam-value--running {
+    color: #d97706;
+}
+
+.footer-status__exam-value--finished {
+    color: #1f8c3a;
+}
+
 .footer-status__label {
     font-weight: 500;
     color: rgba(0, 0, 0, 0.7);
