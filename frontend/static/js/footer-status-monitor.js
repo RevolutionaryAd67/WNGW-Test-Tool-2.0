@@ -18,6 +18,8 @@
   const statusElements = {};
   // DOM-Element für den Prüfungsstatus
   let examStatusElement = null;
+  // DOM-Element für den Link zur laufenden Prüfung
+  let examLinkElement = null;
   // Referenz auf die aktuelle EventSource, um sie steuern zu können
   let footerStatusSource = null;
   // Timer-Handle für erneute Verbindungsversuche nach Fehlern
@@ -35,7 +37,12 @@
       }
     });
     examStatusElement = document.querySelector('[data-footer-exam-status]');
-    return Object.keys(statusElements).length > 0 || Boolean(examStatusElement);
+    examLinkElement = document.querySelector('[data-footer-exam-link]');
+    return (
+      Object.keys(statusElements).length > 0 ||
+      Boolean(examStatusElement) ||
+      Boolean(examLinkElement)
+    );
   }
 
   // Schaltet den optischen Zustand eines Status-Elemenmts anhand der Verbindung 
@@ -125,6 +132,9 @@
       'footer-status__exam-value--running',
       'footer-status__exam-value--finished'
     );
+    if (examLinkElement) {
+      examLinkElement.hidden = true;
+    }
     if (!runState) {
       return;
     }
@@ -134,6 +144,9 @@
     } else {
       examStatusElement.textContent = 'Läuft';
       examStatusElement.classList.add('footer-status__exam-value--running');
+      if (examLinkElement) {
+        examLinkElement.hidden = false;
+      }
     }
   }
 
