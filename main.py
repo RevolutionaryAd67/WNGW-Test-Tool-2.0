@@ -51,60 +51,148 @@ class TeilpruefungRecorder:
         self._config_id: str = ""
         self._run_id: str = ""
         self._teil_index: int = 0
-        self._buffers: Dict[str, List[Dict[str, Any]]] = {}
-        self._started_at: Dict[str, Optional[float]] = {}
+        self._entries: List[Dict[str, Any]] = []
+        self._started_at: Optional[float] = None
+        self._last_signal_at: Optional[float] = None
+        self._recording_started = False
+        self._ioa_labels: Dict[int, str] = {}
+
+    @staticmethod
+    def _parse_ioa_part(value: Any) -> Optional[int]:
+        if value is None:
+            return None
+        try:
+            parsed = int(str(value).strip())
+        except (TypeError, ValueError):
+            return None
+        if parsed < 0 or parsed > 255:
+            return None
+        return parsed
+
+    @classmethod
+    def _extract_ioa(cls, row: Dict[str, Any]) -> Optional[int]:
+        parts = [
+            cls._parse_ioa_part(row.get("IOA 1")),
+            cls._parse_ioa_part(row.get("IOA 2")),
+            cls._parse_ioa_part(row.get("IOA 3")),
+        ]
+        if any(part is None for part in parts):
+            return None
+        return parts[0] + (parts[1] << 8) + (parts[2] << 16)
+
+    def _load_meldetexte(self) -> None:
+        self._ioa_labels = {}
+        file_path = COMMUNICATION_DIR / "signalliste.json"
+        if not file_path.exists():
+            return
+        try:
+            stored = json.loads(file_path.read_text(encoding="utf-8"))
+        except json.JSONDecodeError:
+            return
+        rows = stored.get("rows")
+        if not isinstance(rows, list):
+            return
+        for row in rows:
+            if not isinstance(row, dict):
+                continue
+            label = row.get("Datenpunkt / Meldetext")
+            if not isinstance(label, str):
+                continue
+            label = label.strip()
+            if not label:
+                continue
+            ioa = self._extract_ioa(row)
+            if ioa is None:
+                continue
+            self._ioa_labels[ioa] = label
+
+    def _resolve_meldetext(self, payload: Dict[str, Any]) -> Optional[str]:
+        if payload.get("frame_family") != "I":
+            return None
+        ioa = payload.get("ioa")
+        if not isinstance(ioa, int):
+            return None
+        if ioa == 0:
+            label = payload.get("label")
+            return label if isinstance(label, str) and label else None
+        mapped = self._ioa_labels.get(ioa)
+        if mapped:
+            return mapped
+        label = payload.get("label")
+        return label if isinstance(label, str) and label else None
 
     def begin(self, config_id: str, run_id: str, teil_index: int) -> None:
         self._active = True
         self._config_id = config_id or ""
         self._run_id = run_id or ""
         self._teil_index = teil_index
-        self._buffers = {"client": [], "server": []}
-        self._started_at = {"client": None, "server": None}
+        self._entries = []
+        self._started_at = None
+        self._last_signal_at = None
+        self._recording_started = False
+        self._load_meldetexte()
+
+    def mark_signal_sent(self) -> None:
+        if not self._active:
+            return
+        timestamp = time.time()
+        self._last_signal_at = timestamp
+        if not self._recording_started:
+            self._recording_started = True
+            self._started_at = timestamp
 
     def observe(self, event: Dict[str, Any]) -> None:
-        if not self._active:
+        if not self._active or not self._recording_started:
             return
         if not isinstance(event, dict) or event.get("type") != "telegram":
             return
         payload = event.get("payload")
         if not isinstance(payload, dict):
             return
+        ts = payload.get("timestamp")
+        if self._started_at is not None and isinstance(ts, (int, float)):
+            if ts < self._started_at:
+                return
         side = payload.get("side")
         if side not in ("client", "server"):
             return
-        direction = payload.get("direction")
-        if self._started_at.get(side) is None:
-            if direction != "outgoing":
-                return
-            ts = payload.get("timestamp")
-            self._started_at[side] = ts if isinstance(ts, (int, float)) else time.time()
-        self._buffers[side].append(payload)
+        meldetext = self._resolve_meldetext(payload)
+        if meldetext:
+            payload["meldetext"] = meldetext
+        self._entries.append(payload)
 
     def finish(self, aborted: bool = False) -> None:
         if not self._active:
             return
         finished_at = time.time()
-        for side, entries in self._buffers.items():
-            file_name = (
-                f"{self._config_id}_teil{self._teil_index + 1}_"
-                f"{self._run_id}_{side}_kommunikationsverlauf.json"
-            )
-            file_path = self.base_dir / file_name
-            content = {
-                "configurationId": self._config_id,
-                "runId": self._run_id,
-                "teilpruefungIndex": self._teil_index + 1,
-                "side": side,
-                "aborted": bool(aborted),
-                "startedAt": self._started_at.get(side),
-                "finishedAt": finished_at,
-                "entries": entries,
-            }
-            file_path.write_text(
-                json.dumps(content, ensure_ascii=False, indent=2), encoding="utf-8"
-            )
+        if self._last_signal_at and not aborted:
+            remaining = 5.0 - (finished_at - self._last_signal_at)
+            if remaining > 0:
+                time.sleep(remaining)
+                finished_at = time.time()
+
+        file_name = (
+            f"{self._config_id}_teil{self._teil_index + 1}_"
+            f"{self._run_id}_kommunikationsverlauf.json"
+        )
+        file_path = self.base_dir / file_name
+        content = {
+            "configurationId": self._config_id,
+            "runId": self._run_id,
+            "teilpruefungIndex": self._teil_index + 1,
+            "aborted": bool(aborted),
+            "startedAt": self._started_at,
+            "finishedAt": finished_at,
+            "entries": self._entries,
+        }
+        file_path.write_text(
+            json.dumps(content, ensure_ascii=False, indent=2), encoding="utf-8"
+        )
         self._active = False
+
+    @property
+    def last_signal_at(self) -> Optional[float]:
+        return self._last_signal_at
 
 
 # Ablageordner für Prüfkonfigurationen bereitstellen
@@ -463,6 +551,7 @@ class PruefungRunner:
                     break
                 if consider_from is None:
                     consider_from = time.time()
+                self._recorder.mark_signal_sent()
                 self.backend.send_signal(segment["side"], row)
                 time.sleep(0.05)
             expected_counts[other_side] = self._incoming_counts.get(other_side, 0) + len(segment["rows"])
@@ -471,6 +560,16 @@ class PruefungRunner:
                 if signature:
                     pending.setdefault(other_side, []).append(signature)
             self._pull_events(pending, consider_from)
+
+    def _wait_after_last_signal(self) -> None:
+        last_signal = self._recorder.last_signal_at
+        if last_signal is None:
+            return
+        deadline = last_signal + 5.0
+        while not self._stop_event.is_set() and time.time() < deadline:
+            self._pull_events()
+            time.sleep(0.05)
+        self._pull_events()
 
     def _run(self, run_state: Dict[str, Any]) -> None:
         aborted = False
@@ -501,7 +600,7 @@ class PruefungRunner:
                     break
                 self._set_status(index, "Wird durchgeführt")
                 self._dispatch_signals(rows)
-                self._pull_events()
+                self._wait_after_last_signal()
                 if self._stop_event.is_set():
                     aborted = True
                     teil_aborted = True
