@@ -8,16 +8,22 @@
 */
 
 (function () {
-  // Datenquelle vom Backend: REST-Endpunkt, über den der initiale Status geladen wird 
+  // Datenquelle vom Backend: REST-Endpunkt, über den der initiale Status geladen wird
   const STATUS_ENDPOINT = '/api/backend/status';  // Wie ist der Zustand jetzt?
   // Datenquelle vom Backend: Server-Sent-Events-Endpunkt für die kontinuierliche Statusübertragung
   const STREAM_ENDPOINT = '/api/backend/stream';  // Sag sofort Bescheid, wenn sich der Status ändert!
+  // Datenquelle für den Status des aktuellen Prüfungsdurchlaufs
+  const EXAM_STATUS_ENDPOINT = '/api/pruefungslauf/status';
   // Cache der DOM-Elemente, die einzelne Statusanzeigen repräsentieren
   const statusElements = {};
+  // DOM-Element für den Prüfungsstatus
+  let examStatusElement = null;
   // Referenz auf die aktuelle EventSource, um sie steuern zu können
   let footerStatusSource = null;
   // Timer-Handle für erneute Verbindungsversuche nach Fehlern
   let reconnectTimer = null;
+  // Timer-Handle für die zyklische Abfrage des Prüfungsstatus
+  let examStatusTimer = null;
 
   // Liest alle relevanten DOM-Elemente ein und speichert sie im Cache
   function cacheFooterStatusElements() {
@@ -28,7 +34,8 @@
         statusElements[key] = node;
       }
     });
-    return Object.keys(statusElements).length > 0;
+    examStatusElement = document.querySelector('[data-footer-exam-status]');
+    return Object.keys(statusElements).length > 0 || Boolean(examStatusElement);
   }
 
   // Schaltet den optischen Zustand eines Status-Elemenmts anhand der Verbindung 
@@ -108,6 +115,53 @@
     };
   }
 
+  // Setzt den angezeigten Prüfungsstatus im Footer
+  function setExamStatus(runState) {
+    if (!examStatusElement) {
+      return;
+    }
+    examStatusElement.textContent = '';
+    examStatusElement.classList.remove(
+      'footer-status__exam-value--running',
+      'footer-status__exam-value--finished'
+    );
+    if (!runState) {
+      return;
+    }
+    if (runState.finished) {
+      examStatusElement.textContent = 'Abgeschlossen';
+      examStatusElement.classList.add('footer-status__exam-value--finished');
+    } else {
+      examStatusElement.textContent = 'Läuft';
+      examStatusElement.classList.add('footer-status__exam-value--running');
+    }
+  }
+
+  // Holt den aktuellen Prüfungsstatus ab
+  async function fetchExamStatus() {
+    if (!examStatusElement) {
+      return;
+    }
+    try {
+      const response = await fetch(EXAM_STATUS_ENDPOINT);
+      if (!response.ok) {
+        throw new Error('HTTP ' + response.status);
+      }
+      const data = await response.json();
+      setExamStatus(data.run);
+    } catch (error) {
+      console.warn('Konnte Prüfungsstatus nicht laden', error);
+    }
+  }
+
+  // Startet die regelmäßige Abfrage des Prüfungsstatus
+  function startExamStatusPolling() {
+    if (examStatusTimer || !examStatusElement) {
+      return;
+    }
+    examStatusTimer = window.setInterval(fetchExamStatus, 2000);
+  }
+
   // Einsteigspunkt: Cache füllen, initialen Status laden und Stream öffnen
   // (Startknopf: Statusanzeige-Elemente suchen, Anfangsstatus laden, Live-Stream öffnen)
   function initFooterStatusMonitor() {
@@ -116,6 +170,8 @@
     }
     fetchFooterStatusSnapshot();
     connectFooterStatusStream();
+    fetchExamStatus();
+    startExamStatusPolling();
   }
 
   // Auf DOM-Bereitschaft warten, falls nötig
@@ -132,6 +188,9 @@
     }
     if (reconnectTimer) {
       clearTimeout(reconnectTimer);
+    }
+    if (examStatusTimer) {
+      clearInterval(examStatusTimer);
     }
   });
 })();
