@@ -259,6 +259,13 @@ body {
     font-weight: 600;
 }
 
+.footer-status__separator {
+    width: 1px;
+    align-self: stretch;
+    background-color: var(--border-color);
+    margin: 0 1.25rem;
+}
+
 .footer-status__exam-label {
     margin-left: 1.5rem;
     font-weight: 500;
@@ -267,6 +274,18 @@ body {
 
 .footer-status__exam-value {
     font-weight: 700;
+}
+
+.footer-status__exam-link {
+    font-weight: 700;
+    color: #1f6feb;
+    text-decoration: none;
+    margin-left: 0.5rem;
+}
+
+.footer-status__exam-link:hover,
+.footer-status__exam-link:focus-visible {
+    text-decoration: underline;
 }
 
 .footer-status__exam-value--running {
