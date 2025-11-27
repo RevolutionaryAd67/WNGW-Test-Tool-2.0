@@ -12,6 +12,12 @@
         deleteButton: document.getElementById('delete-protocol'),
     };
 
+    function getProtocolIdFromUrl() {
+        const params = new URLSearchParams(window.location.search);
+        const value = params.get('protocolId');
+        return value ? value.trim() : null;
+    }
+
     function renderProtocolList() {
         if (!elements.list) return;
         elements.list.innerHTML = '';
@@ -112,7 +118,21 @@
             if (!response.ok) throw new Error('Protokolle konnten nicht geladen werden.');
             const data = await response.json();
             state.protocols = data.protocols || [];
+            const preferredId = getProtocolIdFromUrl();
+            const hasPreferred = preferredId && state.protocols.some((protocol) => protocol.id === preferredId);
+            const hasCurrent = state.currentId && state.protocols.some((protocol) => protocol.id === state.currentId);
+            if (hasPreferred) {
+                state.currentId = preferredId;
+            } else if (!hasCurrent) {
+                state.currentId = null;
+            }
             renderProtocolList();
+            const shouldLoadCurrent =
+                state.currentId &&
+                (!state.currentProtocol || state.currentProtocol.id !== state.currentId);
+            if (shouldLoadCurrent) {
+                await loadProtocol(state.currentId);
+            }
         } catch (error) {
             console.error(error);
         }

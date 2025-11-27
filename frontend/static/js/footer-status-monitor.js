@@ -45,6 +45,25 @@
     );
   }
 
+  function areAllTeilpruefungenFinished(runState) {
+    if (!runState || !Array.isArray(runState.teilpruefungen)) {
+      return false;
+    }
+    return runState.teilpruefungen.every((teil) => {
+      const status = teil && typeof teil.status === 'string' ? teil.status.trim() : '';
+      return status.toLowerCase() === 'abgeschlossen';
+    });
+  }
+
+  function setExamLink(target, label) {
+    if (!examLinkElement) {
+      return;
+    }
+    examLinkElement.href = target;
+    examLinkElement.textContent = label;
+    examLinkElement.hidden = false;
+  }
+
   // Schaltet den optischen Zustand eines Status-Elemenmts anhand der Verbindung 
   // (Ändert die Anzeige eines Statuspunktes)
   function setFooterStatus(side, connected) {
@@ -135,6 +154,7 @@
     if (examLinkElement) {
       examLinkElement.href = '/pruefung/starten';
       examLinkElement.hidden = true;
+      examLinkElement.textContent = 'Zur laufenden Prüfung >';
     }
     if (!runState) {
       return;
@@ -142,6 +162,11 @@
     if (runState.finished) {
       examStatusElement.textContent = 'Abgeschlossen';
       examStatusElement.classList.add('footer-status__exam-value--finished');
+      if (examLinkElement && areAllTeilpruefungenFinished(runState) && runState.id) {
+        const targetUrl = new URL('/pruefung/protokolle', window.location.origin);
+        targetUrl.searchParams.set('protocolId', runState.id);
+        setExamLink(targetUrl.pathname + targetUrl.search, 'Zum Prüfprotokoll >');
+      }
     } else {
       examStatusElement.textContent = 'Läuft';
       examStatusElement.classList.add('footer-status__exam-value--running');
