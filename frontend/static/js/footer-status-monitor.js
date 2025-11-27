@@ -133,6 +133,7 @@
       'footer-status__exam-value--finished'
     );
     if (examLinkElement) {
+      examLinkElement.href = '/pruefung/starten';
       examLinkElement.hidden = true;
     }
     if (!runState) {
@@ -145,6 +146,11 @@
       examStatusElement.textContent = 'Läuft';
       examStatusElement.classList.add('footer-status__exam-value--running');
       if (examLinkElement) {
+        const targetUrl = new URL('/pruefung/starten', window.location.origin);
+        if (runState.configurationId) {
+          targetUrl.searchParams.set('configId', runState.configurationId);
+        }
+        examLinkElement.href = targetUrl.pathname + targetUrl.search;
         examLinkElement.hidden = false;
       }
     }
