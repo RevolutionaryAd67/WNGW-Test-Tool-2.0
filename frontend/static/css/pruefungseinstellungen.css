@@ -1,11 +1,11 @@
-.communication {
+.exam-settings {
     display: flex;
     flex-direction: column;
     gap: 1.5rem;
     margin-top: 1rem;
 }
 
-.communication__box {
+.exam-settings__box {
     background: #fff;
     border-radius: 1rem;
     border: 1px solid var(--border-color);
@@ -16,7 +16,7 @@
     gap: 1rem;
 }
 
-.communication__header {
+.exam-settings__header {
     display: flex;
     justify-content: space-between;
     gap: 1rem;
@@ -24,23 +24,23 @@
     flex-wrap: wrap;
 }
 
-.communication__title {
+.exam-settings__title {
     margin: 0;
 }
 
-.communication__subtitle {
+.exam-settings__subtitle {
     margin: 0.25rem 0 0;
     color: rgba(0, 0, 0, 0.7);
 }
 
-.communication__actions {
+.exam-settings__actions {
     display: flex;
     align-items: center;
     gap: 0.75rem;
     margin-left: auto;
 }
 
-.communication__save {
+.exam-settings__save {
     border: none;
     border-radius: 999px;
     padding: 0.45rem 1.5rem;
@@ -51,28 +51,28 @@
     transition: background-color 0.2s ease-in-out;
 }
 
-.communication__save:hover,
-.communication__save:focus-visible {
+.exam-settings__save:hover,
+.exam-settings__save:focus-visible {
     background-color: #005ea8;
 }
 
-.communication__status[data-state="success"] {
+.exam-settings__status[data-state="success"] {
     color: #0a7a28;
 }
 
-.communication__status[data-state="error"] {
+.exam-settings__status[data-state="error"] {
     color: #b00020;
 }
 
-.communication__status[data-state="pending"] {
+.exam-settings__status[data-state="pending"] {
     color: rgba(0, 0, 0, 0.7);
 }
 
-.communication__table-wrapper {
+.exam-settings__table-wrapper {
     overflow-x: auto;
 }
 
-.communication__table {
+.exam-settings__table {
     width: 100%;
     border: 1px solid #e0e0e0;
     border-collapse: collapse;
@@ -80,8 +80,8 @@
     table-layout: fixed;
 }
 
-.communication__table th,
-.communication__table td {
+.exam-settings__table th,
+.exam-settings__table td {
     padding: 0.75rem;
     border: 1px solid #e0e0e0;
     text-align: left;
@@ -89,8 +89,8 @@
     overflow-wrap: anywhere;
 }
 
-.communication__table thead th,
-.communication__table tbody th {
+.exam-settings__table thead th,
+.exam-settings__table tbody th {
     background-color: #f4f4f4;
     font-weight: 600;
 }
@@ -116,7 +116,7 @@
     width: 100%;
 }
 
-.communication__note {
+.exam-settings__note {
     margin: 1rem 0 0;
     font-size: 0.9rem;
     color: #4b4b4b;

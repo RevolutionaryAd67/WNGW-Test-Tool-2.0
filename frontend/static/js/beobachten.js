@@ -26,7 +26,7 @@ const SIGNAL_LIST_IOA_MAP = new Map();
 const HISTORY_LIMIT = 1000;
 const SCROLL_TOLERANCE = 8;
 const STATUS_ENDPOINT = '/api/backend/status';
-const SIGNAL_LIST_ENDPOINT = '/api/einstellungen/kommunikation/signalliste';
+const SIGNAL_LIST_ENDPOINT = '/api/einstellungen/pruefungseinstellungen/signalliste';
 const STATUS_MESSAGES = {
   client: {
     active: 'Client ist aktiv',
