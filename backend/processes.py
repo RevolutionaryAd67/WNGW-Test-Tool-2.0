@@ -83,6 +83,26 @@ TYPE_VALUE_FIELD_LENGTHS: Dict[int, int] = {
     103: 7,  # Zeitfeld
 }
 
+# Name und Byte-Offset des Qualifier-Feldes je Typkennung (sofern vorhanden)
+QUALIFIER_FIELD_SPECS: Dict[int, Tuple[str, int]] = {
+    1: ("SIQ", 0),
+    3: ("DIQ", 0),
+    5: ("QDS", 1),
+    7: ("QDS", 4),
+    9: ("QDS", 2),
+    11: ("QDS", 2),
+    13: ("QDS", 4),
+    15: ("QDS", 4),
+    30: ("SIQ", 0),
+    31: ("DIQ", 0),
+    36: ("QDS", 4),
+    58: ("Qualifier", 0),
+    59: ("QRP", 0),
+    63: ("Qualifier", 0),
+    70: ("COI", 0),
+    100: ("QOI", 0),
+}
+
 
 # Liest VSQ und gibt Objektanzahl sowie den Informationsbereich zurück
 def _extract_information_bytes(payload: bytes) -> Tuple[int, bytes]:
@@ -193,6 +213,25 @@ def _decode_information_value(type_id: Optional[int], payload: bytes) -> Optiona
     if not relevant:
         return None
     return " ".join(f"0x{byte:02X}" for byte in relevant)
+
+
+# Extrahiert ein Qualifier-Feld anhand der Typkennung und liefert Label und Wert zurück
+def _decode_qualifier_field(
+    type_id: Optional[int], payload: bytes
+) -> Optional[Dict[str, int]]:
+    if type_id is None:
+        return None
+
+    spec = QUALIFIER_FIELD_SPECS.get(type_id)
+    if not spec:
+        return None
+
+    _, information_bytes = _extract_information_bytes(payload)
+    label, index = spec
+    if not information_bytes or index >= len(information_bytes):
+        return None
+
+    return {"label": label, "value": information_bytes[index]}
 
 
 # Wandelt einen beliebigen Wert sicher in einen Integer um oder liefert einen Standardwert
@@ -348,6 +387,9 @@ class _BaseEndpoint:
             value = _decode_information_value(telegram.type_id, telegram.payload)
             if value is not None:
                 payload["value"] = value
+            qualifier = _decode_qualifier_field(telegram.type_id, telegram.payload)
+            if qualifier is not None:
+                payload["qualifier"] = qualifier
         self._publish(payload)
 
     # Publiziert ein frei zusammenstellbares Telegramm-Ereignis

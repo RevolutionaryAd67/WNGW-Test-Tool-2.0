@@ -311,6 +311,50 @@ function splitIoa(ioaValue) {
   return segments.map((value) => value.toString().padStart(3, ' '));
 }
 
+// Liefert eine formatierte Darstellung eines Qualifiers
+function formatQualifierValue(label, value) {
+  if (value === null || value === undefined) {
+    return '';
+  }
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    const byteValue = value & 0xff;
+    return byteValue.toString(2).padStart(8, '0');
+  }
+  return String(value);
+}
+
+// Kombiniert Wert und Qualifier-Feld zu einem anzeigbaren Text
+function formatValueWithQualifier(telegram) {
+  const value = telegram.value;
+  const qualifier = telegram.qualifier;
+  const hasValue = value !== null && value !== undefined && value !== '';
+
+  const qualifierLabel = qualifier && typeof qualifier.label === 'string' ? qualifier.label : null;
+  const qualifierValue = qualifier && qualifier.value !== null && qualifier.value !== undefined
+    ? qualifier.value
+    : null;
+  const hasQualifier = qualifierValue !== null;
+  const formattedQualifierValue = hasQualifier
+    ? formatQualifierValue(qualifierLabel, qualifierValue)
+    : '';
+  const qualifierText = hasQualifier
+    ? qualifierLabel
+      ? `${qualifierLabel} = ${formattedQualifierValue}`
+      : String(formattedQualifierValue)
+    : '';
+
+  if (hasValue && qualifierText) {
+    return `${value} (${qualifierText})`;
+  }
+  if (hasValue) {
+    return String(value);
+  }
+  if (qualifierText) {
+    return qualifierText;
+  }
+  return null;
+}
+
 // Hilfsfunktion zum Erzeugen einer beschrifteten Zeile innerhalb eines Telegramms
 function createLine(label, value) {
   const line = document.createElement('div');
@@ -384,8 +428,11 @@ function createTelegramElement(telegram) {
     const ioaSegments = splitIoa(telegram.ioa).join(' - ');
     details.appendChild(createLine('IOA', ioaSegments));
   }
-  if (telegram.frameFamily === 'I' && telegram.value !== null && telegram.value !== undefined) {
-    details.appendChild(createLine('Wert', String(telegram.value)));
+  if (telegram.frameFamily === 'I') {
+    const valueText = formatValueWithQualifier(telegram);
+    if (valueText !== null && valueText !== undefined && valueText !== '') {
+      details.appendChild(createLine('Wert', valueText));
+    }
   }
 
   article.appendChild(details);
@@ -545,6 +592,7 @@ function handleTelegramEvent(raw) {
     station: raw.station ?? null,
     ioa: typeof raw.ioa === 'number' ? raw.ioa : null,
     value: raw.value ?? null,
+    qualifier: raw.qualifier ?? null,
     timestampText: formatTimestamp(raw.timestamp),
     deltaText: formatDelta(raw.delta ?? 0),
   };
