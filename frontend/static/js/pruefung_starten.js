@@ -5,6 +5,7 @@
         currentConfig: null,
         run: null,
         poller: null,
+        requestedId: null,
     };
 
     const elements = {
@@ -14,6 +15,12 @@
         startButton: document.getElementById('start-test-button'),
         abortButton: document.getElementById('abort-test-button'),
     };
+
+    function getRequestedConfigId() {
+        const params = new URLSearchParams(window.location.search);
+        const requested = params.get('configId');
+        return requested || null;
+    }
 
     function renderConfigList() {
         if (!elements.list) return;
@@ -33,10 +40,27 @@
             item.appendChild(button);
             elements.list.appendChild(item);
         });
+        if (!sorted.length) {
+            if (state.currentId || state.currentConfig) {
+                updateSelection(null);
+            }
+            return;
+        }
+
+        const targetId = state.currentId || state.requestedId;
+        if (targetId) {
+            const targetConfig = sorted.find((config) => config.id === targetId);
+            if (targetConfig) {
+                state.requestedId = null;
+                if (state.currentId !== targetConfig.id) {
+                    loadConfiguration(targetConfig.id);
+                }
+                return;
+            }
+        }
+
         if (!state.currentId && sorted.length) {
             loadConfiguration(sorted[0].id);
-        } else if (!sorted.length) {
-            updateSelection(null);
         }
     }
 
@@ -142,6 +166,9 @@
 
     function setRunState(run) {
         state.run = run || null;
+        if (state.run && state.run.configurationId && state.currentId !== state.run.configurationId) {
+            state.requestedId = state.run.configurationId;
+        }
         renderSteps(state.currentConfig);
         if (state.run && !state.run.finished) {
             startPolling();
@@ -198,6 +225,7 @@
 
     async function init() {
         registerControls();
+        state.requestedId = getRequestedConfigId();
         await loadConfigList();
         await fetchRunStatus();
     }
