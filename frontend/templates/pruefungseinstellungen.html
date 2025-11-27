@@ -1,0 +1,88 @@
+{% import 'input-box/input_box.html' as input_box_component %}
+{% extends "base.html" %}
+
+{% block extra_css %}
+    {{ super() }}
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/pruefungseinstellungen.css') }}">
+    <link rel="stylesheet" href="{{ url_for('component_asset', filename='input-box/input_box.css') }}">
+{% endblock %}
+
+{% block content %}
+<section class="exam-settings">
+    <div class="exam-settings__box">
+        <header class="exam-settings__header">
+            <div>
+                <h2 class="exam-settings__title">Datenpunktliste hinterlegen</h2>
+            </div>
+            <div class="exam-settings__actions">
+                <span class="exam-settings__status" id="exam-settings-status" aria-live="polite"></span>
+                <button type="button" class="exam-settings__save" id="exam-settings-save">Speichern</button>
+            </div>
+        </header>
+
+        <div class="exam-settings__table-wrapper">
+            <table class="exam-settings__table">
+                <thead>
+                    <tr>
+                        <th scope="col">Objekt</th>
+                        <th scope="col">Hochladen</th>
+                        <th scope="col">Datei</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <th scope="row">Vollständige Signalliste</th>
+                        <td>
+                            <label class="file-input">
+                                <input type="file" id="exam-settings-file" accept=".xlsx">
+                                <span id="exam-settings-file-label">Excel-Datei auswählen</span>
+                            </label>
+                        </td>
+                        <td><span id="exam-settings-file-name">–</span></td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+        <p class="exam-settings__note">
+            Vollständige Signalliste hinterlegen. Mithilfe dieser Signalliste werden den eingehenden Telegrammen Meldetexte zugeordnet.
+            Somit können auf der Seite "Beobachten" die Meldetexte angezeigt werden und nicht nur die IOAs.
+        </p>
+    </div>
+
+    {% set columns = [
+        {"key": "parameter", "label": "Parameter", "type": "header"},
+        {"key": "value", "label": "Wert", "type": "input", "input_type": "number", "placeholder": "z. B. 60"}
+    ] %}
+
+    {% set rows = [
+        {"id": "zeit_zwischen_pruefungen", "label": "Zeit zwischen Prüfungen [s]"}
+    ] %}
+
+    {% set stored_values = input_box_values("einstellungen_pruefungseinstellungen", "pruefungssteuerung", columns, rows) %}
+    {% if not stored_values.get('zeit_zwischen_pruefungen') %}
+        {% set _ = stored_values.update({'zeit_zwischen_pruefungen': {'value': default_pause_between_tests|int}}) %}
+    {% elif stored_values.get('zeit_zwischen_pruefungen').get('value') == '' %}
+        {% set _ = stored_values['zeit_zwischen_pruefungen'].update({'value': default_pause_between_tests|int}) %}
+    {% endif %}
+
+    {% set pruefungssteuerung_box = {
+        "id": "pruefungssteuerung",
+        "page_key": "einstellungen_pruefungseinstellungen",
+        "title": "Prüfungssteuerung",
+        "note": "Für die Zeit zwischen Prüfungen sollte mindestens 60 Sekunden gewählt werden, um eine vollständige Weiterleitung der Signale durch das WNGW zu garantieren (Das WNGW leitet z.B. nur alle 30 Sekunden eine GENERALABFRAGE ACT weiter).",
+        "table": {
+            "columns": columns,
+            "rows": rows
+        },
+        "values": stored_values
+    } %}
+
+    {{ input_box_component.render(pruefungssteuerung_box) }}
+</section>
+{% endblock %}
+
+{% block extra_js %}
+    {{ super() }}
+    <script src="{{ url_for('static', filename='js/pruefungseinstellungen.js') }}" defer></script>
+    <script src="{{ url_for('component_asset', filename='input-box/input_box.js') }}" defer></script>
+{% endblock %}

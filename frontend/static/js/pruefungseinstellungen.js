@@ -1,13 +1,13 @@
 (function () {
     const elements = {
-        fileInput: document.getElementById('communication-file'),
-        fileLabel: document.getElementById('communication-file-label'),
-        fileName: document.getElementById('communication-file-name'),
-        status: document.getElementById('communication-status'),
-        saveButton: document.getElementById('communication-save'),
+        fileInput: document.getElementById('exam-settings-file'),
+        fileLabel: document.getElementById('exam-settings-file-label'),
+        fileName: document.getElementById('exam-settings-file-name'),
+        status: document.getElementById('exam-settings-status'),
+        saveButton: document.getElementById('exam-settings-save'),
     };
 
-    const ENDPOINT = '/api/einstellungen/kommunikation/signalliste';
+    const ENDPOINT = '/api/einstellungen/pruefungseinstellungen/signalliste';
     const DEFAULT_LABEL = 'Excel-Datei auswählen';
     const DEFAULT_NAME = '–';
 

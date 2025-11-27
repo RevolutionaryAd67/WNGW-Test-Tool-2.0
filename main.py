@@ -26,7 +26,8 @@ from backend import backend_controller
 DATA_DIR = Path("data")
 CONFIG_DIR = DATA_DIR / "pruefungskonfigurationen"
 COMMUNICATION_LOG_DIR = DATA_DIR / "pruefungskommunikation"
-COMMUNICATION_DIR = DATA_DIR / "einstellungen_kommunikation"
+EXAM_SETTINGS_DIR = DATA_DIR / "einstellungen_pruefungseinstellungen"
+LEGACY_COMMUNICATION_DIR = DATA_DIR / "einstellungen_kommunikation"
 PROTOKOLL_DIR = DATA_DIR / "pruefprotokolle"
 EXCEL_NAMESPACE = "{http://schemas.openxmlformats.org/spreadsheetml/2006/main}"
 REQUIRED_SIGNAL_HEADERS = (
@@ -54,6 +55,8 @@ DIRECTION_ARROWS = {
     "incoming": "←",
     "outgoing": "→",
 }
+
+DEFAULT_PAUSE_BETWEEN_TESTS = 35.0
 
 CAUSE_MEANINGS = {
     1: "Zyklisch",
@@ -124,7 +127,7 @@ class TeilpruefungRecorder:
 
     def _load_meldetexte(self) -> None:
         self._ioa_labels = {}
-        file_path = COMMUNICATION_DIR / "signalliste.json"
+        file_path = _exam_signalliste_file_path()
         if not file_path.exists():
             return
         try:
@@ -243,9 +246,13 @@ def _configurations_directory() -> Path:
     return CONFIG_DIR
 
 
-def _communication_directory() -> Path:
-    COMMUNICATION_DIR.mkdir(parents=True, exist_ok=True)
-    return COMMUNICATION_DIR
+def _exam_settings_directory() -> Path:
+    EXAM_SETTINGS_DIR.mkdir(parents=True, exist_ok=True)
+    return EXAM_SETTINGS_DIR
+
+
+def _legacy_exam_settings_directory() -> Path:
+    return LEGACY_COMMUNICATION_DIR
 
 
 def _protokoll_directory() -> Path:
@@ -269,12 +276,54 @@ def _communication_log_file_path(filename: str) -> Path:
     return file_path
 
 
-def _communication_file_path() -> Path:
-    directory = _communication_directory()
-    file_path = (directory / "signalliste.json").resolve()
-    if not str(file_path).startswith(str(directory.resolve())):
+def _exam_settings_file_path(filename: str) -> Path:
+    directory = _exam_settings_directory().resolve()
+    file_path = (directory / filename).resolve()
+    if not str(file_path).startswith(str(directory)):
         raise ValueError("Ungültiger Speicherpfad")
     return file_path
+
+
+def _legacy_exam_settings_file_path(filename: str) -> Optional[Path]:
+    directory = _legacy_exam_settings_directory().resolve()
+    file_path = (directory / filename).resolve()
+    if not str(file_path).startswith(str(directory)):
+        raise ValueError("Ungültiger Speicherpfad")
+    return file_path if file_path.exists() else None
+
+
+def _exam_signalliste_file_path() -> Path:
+    target_path = _exam_settings_file_path("signalliste.json")
+    try:
+        legacy_path = _legacy_exam_settings_file_path("signalliste.json")
+    except ValueError:
+        legacy_path = None
+    if not target_path.exists() and legacy_path is not None:
+        try:
+            target_path.parent.mkdir(parents=True, exist_ok=True)
+            target_path.write_text(legacy_path.read_text(encoding="utf-8"), encoding="utf-8")
+        except Exception:
+            return legacy_path
+    return target_path
+
+
+def _load_pause_between_tests(default: float = DEFAULT_PAUSE_BETWEEN_TESTS) -> float:
+    try:
+        file_path = _exam_settings_file_path("pruefungssteuerung.json")
+    except ValueError:
+        return default
+    if not file_path.exists():
+        return default
+    try:
+        stored = json.loads(file_path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError:
+        return default
+    raw_value = stored.get("zeit_zwischen_pruefungen", {}).get("value")
+    try:
+        parsed = float(str(raw_value).replace(",", "."))
+    except (TypeError, ValueError):
+        return default
+    return parsed if parsed > 0 else default
 
 
 def _build_log_filename(config_id: str, run_id: str, teil_index: int) -> str:
@@ -875,6 +924,7 @@ class PruefungRunner:
         try:
             teilpruefungen = run_state.get("teilpruefungen", [])
             config_id = run_state.get("configurationId", "")
+            pause_seconds = _load_pause_between_tests()
             for index, teil in enumerate(teilpruefungen):
                 self._recorder.begin(config_id, run_state.get("id", ""), index)
                 teil_aborted = False
@@ -888,7 +938,7 @@ class PruefungRunner:
                 signalliste = teil.get("signalliste")
                 if isinstance(signalliste, dict):
                     rows = signalliste.get("rows") or []
-                time.sleep(35)
+                time.sleep(pause_seconds)
                 if self._stop_event.is_set():
                     aborted = True
                     teil_aborted = True
@@ -1001,9 +1051,9 @@ def create_app() -> Flask:
             "heading": "Server",
             "description": "Verwalten Sie serverseitige Parameter wie IP-Adressen, Zeitüberwachungen und Flusskontrollparameter. Der Server-Prozess nimmt im WNGW-Test-Tool die Rolle der Kundenstation ein.",
         },
-        "einstellungen_kommunikation": {
-            "heading": "Kommunikation",
-            "description": "Signallisten für den Server verwalten und bereitstellen.",
+        "einstellungen_pruefungseinstellungen": {
+            "heading": "Prüfungseinstellungen",
+            "description": "Signallisten sowie Prüfungsabstände konfigurieren.",
         },
         "einstellungen_allgemein": {
             "heading": "Allgemein",
@@ -1151,16 +1201,17 @@ def create_app() -> Flask:
             active_page="einstellungen_server",
         )
 
-    # Flask-Route: Seite "Kommunikation"
-    @app.route("/einstellungen/server/kommunikation")
-    def einstellungen_kommunikation():
-        page = pages.get("einstellungen_kommunikation", {})
+    # Flask-Route: Seite "Prüfungseinstellungen"
+    @app.route("/einstellungen/pruefungseinstellungen")
+    def einstellungen_pruefungseinstellungen():
+        page = pages.get("einstellungen_pruefungseinstellungen", {})
         return render_template(
-            "kommunikation.html",
+            "pruefungseinstellungen.html",
             title=page.get("heading", "WNGW"),
             heading=page.get("heading", ""),
             description=page.get("description", ""),
-            active_page="einstellungen_kommunikation",
+            active_page="einstellungen_pruefungseinstellungen",
+            default_pause_between_tests=DEFAULT_PAUSE_BETWEEN_TESTS,
         )
 
     # Flask-Route: Seite "Allgemein"
@@ -1385,11 +1436,11 @@ def create_app() -> Flask:
         parsed["filename"] = filename
         return jsonify(parsed)
 
-    # Flask-Route: Signalliste für die Kommunikationsseite abrufen
-    @app.get("/api/einstellungen/kommunikation/signalliste")
-    def api_get_kommunikation_signalliste():
+    # Flask-Route: Signalliste für die Prüfungseinstellungen abrufen
+    @app.get("/api/einstellungen/pruefungseinstellungen/signalliste")
+    def api_get_pruefungseinstellungen_signalliste():
         try:
-            file_path = _communication_file_path()
+            file_path = _exam_signalliste_file_path()
         except ValueError:
             return jsonify({"status": "error", "message": "Ungültiger Speicherort."}), 400
         if not file_path.exists():
@@ -1400,9 +1451,9 @@ def create_app() -> Flask:
             return jsonify({"status": "error", "message": "Gespeicherte Signalliste ist beschädigt."}), 500
         return jsonify({"status": "success", "signalliste": stored})
 
-    # Flask-Route: Signalliste für die Kommunikationsseite speichern
-    @app.post("/api/einstellungen/kommunikation/signalliste")
-    def api_save_kommunikation_signalliste():
+    # Flask-Route: Signalliste für die Prüfungseinstellungen speichern
+    @app.post("/api/einstellungen/pruefungseinstellungen/signalliste")
+    def api_save_pruefungseinstellungen_signalliste():
         file = request.files.get("signalliste")
         if file is None or file.filename == "":
             return jsonify({"status": "error", "message": "Keine Datei ausgewählt."}), 400
@@ -1430,7 +1481,7 @@ def create_app() -> Flask:
             "rows": parsed.get("rows", []),
         }
         try:
-            file_path = _communication_file_path()
+            file_path = _exam_signalliste_file_path()
         except ValueError:
             return jsonify({"status": "error", "message": "Ungültiger Speicherort."}), 400
         file_path.parent.mkdir(parents=True, exist_ok=True)
