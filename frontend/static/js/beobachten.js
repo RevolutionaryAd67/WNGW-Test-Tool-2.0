@@ -431,7 +431,7 @@ function createTelegramElement(telegram) {
   if (telegram.frameFamily === 'I') {
     const valueText = formatValueWithQualifier(telegram);
     if (valueText !== null && valueText !== undefined && valueText !== '') {
-      details.appendChild(createLine('Wert', valueText));
+      details.appendChild(createLine('Wert (Qualifier)', valueText));
     }
   }
 
