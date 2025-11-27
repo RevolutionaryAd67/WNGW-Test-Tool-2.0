@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+
+{% block extra_css %}
+    {{ super() }}
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/pruefung_konfigurieren.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/pruefprotokolle.css') }}">
+{% endblock %}
+
+{% block page_intro %}{% endblock %}
+
+{% block content %}
+<div class="configurator configurator--protocols">
+    <aside class="configurator__sidebar">
+        <div class="configurator__sidebar-header">
+            <h2>Prüfprotokolle</h2>
+        </div>
+        <ul class="config-list" id="protocol-list" aria-live="polite"></ul>
+    </aside>
+    <section class="configurator__main">
+        <header class="protocols-header">
+            <div class="protocols-header__title">
+                <h2 id="selected-protocol-name">Prüfprotokoll auswählen</h2>
+            </div>
+        </header>
+
+        <section class="config-box">
+            <header class="config-box__header">
+                <h3>Prüfungsablauf</h3>
+            </header>
+            <div class="config-box__body">
+                <div class="table-wrapper">
+                    <table class="ablauf-table" id="protocol-table">
+                        <thead>
+                            <tr>
+                                <th scope="col">Index</th>
+                                <th scope="col">Prüfungsart</th>
+                                <th scope="col">Status</th>
+                                <th scope="col">Prüfprotokoll</th>
+                            </tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+    </section>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+    {{ super() }}
+    <script src="{{ url_for('static', filename='js/pruefprotokolle.js') }}" defer></script>
+{% endblock %}

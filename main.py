@@ -27,6 +27,7 @@ DATA_DIR = Path("data")
 CONFIG_DIR = DATA_DIR / "pruefungskonfigurationen"
 COMMUNICATION_LOG_DIR = DATA_DIR / "pruefungskommunikation"
 COMMUNICATION_DIR = DATA_DIR / "einstellungen_kommunikation"
+PROTOKOLL_DIR = DATA_DIR / "pruefprotokolle"
 EXCEL_NAMESPACE = "{http://schemas.openxmlformats.org/spreadsheetml/2006/main}" 
 REQUIRED_SIGNAL_HEADERS = (
     "Datenpunkt / Meldetext",
@@ -199,6 +200,113 @@ class TeilpruefungRecorder:
 def _configurations_directory() -> Path:
     CONFIG_DIR.mkdir(parents=True, exist_ok=True)
     return CONFIG_DIR
+
+
+def _communication_directory() -> Path:
+    COMMUNICATION_DIR.mkdir(parents=True, exist_ok=True)
+    return COMMUNICATION_DIR
+
+
+def _protokoll_directory() -> Path:
+    PROTOKOLL_DIR.mkdir(parents=True, exist_ok=True)
+    return PROTOKOLL_DIR
+
+
+def _protokoll_file_path(protocol_id: str) -> Path:
+    directory = _protokoll_directory().resolve()
+    file_path = (directory / f"{protocol_id}.json").resolve()
+    if not str(file_path).startswith(str(directory)):
+        raise ValueError("Ungültiger Speicherpfad")
+    return file_path
+
+
+def _communication_log_file_path(filename: str) -> Path:
+    directory = COMMUNICATION_LOG_DIR.resolve()
+    file_path = (directory / filename).resolve()
+    if not str(file_path).startswith(str(directory)):
+        raise ValueError("Ungültiger Speicherpfad")
+    return file_path
+
+
+def _communication_file_path() -> Path:
+    directory = _communication_directory()
+    file_path = (directory / "signalliste.json").resolve()
+    if not str(file_path).startswith(str(directory.resolve())):
+        raise ValueError("Ungültiger Speicherpfad")
+    return file_path
+
+
+def _build_log_filename(config_id: str, run_id: str, teil_index: int) -> str:
+    return f"{config_id}_teil{teil_index}_{run_id}_kommunikationsverlauf.json"
+
+
+def _format_protocol_display_name(finished_at: float, run_name: str) -> str:
+    timestamp = time.localtime(finished_at)
+    prefix = time.strftime("%Y.%m.%d - %H:%M Uhr", timestamp)
+    name_part = run_name.strip() if isinstance(run_name, str) else ""
+    return f"{prefix} - {name_part}" if name_part else prefix
+
+
+def _sanitize_protocol_data(run_state: Dict[str, Any]) -> Dict[str, Any]:
+    finished_at = run_state.get("finishedAt") or time.time()
+    config_id = run_state.get("configurationId", "")
+    run_id = run_state.get("id", "")
+    teilpruefungen: List[Dict[str, Any]] = []
+    for index, teil in enumerate(run_state.get("teilpruefungen", [])):
+        teil_index = teil.get("index") or index + 1
+        teilpruefungen.append(
+            {
+                "index": teil_index,
+                "pruefungsart": teil.get("pruefungsart", ""),
+                "status": teil.get("status", ""),
+                "logFile": _build_log_filename(config_id, run_id, teil_index),
+            }
+        )
+
+    sanitized = {
+        "id": run_state.get("id", ""),
+        "configurationId": config_id,
+        "name": run_state.get("name", ""),
+        "finishedAt": finished_at,
+        "startedAt": run_state.get("startedAt"),
+        "teilpruefungen": teilpruefungen,
+    }
+    sanitized["displayName"] = _format_protocol_display_name(
+        finished_at, sanitized.get("name", "")
+    )
+    return sanitized
+
+
+def _store_pruefprotokoll(run_state: Dict[str, Any]) -> None:
+    protocol = _sanitize_protocol_data(run_state)
+    try:
+        file_path = _protokoll_file_path(protocol.get("id", uuid.uuid4().hex))
+    except ValueError:
+        return
+    file_path.write_text(json.dumps(protocol, ensure_ascii=False, indent=2), encoding="utf-8")
+
+
+def _list_protocols() -> List[Dict[str, Any]]:
+    directory = _protokoll_directory()
+    protocols: List[Dict[str, Any]] = []
+    for file in sorted(directory.glob("*.json")):
+        try:
+            data = json.loads(file.read_text(encoding="utf-8"))
+            protocols.append(data)
+        except json.JSONDecodeError:
+            continue
+    return sorted(protocols, key=lambda item: item.get("finishedAt", 0), reverse=True)
+
+
+def _load_protocol(protocol_id: str) -> Dict[str, Any]:
+    file_path = _protokoll_file_path(protocol_id)
+    if not file_path.exists():
+        raise FileNotFoundError
+    try:
+        data = json.loads(file_path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError:
+        raise ValueError("Gespeichertes Prüfprotokoll ist beschädigt.")
+    return data
 
 
 # Excel-Spaltenreferenz (z.B. AB12) in numerischen Index umwandeln
@@ -521,6 +629,11 @@ class PruefungRunner:
                     if teil.get("status") != "Abgeschlossen":
                         teil["status"] = "Abgebrochen"
             self._current_run["finished"] = True
+            self._current_run["finishedAt"] = time.time()
+            try:
+                _store_pruefprotokoll(self._current_run)
+            except Exception:
+                pass
 
     def _copy_public_state(self) -> Optional[Dict[str, Any]]:
         with self._lock:
@@ -635,6 +748,7 @@ class PruefungRunner:
                 "name": configuration.get("name", ""),
                 "teilpruefungen": teilpruefungen,
                 "finished": False,
+                "startedAt": time.time(),
             }
             thread = threading.Thread(
                 target=self._run, args=(self._current_run,), daemon=True
@@ -757,19 +871,6 @@ def create_app() -> Flask:
                 pass
         return defaults
 
-    # Ablageordner für Kommunikationssignallisten bereitstellen
-    def _communication_directory() -> Path:
-        COMMUNICATION_DIR.mkdir(parents=True, exist_ok=True)
-        return COMMUNICATION_DIR
-
-    # Standard-Dateipfad für die hinterlegte Kommunikations-Signalliste ermitteln
-    def _communication_file_path() -> Path:
-        directory = _communication_directory()
-        file_path = (directory / "signalliste.json").resolve()
-        if not str(file_path).startswith(str(directory.resolve())):
-            raise ValueError("Ungültiger Speicherpfad")
-        return file_path
-
     pruefung_runner = PruefungRunner(backend_controller)
 
     # Hilfsfunktionen für Formulare im Template-Kontext verfügbar machen
@@ -834,7 +935,14 @@ def create_app() -> Flask:
     # Flask-Route: Seite "Prüfprotokolle"
     @app.route("/pruefung/protokolle")
     def pruefprotokolle():
-        return render_page("pruefprotokolle", "pruefung_protokolle")
+        page = pages.get("pruefprotokolle", {})
+        return render_template(
+            "pruefprotokolle.html",
+            title=page.get("heading", "WNGW"),
+            heading=page.get("heading", ""),
+            description=page.get("description", ""),
+            active_page="pruefung_protokolle",
+        )
 
     # Flask-Route: Seite "Client"
     @app.route("/einstellungen/client")
@@ -949,6 +1057,72 @@ def create_app() -> Flask:
             return jsonify({"status": "error", "message": "Konfiguration nicht gefunden."}), 404
         file_path.unlink()
         return jsonify({"status": "success"})
+
+    @app.get("/api/pruefprotokolle")
+    def api_list_pruefprotokolle():
+        protocols = []
+        for item in _list_protocols():
+            finished_at = item.get("finishedAt") or time.time()
+            display_name = item.get("displayName") or _format_protocol_display_name(
+                finished_at, item.get("name", "")
+            )
+            protocols.append(
+                {
+                    "id": item.get("id", ""),
+                    "displayName": display_name,
+                    "name": item.get("name", ""),
+                    "finishedAt": finished_at,
+                }
+            )
+        return jsonify({"status": "success", "protocols": protocols})
+
+    @app.get("/api/pruefprotokolle/<protocol_id>")
+    def api_get_pruefprotokoll(protocol_id: str):
+        try:
+            data = _load_protocol(protocol_id)
+        except FileNotFoundError:
+            return jsonify({"status": "error", "message": "Protokoll nicht gefunden."}), 404
+        except ValueError as exc:
+            return jsonify({"status": "error", "message": str(exc)}), 500
+        finished_at = data.get("finishedAt") or time.time()
+        if "displayName" not in data:
+            data["displayName"] = _format_protocol_display_name(
+                finished_at, data.get("name", "")
+            )
+        return jsonify({"status": "success", "protocol": data})
+
+    @app.get("/api/pruefprotokolle/<protocol_id>/teilpruefungen/<int:teil_index>/log")
+    def api_download_pruefprotokoll(protocol_id: str, teil_index: int):
+        try:
+            data = _load_protocol(protocol_id)
+        except FileNotFoundError:
+            return jsonify({"status": "error", "message": "Protokoll nicht gefunden."}), 404
+        except ValueError as exc:
+            return jsonify({"status": "error", "message": str(exc)}), 500
+
+        matching = None
+        for teil in data.get("teilpruefungen", []):
+            if int(teil.get("index", -1)) == int(teil_index):
+                matching = teil
+                break
+        if not matching:
+            return jsonify({"status": "error", "message": "Teilprüfung nicht gefunden."}), 404
+
+        log_file = matching.get("logFile")
+        if not isinstance(log_file, str) or not log_file:
+            return jsonify({"status": "error", "message": "Kein Protokoll verfügbar."}), 404
+        try:
+            log_path = _communication_log_file_path(log_file)
+        except ValueError:
+            return jsonify({"status": "error", "message": "Ungültiger Dateipfad."}), 400
+        if not log_path.exists():
+            return jsonify({"status": "error", "message": "Protokoll nicht gefunden."}), 404
+        return send_from_directory(
+            log_path.parent,
+            log_path.name,
+            as_attachment=True,
+            download_name=log_path.name,
+        )
 
     @app.post("/api/pruefungslauf/start")
     def api_start_pruefungslauf():
