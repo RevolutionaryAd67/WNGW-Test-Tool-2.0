@@ -57,6 +57,7 @@ DIRECTION_ARROWS = {
 }
 
 DEFAULT_PAUSE_BETWEEN_TESTS = 35.0
+DEFAULT_INCOMING_TELEGRAM_TIMEOUT_MS = 5000.0
 
 CAUSE_MEANINGS = {
     1: "Zyklisch",
@@ -307,23 +308,40 @@ def _exam_signalliste_file_path() -> Path:
     return target_path
 
 
-def _load_pause_between_tests(default: float = DEFAULT_PAUSE_BETWEEN_TESTS) -> float:
+def _load_pruefungssteuerung_settings() -> Dict[str, Any]:
     try:
         file_path = _exam_settings_file_path("pruefungssteuerung.json")
     except ValueError:
-        return default
+        return {}
     if not file_path.exists():
-        return default
+        return {}
     try:
-        stored = json.loads(file_path.read_text(encoding="utf-8"))
+        return json.loads(file_path.read_text(encoding="utf-8"))
     except json.JSONDecodeError:
-        return default
-    raw_value = stored.get("zeit_zwischen_pruefungen", {}).get("value")
+        return {}
+
+
+def _parse_positive_float(raw_value: Any, default: float) -> float:
     try:
         parsed = float(str(raw_value).replace(",", "."))
     except (TypeError, ValueError):
         return default
     return parsed if parsed > 0 else default
+
+
+def _load_pause_between_tests(default: float = DEFAULT_PAUSE_BETWEEN_TESTS) -> float:
+    stored = _load_pruefungssteuerung_settings()
+    raw_value = stored.get("zeit_zwischen_pruefungen", {}).get("value")
+    return _parse_positive_float(raw_value, default)
+
+
+def _load_incoming_telegram_timeout(
+    default_ms: float = DEFAULT_INCOMING_TELEGRAM_TIMEOUT_MS,
+) -> float:
+    stored = _load_pruefungssteuerung_settings()
+    raw_value = stored.get("wartezeit_telegramme_ms", {}).get("value")
+    timeout_ms = _parse_positive_float(raw_value, default_ms)
+    return timeout_ms / 1000.0
 
 
 def _build_log_filename(config_id: str, run_id: str, teil_index: int) -> str:
@@ -742,6 +760,7 @@ class PruefungRunner:
         self._last_incoming: Dict[str, float] = {"client": 0.0, "server": 0.0}
         self._incoming_counts: Dict[str, int] = {"client": 0, "server": 0}
         self._recorder = TeilpruefungRecorder(COMMUNICATION_LOG_DIR)
+        self._incoming_timeout_seconds = DEFAULT_INCOMING_TELEGRAM_TIMEOUT_MS / 1000.0
 
     @staticmethod
     def _should_send_from(value: object) -> bool:
@@ -820,7 +839,7 @@ class PruefungRunner:
         consider_from: Optional[float],
     ) -> None:
         start = time.time()
-        deadline = start + 5.0
+        deadline = start + self._incoming_timeout_seconds
         while not self._stop_event.is_set():
             self._pull_events(pending, consider_from)
             expected_target = expected_counts.get(side)
@@ -910,7 +929,7 @@ class PruefungRunner:
         last_signal = self._recorder.last_signal_at
         if last_signal is None:
             return
-        deadline = last_signal + 5.0
+        deadline = last_signal + self._incoming_timeout_seconds
         while not self._stop_event.is_set() and time.time() < deadline:
             self._pull_events()
             time.sleep(0.05)
@@ -925,6 +944,7 @@ class PruefungRunner:
             teilpruefungen = run_state.get("teilpruefungen", [])
             config_id = run_state.get("configurationId", "")
             pause_seconds = _load_pause_between_tests()
+            self._incoming_timeout_seconds = _load_incoming_telegram_timeout()
             for index, teil in enumerate(teilpruefungen):
                 self._recorder.begin(config_id, run_state.get("id", ""), index)
                 teil_aborted = False
@@ -1212,6 +1232,7 @@ def create_app() -> Flask:
             description=page.get("description", ""),
             active_page="einstellungen_pruefungseinstellungen",
             default_pause_between_tests=DEFAULT_PAUSE_BETWEEN_TESTS,
+            default_incoming_telegram_timeout_ms=DEFAULT_INCOMING_TELEGRAM_TIMEOUT_MS,
         )
 
     # Flask-Route: Seite "Allgemein"

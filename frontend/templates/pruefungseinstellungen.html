@@ -55,7 +55,8 @@
     ] %}
 
     {% set rows = [
-        {"id": "zeit_zwischen_pruefungen", "label": "Zeit zwischen Prüfungen [s]"}
+        {"id": "zeit_zwischen_pruefungen", "label": "Zeit zwischen Prüfungen [s]"},
+        {"id": "wartezeit_telegramme_ms", "label": "Wartezeit auf eingehende Telegramme [ms]"}
     ] %}
 
     {% set stored_values = input_box_values("einstellungen_pruefungseinstellungen", "pruefungssteuerung", columns, rows) %}
@@ -63,6 +64,11 @@
         {% set _ = stored_values.update({'zeit_zwischen_pruefungen': {'value': default_pause_between_tests|int}}) %}
     {% elif stored_values.get('zeit_zwischen_pruefungen').get('value') == '' %}
         {% set _ = stored_values['zeit_zwischen_pruefungen'].update({'value': default_pause_between_tests|int}) %}
+    {% endif %}
+    {% if not stored_values.get('wartezeit_telegramme_ms') %}
+        {% set _ = stored_values.update({'wartezeit_telegramme_ms': {'value': default_incoming_telegram_timeout_ms|int}}) %}
+    {% elif stored_values.get('wartezeit_telegramme_ms').get('value') == '' %}
+        {% set _ = stored_values['wartezeit_telegramme_ms'].update({'value': default_incoming_telegram_timeout_ms|int}) %}
     {% endif %}
 
     {% set pruefungssteuerung_box = {
