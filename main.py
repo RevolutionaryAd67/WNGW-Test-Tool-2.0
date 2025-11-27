@@ -28,7 +28,7 @@ CONFIG_DIR = DATA_DIR / "pruefungskonfigurationen"
 COMMUNICATION_LOG_DIR = DATA_DIR / "pruefungskommunikation"
 COMMUNICATION_DIR = DATA_DIR / "einstellungen_kommunikation"
 PROTOKOLL_DIR = DATA_DIR / "pruefprotokolle"
-EXCEL_NAMESPACE = "{http://schemas.openxmlformats.org/spreadsheetml/2006/main}" 
+EXCEL_NAMESPACE = "{http://schemas.openxmlformats.org/spreadsheetml/2006/main}"
 REQUIRED_SIGNAL_HEADERS = (
     "Datenpunkt / Meldetext",
     "IEC104- Typ",
@@ -42,6 +42,47 @@ REQUIRED_SIGNAL_HEADERS = (
     "Quelle/Senke von der NLS betrachtet",
     "GA- Generalabfrage (keine Wischer)",
 )
+
+FRAME_LABELS = {
+    "I": "I-Format",
+    "U": "U-Format",
+    "S": "S-Format",
+    "TCP": "TCP",
+}
+
+DIRECTION_ARROWS = {
+    "incoming": "←",
+    "outgoing": "→",
+}
+
+CAUSE_MEANINGS = {
+    1: "Zyklisch",
+    2: "Hintergrundabfrage",
+    3: "Spontan",
+    4: "Initialisiert",
+    6: "Aktivierung",
+    7: "Bestätigung der Aktivierung",
+    8: "Abbruch der Aktivierung",
+    9: "Bestätigung des Abbruchs der Aktivierung",
+    10: "Beendigung der Aktivierung",
+    11: "Rückmeldung verursacht durch Fernbefehl",
+    12: "Rückmeldung verursacht durch örtlichen Befehl",
+    20: "Generalabfrage",
+}
+
+ORIGINATOR_MEANINGS = {
+    0: "Herkunftsadresse nicht vorhanden",
+    10: "Fernsteuerung von Verteilnetz-Anlagen",
+    11: "Steuerung von Kundenanlagen",
+    12: "Fernsteuerung von Verteilnetz-Anlagen",
+    13: "Fernsteuerung von Verteilnetz-Anlagen",
+    14: "Fernsteuerung von Verteilnetz-Anlagen",
+    15: "Niederspannungsmessung",
+    16: "Fernsteuerung von Verteilnetz-Anlagen",
+    17: "Fernsteuerung von Verteilnetz-Anlagen",
+    18: "Fernsteuerung von Verteilnetz-Anlagen",
+    19: "Fernsteuerung von Verteilnetz-Anlagen",
+}
 
 
 class TeilpruefungRecorder:
@@ -238,6 +279,128 @@ def _communication_file_path() -> Path:
 
 def _build_log_filename(config_id: str, run_id: str, teil_index: int) -> str:
     return f"{config_id}_teil{teil_index}_{run_id}_kommunikationsverlauf.json"
+
+
+def _format_timestamp_text(value: Any) -> str:
+    try:
+        ts = float(value)
+    except (TypeError, ValueError):
+        return "-"
+    millis = int(round((ts - int(ts)) * 1000))
+    if millis == 1000:
+        ts += 0.001
+        millis = 0
+    formatted = time.strftime("%H:%M:%S", time.localtime(ts))
+    return f"{formatted}.{millis:03d}"
+
+
+def _format_delta_text(delta: Any) -> str:
+    try:
+        value = float(delta)
+    except (TypeError, ValueError):
+        return "0,000"
+    return f"{max(value, 0.0):.3f}".replace(".", ",")
+
+
+def _format_type_text(frame_family: Optional[str], type_id: Optional[int]) -> str:
+    frame_label = FRAME_LABELS.get(frame_family or "", frame_family or "")
+    if frame_family == "I":
+        type_part = str(type_id) if type_id is not None else ""
+        return f"{type_part} ({frame_label})".strip()
+    if frame_label:
+        return f"({frame_label})"
+    return ""
+
+
+def _split_ioa(ioa_value: Any) -> Optional[str]:
+    if not isinstance(ioa_value, int):
+        return None
+    segments = [ioa_value & 0xFF, (ioa_value >> 8) & 0xFF, (ioa_value >> 16) & 0xFF]
+    return " - ".join(f"{segment:03d}" for segment in segments)
+
+
+def _format_qualifier_value(label: Optional[str], value: Any) -> str:
+    if isinstance(value, (int, float)):
+        value_text = format(int(value) & 0xFF, "08b")
+    else:
+        value_text = str(value)
+    return f"{label} = {value_text}" if label else value_text
+
+
+def _format_value_with_qualifier(value: Any, qualifier: Any) -> Optional[str]:
+    has_value = value not in (None, "")
+    qualifier_label = qualifier.get("label") if isinstance(qualifier, dict) else None
+    qualifier_value = qualifier.get("value") if isinstance(qualifier, dict) else None
+    has_qualifier = qualifier_value is not None
+    qualifier_text = _format_qualifier_value(qualifier_label, qualifier_value) if has_qualifier else ""
+
+    if has_value and qualifier_text:
+        return f"{value} ({qualifier_text})"
+    if has_value:
+        return str(value)
+    if qualifier_text:
+        return qualifier_text
+    return None
+
+
+def _format_cause_text(cause: Any) -> Optional[str]:
+    if not isinstance(cause, (int, float)):
+        return None
+    meaning = CAUSE_MEANINGS.get(int(cause))
+    return f"{int(cause)} ({meaning})" if meaning else str(int(cause))
+
+
+def _format_originator_text(originator: Any) -> Optional[str]:
+    if not isinstance(originator, (int, float)):
+        return None
+    meaning = ORIGINATOR_MEANINGS.get(int(originator))
+    return f"{int(originator)} ({meaning})" if meaning else str(int(originator))
+
+
+def _format_protocol_entry(entry: Dict[str, Any]) -> str:
+    indent = "\t" * 6 if entry.get("side") == "server" else ""
+    sequence = entry.get("sequence")
+    label = entry.get("meldetext") or entry.get("label") or "Telegramm"
+    header_parts = [str(sequence)] if sequence is not None else []
+    if label:
+        header_parts.append(str(label))
+    lines = [f"{indent}{' '.join(header_parts) if header_parts else 'Telegramm'}"]
+
+    timestamp_text = _format_timestamp_text(entry.get("timestamp"))
+    delta_text = _format_delta_text(entry.get("delta"))
+    lines.append(f"{indent}Time: {timestamp_text} (d = {delta_text} s)")
+
+    arrow = DIRECTION_ARROWS.get(entry.get("direction"), "→")
+    local_endpoint = entry.get("local_endpoint") or "-"
+    remote_endpoint = entry.get("remote_endpoint") or "-"
+    lines.append(f"{indent}IP:Port: {local_endpoint} {arrow} {remote_endpoint}")
+
+    type_text = _format_type_text(entry.get("frame_family"), entry.get("type_id"))
+    if type_text:
+        lines.append(f"{indent}Typ: {type_text}")
+
+    if entry.get("frame_family") == "I":
+        cause_text = _format_cause_text(entry.get("cause"))
+        if cause_text:
+            lines.append(f"{indent}Ursache: {cause_text}")
+
+        originator_text = _format_originator_text(entry.get("originator"))
+        if originator_text:
+            lines.append(f"{indent}Herkunft: {originator_text}")
+
+        station = entry.get("station")
+        if station is not None:
+            lines.append(f"{indent}Station: {station}")
+
+        ioa_text = _split_ioa(entry.get("ioa"))
+        if ioa_text:
+            lines.append(f"{indent}IOA: {ioa_text}")
+
+        value_text = _format_value_with_qualifier(entry.get("value"), entry.get("qualifier"))
+        if value_text:
+            lines.append(f"{indent}Wert (Qualifier): {value_text}")
+
+    return "\n".join(lines)
 
 
 def _format_protocol_display_name(finished_at: float, run_name: str) -> str:
@@ -1137,11 +1300,22 @@ def create_app() -> Flask:
             return jsonify({"status": "error", "message": "Ungültiger Dateipfad."}), 400
         if not log_path.exists():
             return jsonify({"status": "error", "message": "Protokoll nicht gefunden."}), 404
-        return send_from_directory(
-            log_path.parent,
-            log_path.name,
-            as_attachment=True,
-            download_name=log_path.name,
+        try:
+            log_content = json.loads(log_path.read_text(encoding="utf-8"))
+        except json.JSONDecodeError:
+            return jsonify({"status": "error", "message": "Protokoll beschädigt."}), 500
+
+        entries = [
+            _format_protocol_entry(entry) for entry in log_content.get("entries", []) if isinstance(entry, dict)
+        ]
+        if not entries:
+            entries.append("Keine Telegramme vorhanden.")
+
+        download_name = Path(log_path.name).with_suffix(".txt").name
+        return Response(
+            "\n\n".join(entries),
+            mimetype="text/plain",
+            headers={"Content-Disposition": f"attachment; filename={download_name}"},
         )
 
     @app.delete("/api/pruefprotokolle/<protocol_id>")
