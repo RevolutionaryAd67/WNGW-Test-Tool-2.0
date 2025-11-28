@@ -84,6 +84,20 @@
         return match && match.status ? match.status : '';
     }
 
+    function getStatusClass(statusText) {
+        const normalized = (statusText || '').toLowerCase();
+        if (normalized === 'abgeschlossen') {
+            return 'ablauf-table__status--finished';
+        }
+        if (normalized === 'wird durchgeführt') {
+            return 'ablauf-table__status--running';
+        }
+        if (normalized === 'vorbereiten') {
+            return 'ablauf-table__status--preparing';
+        }
+        return '';
+    }
+
     function renderSteps(configuration) {
         if (!elements.ablaufBody) return;
         elements.ablaufBody.innerHTML = '';
@@ -116,7 +130,12 @@
 
             const statusCell = document.createElement('td');
             statusCell.className = 'ablauf-table__status';
-            statusCell.textContent = getStatusForIndex(step.index || index + 1);
+            const statusText = getStatusForIndex(step.index || index + 1);
+            const statusClass = getStatusClass(statusText);
+            if (statusClass) {
+                statusCell.classList.add(statusClass);
+            }
+            statusCell.textContent = statusText;
             row.appendChild(statusCell);
 
             elements.ablaufBody.appendChild(row);

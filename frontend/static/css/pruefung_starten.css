@@ -64,3 +64,17 @@
 .ablauf-table__status {
     color: rgba(0, 0, 0, 0.65);
 }
+
+.ablauf-table__status--running {
+    color: #d97706;
+    font-weight: 700;
+}
+
+.ablauf-table__status--finished {
+    color: #1f8c3a;
+    font-weight: 700;
+}
+
+.ablauf-table__status--preparing {
+    font-weight: 700;
+}

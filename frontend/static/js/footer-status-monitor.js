@@ -168,7 +168,7 @@
         setExamLink(targetUrl.pathname + targetUrl.search, 'Zum Prüfprotokoll >');
       }
     } else {
-      examStatusElement.textContent = 'Läuft';
+      examStatusElement.textContent = 'Wird durchgeführt';
       examStatusElement.classList.add('footer-status__exam-value--running');
       if (examLinkElement) {
         const targetUrl = new URL('/pruefung/starten', window.location.origin);
