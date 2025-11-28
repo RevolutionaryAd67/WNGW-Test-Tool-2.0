@@ -44,10 +44,10 @@
             <li class="dropdown {% if 'einstellungen' in active_page %}active{% endif %}">
                 <span class="dropdown-toggle">Einstellungen <span class="caret">&gt;</span></span>
                 <ul class="dropdown-menu">
-                    <li><a href="{{ url_for('einstellungen_pruefungseinstellungen') }}">Prüfungseinstellungen</a></li>
+                    <li><a href="{{ url_for('einstellungen_allgemein') }}">Allgemein</a></li>
                     <li><a href="{{ url_for('einstellungen_client') }}">Client</a></li>
                     <li><a href="{{ url_for('einstellungen_server') }}">Server</a></li>
-                    <li><a href="{{ url_for('einstellungen_allgemein') }}">Allgemein</a></li>
+                    <li><a href="{{ url_for('einstellungen_pruefungseinstellungen') }}">Prüfungseinstellungen</a></li>
                 </ul>
             </li>
         </ul>
