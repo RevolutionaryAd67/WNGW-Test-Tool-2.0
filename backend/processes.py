@@ -55,7 +55,7 @@ TYPE_INFORMATION_LENGTHS: Dict[int, int] = {
     36: 12,  # M_ME_TF_1: 4x Float + QDS + CP56Time2a
     58: 7,   # C_CS_NA_1: CP56Time2a
     59: 1,   # C_RP_NA_1: 1x QRP
-    63: 1,   # Reserviert/geräteabhängig
+    63: 12,  # C_SE_TC_1: 4x Float + QOS + CP56Time2a
     70: 1,   # M_EI_NA_1: 1x COI
     100: 1,  # C_IC_NA_1: 1x QOI
     103: 7,  # C_CS_NA_1 (Alternative): CP56Time2a
@@ -77,11 +77,15 @@ TYPE_VALUE_FIELD_LENGTHS: Dict[int, int] = {
     36: 4,   # Float ohne QDS/Zeitsstempel
     58: 7,   # Zeitfeld
     59: 1,   # QRP
-    63: 1,   # Geräteabhängig
+    63: 5,   # 4x Float + QOS
     70: 1,   # COI
     100: 1,  # QOI
     103: 7,  # Zeitfeld
 }
+
+# Typkennungen, die ein CP56Time2a-Zeitfeld enthalten
+TIMESTAMP_TYPES = {30, 31, 36, 58, 63, 103}
+TIME_ONLY_TYPES = {58, 103}
 
 # Name und Byte-Offset des Qualifier-Feldes je Typkennung (sofern vorhanden)
 QUALIFIER_FIELD_SPECS: Dict[int, Tuple[str, int]] = {
@@ -98,7 +102,7 @@ QUALIFIER_FIELD_SPECS: Dict[int, Tuple[str, int]] = {
     36: ("QDS", 4),
     58: ("Qualifier", 0),
     59: ("QRP", 0),
-    63: ("Qualifier", 0),
+    63: ("QOS", 4),
     70: ("COI", 0),
     100: ("QOI", 0),
 }
@@ -186,6 +190,7 @@ TYPE_VALUE_DECODERS = {
     30: _decode_siq,
     31: _decode_diq,
     36: _decode_float_value,
+    63: _decode_float_value,
 }
 
 
@@ -251,8 +256,11 @@ def _encode_value_bytes(type_id: int, value_text: str, length: int) -> bytes:
         return b""
     text = "" if value_text is None else str(value_text).strip()
     try:
-        if type_id in (13, 36):
-            return struct.pack("<f", float(text or 0))
+        if type_id in (13, 36, 63):
+            float_part = struct.pack("<f", float(text or 0))
+            if length <= len(float_part):
+                return float_part[:length]
+            return float_part + b"\x00" * (length - len(float_part))
     except (TypeError, ValueError):
         pass
     try:
@@ -268,18 +276,40 @@ def _encode_value_bytes(type_id: int, value_text: str, length: int) -> bytes:
     return raw[:length]
 
 
+# Kodiert einen CP56Time2a-Zeitstempel basierend auf der aktuellen Systemzeit
+def _build_cp56time2a(timestamp: Optional[float] = None) -> bytes:
+    ts = time.time() if timestamp is None else timestamp
+    millis_since_minute = int(round((ts * 1000))) % 60000
+    seconds_bytes = millis_since_minute.to_bytes(2, "little", signed=False)
+    tm = time.localtime(ts)
+    minute = tm.tm_min & 0x3F
+    hour = tm.tm_hour & 0x1F
+    weekday = ((tm.tm_wday + 1) & 0x07) << 5
+    day = (tm.tm_mday & 0x1F) | weekday
+    month = tm.tm_mon & 0x0F
+    year = (tm.tm_year - 2000) & 0x7F
+    return seconds_bytes + bytes([minute, hour, day, month, year])
+
+
 # Baut den Informationsbereich eines I-Frames anhand des Typs und eines Textwerts
 def _build_information_bytes(type_id: int, value_text: str) -> bytes:
     total_length = TYPE_INFORMATION_LENGTHS.get(type_id)
     value_length = TYPE_VALUE_FIELD_LENGTHS.get(type_id, total_length or 0)
+    if type_id in TIME_ONLY_TYPES:
+        value_length = 0
     encoded_value = (
         _encode_value_bytes(type_id, value_text, value_length) if value_length else b""
     )
     if total_length is None:
         return encoded_value
-    payload = bytearray(encoded_value[:total_length])
-    if len(payload) < total_length:
-        payload.extend(b"\x00" * (total_length - len(payload)))
+    payload = bytearray(total_length)
+    if encoded_value:
+        payload[: min(len(encoded_value), total_length)] = encoded_value[:total_length]
+    if type_id in TIMESTAMP_TYPES:
+        cp56time = _build_cp56time2a()
+        start = max(0, total_length - len(cp56time))
+        end = start + min(len(cp56time), total_length - start)
+        payload[start:end] = cp56time[: end - start]
     return bytes(payload)
 
 
