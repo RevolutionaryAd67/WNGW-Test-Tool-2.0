@@ -14,6 +14,22 @@
     margin: 0;
 }
 
+.starter-header__status {
+    flex: 1 1 100%;
+    display: none;
+    font-weight: 600;
+    min-height: 1.25rem;
+    color: #107c10;
+}
+
+.starter-header__status--visible {
+    display: block;
+}
+
+.starter-header__status--warning {
+    color: #a4262c;
+}
+
 .starter-header__actions {
     display: flex;
     gap: 0.5rem;

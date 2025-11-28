@@ -499,6 +499,7 @@ def _sanitize_protocol_data(run_state: Dict[str, Any]) -> Dict[str, Any]:
         "name": run_state.get("name", ""),
         "finishedAt": finished_at,
         "startedAt": run_state.get("startedAt"),
+        "aborted": bool(run_state.get("aborted", False)),
         "teilpruefungen": teilpruefungen,
     }
     sanitized["displayName"] = _format_protocol_display_name(
@@ -767,6 +768,18 @@ class PruefungRunner:
         text = str(value or "").upper()
         return "Q" in text
 
+    def _mark_all_aborted_locked(self) -> None:
+        teilpruefungen = self._current_run.get("teilpruefungen", []) if self._current_run else []
+        for teil in teilpruefungen:
+            if teil.get("status") != "Abgeschlossen":
+                teil["status"] = "Abgebrochen"
+
+    def _mark_all_aborted(self) -> None:
+        with self._lock:
+            if not self._current_run:
+                return
+            self._mark_all_aborted_locked()
+
     def _set_status(self, index: int, status: str) -> None:
         with self._lock:
             if not self._current_run:
@@ -774,6 +787,16 @@ class PruefungRunner:
             teilpruefungen = self._current_run.get("teilpruefungen", [])
             if 0 <= index < len(teilpruefungen):
                 teilpruefungen[index]["status"] = status
+
+    def _wait_or_abort(self, seconds: float, current_index: Optional[int] = None) -> bool:
+        deadline = time.time() + max(0.0, seconds)
+        while time.time() < deadline:
+            if self._stop_event.wait(timeout=0.1):
+                if current_index is not None:
+                    self._set_status(current_index, "Abgebrochen")
+                self._mark_all_aborted()
+                return True
+        return False
 
     def _expected_signature(self, row: Dict[str, Any]) -> Optional[tuple]:
         type_id = int(row.get("IEC104- Typ", 0) or 0)
@@ -876,9 +899,10 @@ class PruefungRunner:
             if not self._current_run:
                 return
             if aborted:
-                for teil in self._current_run.get("teilpruefungen", []):
-                    if teil.get("status") != "Abgeschlossen":
-                        teil["status"] = "Abgebrochen"
+                self._mark_all_aborted_locked()
+                self._current_run["aborted"] = True
+            else:
+                self._current_run["aborted"] = False
             self._current_run["finished"] = True
             self._current_run["finishedAt"] = time.time()
             try:
@@ -958,7 +982,11 @@ class PruefungRunner:
                 signalliste = teil.get("signalliste")
                 if isinstance(signalliste, dict):
                     rows = signalliste.get("rows") or []
-                time.sleep(pause_seconds)
+                if self._wait_or_abort(pause_seconds, index):
+                    aborted = True
+                    teil_aborted = True
+                    self._recorder.finish(aborted=True)
+                    break
                 if self._stop_event.is_set():
                     aborted = True
                     teil_aborted = True
@@ -1015,6 +1043,7 @@ class PruefungRunner:
             if not self._current_run:
                 return None
             self._stop_event.set()
+            self._mark_all_aborted_locked()
         return self._copy_public_state()
 
     def status(self) -> Optional[Dict[str, Any]]:

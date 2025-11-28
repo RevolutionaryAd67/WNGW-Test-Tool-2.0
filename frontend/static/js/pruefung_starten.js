@@ -6,6 +6,8 @@
         run: null,
         poller: null,
         requestedId: null,
+        lastFinishedRunId: null,
+        hasBootstrappedStatus: false,
     };
 
     const elements = {
@@ -14,6 +16,7 @@
         ablaufBody: document.querySelector('#ablauf-table tbody'),
         startButton: document.getElementById('start-test-button'),
         abortButton: document.getElementById('abort-test-button'),
+        feedback: document.getElementById('run-feedback'),
     };
 
     function getRequestedConfigId() {
@@ -76,6 +79,7 @@
         }
         renderConfigList();
         renderSteps(configuration);
+        setFeedbackMessage(null);
     }
 
     function getStatusForIndex(index) {
@@ -142,6 +146,30 @@
         });
     }
 
+    function describeRunCompletion(run) {
+        if (!run || !run.finished) return null;
+        const teilpruefungen = Array.isArray(run.teilpruefungen) ? run.teilpruefungen : [];
+        const aborted = Boolean(run.aborted) || teilpruefungen.some((teil) => (teil.status || '').toLowerCase() === 'abgebrochen');
+        const finishedAt = run.finishedAt ? new Date(run.finishedAt * 1000) : null;
+        const timestampText = finishedAt ? finishedAt.toLocaleString('de-DE') : '';
+        const prefix = aborted ? 'Prüfung wurde abgebrochen' : 'Prüfung abgeschlossen';
+        const timeSuffix = timestampText ? ` (${timestampText})` : '';
+        return {
+            text: `${prefix}${timeSuffix}. Prüfprotokoll wurde automatisch gespeichert.`,
+            warning: aborted,
+        };
+    }
+
+    function setFeedbackMessage(message) {
+        if (!elements.feedback) return;
+        const text = message && message.text ? message.text.trim() : '';
+        const hasText = Boolean(text);
+        elements.feedback.textContent = text;
+        elements.feedback.classList.toggle('starter-header__status--warning', hasText && Boolean(message && message.warning));
+        elements.feedback.classList.toggle('starter-header__status--visible', hasText);
+        elements.feedback.setAttribute('aria-hidden', hasText ? 'false' : 'true');
+    }
+
     async function loadConfigList() {
         try {
             const response = await fetch('/api/pruefungskonfigurationen');
@@ -184,7 +212,10 @@
     }
 
     function setRunState(run) {
+        const wasFinishedId = state.run && state.run.finished ? state.run.id : null;
+        const isInitialStatus = !state.hasBootstrappedStatus;
         state.run = run || null;
+        state.hasBootstrappedStatus = true;
         if (state.run && state.run.configurationId && state.currentId !== state.run.configurationId) {
             state.requestedId = state.run.configurationId;
         }
@@ -193,6 +224,25 @@
             startPolling();
         } else {
             stopPolling();
+        }
+
+        const completion = describeRunCompletion(state.run);
+        if (isInitialStatus && completion && state.run && state.run.id) {
+            state.lastFinishedRunId = state.run.id;
+            setFeedbackMessage(null);
+            return;
+        }
+
+        if (completion && state.run && state.run.id && state.run.id !== state.lastFinishedRunId) {
+            state.lastFinishedRunId = state.run.id;
+            setFeedbackMessage(completion);
+        } else if (!completion) {
+            setFeedbackMessage(null);
+            if (state.run && state.run.finished) {
+                state.lastFinishedRunId = state.run.id || null;
+            }
+        } else if (completion && state.run && state.run.id === wasFinishedId) {
+            setFeedbackMessage(completion);
         }
     }
 
