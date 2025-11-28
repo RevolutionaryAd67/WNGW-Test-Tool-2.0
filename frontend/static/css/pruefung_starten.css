@@ -61,6 +61,12 @@
     background-color: #005ea8;
 }
 
+.ablauf-table th:last-child,
+.ablauf-table td:last-child {
+    width: auto;
+    min-width: 16ch;
+}
+
 .ablauf-table__status {
     color: rgba(0, 0, 0, 0.65);
 }
