@@ -23,11 +23,25 @@
 }
 
 .starter-header__status--visible {
-    display: block;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex-wrap: wrap;
 }
 
 .starter-header__status--warning {
     color: #a4262c;
+}
+
+.starter-header__protocol-link {
+    font-weight: 700;
+    color: #0078d4;
+    text-decoration: none;
+}
+
+.starter-header__protocol-link:hover,
+.starter-header__protocol-link:focus-visible {
+    text-decoration: underline;
 }
 
 .starter-header__actions {

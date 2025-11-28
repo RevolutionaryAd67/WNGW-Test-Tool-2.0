@@ -146,6 +146,13 @@
         });
     }
 
+    function buildProtocolLink(runId) {
+        if (!runId) return '';
+        const targetUrl = new URL('/pruefung/protokolle', window.location.origin);
+        targetUrl.searchParams.set('protocolId', runId);
+        return targetUrl.pathname + targetUrl.search;
+    }
+
     function describeRunCompletion(run) {
         if (!run || !run.finished) return null;
         const teilpruefungen = Array.isArray(run.teilpruefungen) ? run.teilpruefungen : [];
@@ -157,6 +164,7 @@
         return {
             text: `${prefix}${timeSuffix}. Prüfprotokoll wurde automatisch gespeichert.`,
             warning: aborted,
+            link: buildProtocolLink(run.id),
         };
     }
 
@@ -164,7 +172,17 @@
         if (!elements.feedback) return;
         const text = message && message.text ? message.text.trim() : '';
         const hasText = Boolean(text);
-        elements.feedback.textContent = text;
+        elements.feedback.textContent = '';
+        if (hasText) {
+            elements.feedback.append(document.createTextNode(text));
+            if (message && message.link) {
+                const protocolLink = document.createElement('a');
+                protocolLink.className = 'starter-header__protocol-link';
+                protocolLink.href = message.link;
+                protocolLink.textContent = 'Zum Prüfprotokoll >';
+                elements.feedback.appendChild(protocolLink);
+            }
+        }
         elements.feedback.classList.toggle('starter-header__status--warning', hasText && Boolean(message && message.warning));
         elements.feedback.classList.toggle('starter-header__status--visible', hasText);
         elements.feedback.setAttribute('aria-hidden', hasText ? 'false' : 'true');
