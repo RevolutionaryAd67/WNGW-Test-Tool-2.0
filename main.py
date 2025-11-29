@@ -14,6 +14,7 @@ import threading
 import time
 import uuid
 import zipfile
+import re
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 from xml.etree import ElementTree as ET
@@ -39,6 +40,7 @@ REQUIRED_SIGNAL_HEADERS = (
     "Übertragungsursache",
     "Herkunftsadresse",
     "Wert",
+    "Qualifier",
     "Quelle/Senke von der FWK betrachtet",
     "Quelle/Senke von der NLS betrachtet",
     "GA- Generalabfrage (keine Wischer)",
@@ -662,6 +664,24 @@ def _validate_signal_headers(headers: List[str]) -> List[str]:
     return [header for header in REQUIRED_SIGNAL_HEADERS if header not in available]
 
 
+_QUALIFIER_PATTERN = re.compile(r"^[01]{8}$")
+
+
+def _validate_qualifier_bits(value: Any) -> bool:
+    text = str(value or "").strip()
+    return bool(_QUALIFIER_PATTERN.fullmatch(text))
+
+
+def _validate_qualifier_column(rows: List[Dict[str, Any]]) -> Optional[int]:
+    for index, row in enumerate(rows, start=1):
+        type_text = str(row.get("IEC104- Typ", "")).strip()
+        if not type_text:
+            continue
+        if not _validate_qualifier_bits(row.get("Qualifier")):
+            return index
+    return None
+
+
 # Dateipfad für eine konkrete Prüfkonfiguration ermitteln
 def _configuration_file_path(config_id: str) -> Path:
     directory = _configurations_directory()
@@ -728,6 +748,11 @@ def _store_configuration(payload: Dict[str, Any]) -> Dict[str, Any]:
         rows_data = signalliste.get("rows")
         if not isinstance(rows_data, list):
             rows_data = []
+        invalid_row = _validate_qualifier_column(rows_data)
+        if invalid_row is not None:
+            raise ValueError(
+                f"Signalliste '{signalliste.get('filename', 'Unbenannt')}' enthält einen ungültigen Qualifier in Zeile {invalid_row}."
+            )
         normalized.append(
             {
                 "index": index,
@@ -1483,6 +1508,17 @@ def create_app() -> Flask:
                 ),
                 400,
             )
+        invalid_row = _validate_qualifier_column(parsed.get("rows", []))
+        if invalid_row is not None:
+            return (
+                jsonify(
+                    {
+                        "status": "error",
+                        "message": f"Ungültiger Qualifier in Zeile {invalid_row}: Es werden genau 8 Bits (0 oder 1) erwartet.",
+                    }
+                ),
+                400,
+            )
         parsed["filename"] = filename
         return jsonify(parsed)
 
@@ -1521,6 +1557,17 @@ def create_app() -> Flask:
                     {
                         "status": "error",
                         "message": "Signalliste unvollständig: " + ", ".join(missing),
+                    }
+                ),
+                400,
+            )
+        invalid_row = _validate_qualifier_column(parsed.get("rows", []))
+        if invalid_row is not None:
+            return (
+                jsonify(
+                    {
+                        "status": "error",
+                        "message": f"Ungültiger Qualifier in Zeile {invalid_row}: Es werden genau 8 Bits (0 oder 1) erwartet.",
                     }
                 ),
                 400,

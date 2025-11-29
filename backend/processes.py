@@ -6,6 +6,7 @@
 
 from __future__ import annotations
 
+import re
 import select
 import socket
 import struct
@@ -292,7 +293,19 @@ def _build_cp56time2a(timestamp: Optional[float] = None) -> bytes:
 
 
 # Baut den Informationsbereich eines I-Frames anhand des Typs und eines Textwerts
-def _build_information_bytes(type_id: int, value_text: str) -> bytes:
+_QUALIFIER_PATTERN = re.compile(r"^[01]{8}$")
+
+
+def _parse_qualifier_byte(value: Optional[str]) -> Optional[int]:
+    if value is None:
+        return None
+    text = str(value).strip()
+    if not _QUALIFIER_PATTERN.fullmatch(text):
+        return None
+    return int(text, 2) & 0xFF
+
+
+def _build_information_bytes(type_id: int, value_text: str, qualifier_text: Optional[str] = None) -> bytes:
     total_length = TYPE_INFORMATION_LENGTHS.get(type_id)
     value_length = TYPE_VALUE_FIELD_LENGTHS.get(type_id, total_length or 0)
     if type_id in TIME_ONLY_TYPES:
@@ -310,6 +323,13 @@ def _build_information_bytes(type_id: int, value_text: str) -> bytes:
         start = max(0, total_length - len(cp56time))
         end = start + min(len(cp56time), total_length - start)
         payload[start:end] = cp56time[: end - start]
+    qualifier_value = _parse_qualifier_byte(qualifier_text)
+    if qualifier_value is not None:
+        qualifier_field = QUALIFIER_FIELD_SPECS.get(type_id)
+        if qualifier_field:
+            _, offset = qualifier_field
+            if 0 <= offset < total_length:
+                payload[offset] = qualifier_value
     return bytes(payload)
 
 
@@ -612,7 +632,9 @@ class IEC104ClientProcess(_BaseEndpoint):
             information = bytes([20])
             value_text = "20" if not value_text.strip() else value_text
         else:
-            information = _build_information_bytes(type_id, value_text)
+            information = _build_information_bytes(
+                type_id, value_text, row.get("Qualifier")
+            )
         frame = build_i_frame(
             send_sequence=self._sequence,
             recv_sequence=self._recv_sequence,
@@ -795,7 +817,9 @@ class IEC104ServerProcess(_BaseEndpoint):
         ioa2 = _safe_int(row.get("IOA 2")) & 0xFF
         ioa3 = _safe_int(row.get("IOA 3")) & 0xFF
         ioa = ioa1 | (ioa2 << 8) | (ioa3 << 16)
-        information = _build_information_bytes(type_id, str(row.get("Wert", "")))
+        information = _build_information_bytes(
+            type_id, str(row.get("Wert", "")), row.get("Qualifier")
+        )
         frame = build_i_frame(
             send_sequence=self._send_sequence,
             recv_sequence=self._recv_sequence,
