@@ -54,7 +54,7 @@ TYPE_INFORMATION_LENGTHS: Dict[int, int] = {
     30: 8,   # M_SP_TB_1: 1x SIQ + CP56Time2a
     31: 8,   # M_DP_TB_1: 1x DIQ + CP56Time2a
     36: 12,  # M_ME_TF_1: 4x Float + QDS + CP56Time2a
-    58: 8,   # C_CS_NA_1: Qualifier + CP56Time2a
+    58: 8,   # Doppelbefehl mit Zeitmarke (DCO + CP56Time2a)
     59: 1,   # C_RP_NA_1: 1x QRP
     63: 12,  # C_SE_TC_1: 4x Float + QOS + CP56Time2a
     70: 1,   # M_EI_NA_1: 1x COI
@@ -76,7 +76,7 @@ TYPE_VALUE_FIELD_LENGTHS: Dict[int, int] = {
     30: 1,   # SIQ ohne Zeitstempel
     31: 1,   # DIQ ohne Zeitstempel
     36: 4,   # Float ohne QDS/Zeitsstempel
-    58: 1,   # Qualifier
+    58: 1,   # DCO (S/E + QU + DCS)
     59: 1,   # QRP
     63: 5,   # 4x Float + QOS
     70: 1,   # COI
@@ -101,7 +101,7 @@ QUALIFIER_FIELD_SPECS: Dict[int, Tuple[str, int]] = {
     30: ("SIQ", 0),
     31: ("DIQ", 0),
     36: ("QDS", 4),
-    58: ("Qualifier", 0),
+    58: ("DCO", 0),
     59: ("QRP", 0),
     63: ("QOS", 4),
     70: ("COI", 0),
@@ -178,6 +178,16 @@ def _decode_int32_value(info_bytes: bytes) -> Optional[str]:
     return str(value)
 
 
+def _decode_double_command(info_bytes: bytes) -> Optional[str]:
+    if len(info_bytes) < 1:
+        return None
+    dco = info_bytes[0]
+    se_flag = (dco >> 7) & 0x01
+    qu_value = (dco >> 2) & 0x1F
+    dcs_value = dco & 0x03
+    return f"S/E={se_flag}, QU={qu_value}, DCS={dcs_value}"
+
+
 # Typkennungen und deren dazugehörige Decoder
 TYPE_VALUE_DECODERS = {
     1: _decode_siq,
@@ -191,6 +201,7 @@ TYPE_VALUE_DECODERS = {
     30: _decode_siq,
     31: _decode_diq,
     36: _decode_float_value,
+    58: _decode_double_command,
     63: _decode_float_value,
 }
 
@@ -305,7 +316,41 @@ def _parse_qualifier_byte(value: Optional[str]) -> Optional[int]:
     return int(text, 2) & 0xFF
 
 
+def _build_type_58_information(value_text: str, qualifier_text: Optional[str]) -> bytes:
+    dcs_value = _safe_int(value_text, default=0) & 0x03
+    se_flag = 0
+    qu_value = 0
+
+    if qualifier_text:
+        text = str(qualifier_text).strip()
+        pair_match = re.match(r"^([01])\s*,\s*(\d+)$", text)
+        if pair_match:
+            se_flag = _safe_int(pair_match.group(1), default=0) & 0x01
+            qu_value = _safe_int(pair_match.group(2), default=0)
+        else:
+            for part in re.split(r"[;,\s]+", text):
+                if not part:
+                    continue
+                if "=" in part:
+                    key, val = part.split("=", 1)
+                    lowered = key.strip().lower()
+                    if lowered in {"se", "s/e", "select", "anwahl", "ausfuehrung"}:
+                        se_flag = _safe_int(val, default=0) & 0x01
+                        continue
+                    if lowered in {"qu", "qualifier"}:
+                        qu_value = _safe_int(val, default=0)
+                        continue
+                if qu_value == 0:
+                    qu_value = _safe_int(part, default=0)
+
+    qu_value = max(0, min(qu_value, 0x1F))
+    dco = (se_flag << 7) | ((qu_value & 0x1F) << 2) | dcs_value
+    return bytes([dco]) + _build_cp56time2a()
+
+
 def _build_information_bytes(type_id: int, value_text: str, qualifier_text: Optional[str] = None) -> bytes:
+    if type_id == 58:
+        return _build_type_58_information(value_text, qualifier_text)
     total_length = TYPE_INFORMATION_LENGTHS.get(type_id)
     value_length = TYPE_VALUE_FIELD_LENGTHS.get(type_id, total_length or 0)
     if type_id in TIME_ONLY_TYPES:
