@@ -53,7 +53,7 @@ TYPE_INFORMATION_LENGTHS: Dict[int, int] = {
     30: 8,   # M_SP_TB_1: 1x SIQ + CP56Time2a
     31: 8,   # M_DP_TB_1: 1x DIQ + CP56Time2a
     36: 12,  # M_ME_TF_1: 4x Float + QDS + CP56Time2a
-    58: 7,   # C_CS_NA_1: CP56Time2a
+    58: 8,   # C_CS_NA_1: Qualifier + CP56Time2a
     59: 1,   # C_RP_NA_1: 1x QRP
     63: 12,  # C_SE_TC_1: 4x Float + QOS + CP56Time2a
     70: 1,   # M_EI_NA_1: 1x COI
@@ -75,7 +75,7 @@ TYPE_VALUE_FIELD_LENGTHS: Dict[int, int] = {
     30: 1,   # SIQ ohne Zeitstempel
     31: 1,   # DIQ ohne Zeitstempel
     36: 4,   # Float ohne QDS/Zeitsstempel
-    58: 7,   # Zeitfeld
+    58: 1,   # Qualifier
     59: 1,   # QRP
     63: 5,   # 4x Float + QOS
     70: 1,   # COI
@@ -85,7 +85,7 @@ TYPE_VALUE_FIELD_LENGTHS: Dict[int, int] = {
 
 # Typkennungen, die ein CP56Time2a-Zeitfeld enthalten
 TIMESTAMP_TYPES = {30, 31, 36, 58, 63, 103}
-TIME_ONLY_TYPES = {58, 103}
+TIME_ONLY_TYPES = {103}
 
 # Name und Byte-Offset des Qualifier-Feldes je Typkennung (sofern vorhanden)
 QUALIFIER_FIELD_SPECS: Dict[int, Tuple[str, int]] = {
