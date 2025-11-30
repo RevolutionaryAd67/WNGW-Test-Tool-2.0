@@ -108,6 +108,8 @@ QUALIFIER_FIELD_SPECS: Dict[int, Tuple[str, int]] = {
     100: ("QOI", 0),
 }
 
+UI_QUALIFIER_TYPES = {1, 3, 13, 30, 31, 36, 58, 59, 63, 70, 100}
+
 
 # Liest VSQ und gibt Objektanzahl sowie den Informationsbereich zurück
 def _extract_information_bytes(payload: bytes) -> Tuple[int, bytes]:
@@ -249,6 +251,20 @@ def _decode_qualifier_field(
         return None
 
     return {"label": label, "value": information_bytes[index]}
+
+
+def _build_qualifier_field_for_event(
+    type_id: int, information: bytes
+) -> Optional[Dict[str, int]]:
+    spec = QUALIFIER_FIELD_SPECS.get(type_id)
+    if type_id not in UI_QUALIFIER_TYPES or not spec:
+        return None
+
+    label, offset = spec
+    if 0 <= offset < len(information):
+        return {"label": label, "value": information[offset]}
+
+    return None
 
 
 # Wandelt einen beliebigen Wert sicher in einen Integer um oder liefert einen Standardwert
@@ -499,6 +515,7 @@ class _BaseEndpoint:
         station: Optional[int] = None,
         ioa: Optional[int] = None,
         value: Optional[str] = None,
+        qualifier: Optional[Dict[str, int]] = None,
     ) -> None:
         payload = {
             "frame_family": frame_family,
@@ -517,6 +534,8 @@ class _BaseEndpoint:
             payload["ioa"] = ioa
         if value is not None:
             payload["value"] = value
+        if qualifier is not None:
+            payload["qualifier"] = qualifier
         self._publish(payload)
 
     def _process_commands(self) -> None:
@@ -680,6 +699,7 @@ class IEC104ClientProcess(_BaseEndpoint):
             information = _build_information_bytes(
                 type_id, value_text, row.get("Qualifier")
             )
+        qualifier = _build_qualifier_field_for_event(type_id, information)
         frame = build_i_frame(
             send_sequence=self._sequence,
             recv_sequence=self._recv_sequence,
@@ -703,6 +723,7 @@ class IEC104ClientProcess(_BaseEndpoint):
             "originator": originator,
             "ioa": ioa,
             "value": value_text,
+            "qualifier": qualifier,
         }
 
     def _send_signal_from_row(self, row: Dict[str, str]) -> None:
@@ -728,6 +749,7 @@ class IEC104ClientProcess(_BaseEndpoint):
             station=self.settings.remote_asdu,
             ioa=telegram.get("ioa"),
             value=telegram.get("value"),
+            qualifier=telegram.get("qualifier"),
         )
         self._sequence += 1
 
@@ -865,6 +887,7 @@ class IEC104ServerProcess(_BaseEndpoint):
         information = _build_information_bytes(
             type_id, str(row.get("Wert", "")), row.get("Qualifier")
         )
+        qualifier = _build_qualifier_field_for_event(type_id, information)
         frame = build_i_frame(
             send_sequence=self._send_sequence,
             recv_sequence=self._recv_sequence,
@@ -888,6 +911,7 @@ class IEC104ServerProcess(_BaseEndpoint):
             "originator": originator,
             "ioa": ioa,
             "value": str(row.get("Wert", "")),
+            "qualifier": qualifier,
         }
 
     # Antwortet auf eine Generalabfrage ausschließlich mit GENERALABFRAGE CON und END
@@ -915,6 +939,7 @@ class IEC104ServerProcess(_BaseEndpoint):
             station=self.settings.common_address,
             ioa=telegram.get("ioa"),
             value=telegram.get("value"),
+            qualifier=telegram.get("qualifier"),
         )
         self._send_sequence += 1
 
