@@ -333,34 +333,8 @@ def _parse_qualifier_byte(value: Optional[str]) -> Optional[int]:
 
 
 def _build_type_58_information(value_text: str, qualifier_text: Optional[str]) -> bytes:
-    dcs_value = _safe_int(value_text, default=0) & 0x03
-    se_flag = 0
-    qu_value = 0
-
-    if qualifier_text:
-        text = str(qualifier_text).strip()
-        pair_match = re.match(r"^([01])\s*,\s*(\d+)$", text)
-        if pair_match:
-            se_flag = _safe_int(pair_match.group(1), default=0) & 0x01
-            qu_value = _safe_int(pair_match.group(2), default=0)
-        else:
-            for part in re.split(r"[;,\s]+", text):
-                if not part:
-                    continue
-                if "=" in part:
-                    key, val = part.split("=", 1)
-                    lowered = key.strip().lower()
-                    if lowered in {"se", "s/e", "select", "anwahl", "ausfuehrung"}:
-                        se_flag = _safe_int(val, default=0) & 0x01
-                        continue
-                    if lowered in {"qu", "qualifier"}:
-                        qu_value = _safe_int(val, default=0)
-                        continue
-                if qu_value == 0:
-                    qu_value = _safe_int(part, default=0)
-
-    qu_value = max(0, min(qu_value, 0x1F))
-    dco = (se_flag << 7) | ((qu_value & 0x1F) << 2) | dcs_value
+    qualifier_value = _parse_qualifier_byte(qualifier_text)
+    dco = qualifier_value if qualifier_value is not None else 0
     return bytes([dco]) + _build_cp56time2a()
 
 
