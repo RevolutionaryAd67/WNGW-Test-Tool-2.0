@@ -1,81 +1,77 @@
 (function () {
-    const elements = {
-        fileInput: document.getElementById('exam-settings-file'),
-        fileLabel: document.getElementById('exam-settings-file-label'),
-        fileName: document.getElementById('exam-settings-file-name'),
-        status: document.getElementById('exam-settings-status'),
-        saveButton: document.getElementById('exam-settings-save'),
-    };
-
-    const ENDPOINT = '/api/einstellungen/pruefungseinstellungen/signalliste';
+    const statusElement = document.getElementById('exam-settings-status');
+    const saveButton = document.getElementById('exam-settings-save');
     const DEFAULT_LABEL = 'Excel-Datei auswählen';
     const DEFAULT_NAME = '–';
 
     function setStatus(text, state) {
-        if (!elements.status) return;
-        elements.status.textContent = text || '';
+        if (!statusElement) return;
+        statusElement.textContent = text || '';
         if (state) {
-            elements.status.dataset.state = state;
+            statusElement.dataset.state = state;
         } else {
-            delete elements.status.dataset.state;
+            delete statusElement.dataset.state;
         }
     }
 
-    function updateFileName(name) {
-        if (elements.fileName) {
-            elements.fileName.textContent = name || DEFAULT_NAME;
-        }
-    }
+    function createUploader(config) {
+        const elements = {
+            fileInput: document.getElementById(config.selectors.fileInputId),
+            fileLabel: document.getElementById(config.selectors.fileLabelId),
+            fileName: document.getElementById(config.selectors.fileNameId),
+        };
 
-    function resetFileInput() {
-        if (elements.fileInput) {
-            elements.fileInput.value = '';
-        }
-        if (elements.fileLabel) {
-            elements.fileLabel.textContent = DEFAULT_LABEL;
-        }
-    }
-
-    async function loadExisting() {
-        try {
-            const response = await fetch(ENDPOINT);
-            const payload = await response.json();
-            if (!response.ok || payload.status === 'error') {
-                throw new Error(payload.message || 'Fehler beim Laden der Signalliste.');
+        function updateFileName(name) {
+            if (elements.fileName) {
+                elements.fileName.textContent = name || DEFAULT_NAME;
             }
-            if (payload.status === 'success' && payload.signalliste) {
-                updateFileName(payload.signalliste.filename || DEFAULT_NAME);
-            } else {
-                updateFileName(DEFAULT_NAME);
+        }
+
+        function resetFileInput() {
+            if (elements.fileInput) {
+                elements.fileInput.value = '';
             }
-        } catch (error) {
-            console.error(error);
-            setStatus(error.message, 'error');
+            if (elements.fileLabel) {
+                elements.fileLabel.textContent = DEFAULT_LABEL;
+            }
         }
-    }
 
-    function handleFileChange() {
-        if (!elements.fileInput) return;
-        const file = elements.fileInput.files && elements.fileInput.files[0];
-        const name = file ? file.name : DEFAULT_LABEL;
-        if (elements.fileLabel) {
-            elements.fileLabel.textContent = name;
+        async function loadExisting() {
+            try {
+                const response = await fetch(config.endpoints.get);
+                const payload = await response.json();
+                if (!response.ok || payload.status === 'error') {
+                    throw new Error(payload.message || 'Fehler beim Laden der Datei.');
+                }
+                if (payload.status === 'success' && payload[config.key]) {
+                    updateFileName(payload[config.key].filename || DEFAULT_NAME);
+                } else {
+                    updateFileName(DEFAULT_NAME);
+                }
+            } catch (error) {
+                console.error(error);
+                setStatus(error.message, 'error');
+            }
         }
-    }
 
-    async function handleSave() {
-        if (!elements.fileInput || !elements.saveButton) return;
-        const file = elements.fileInput.files && elements.fileInput.files[0];
-        if (!file) {
-            setStatus('Bitte wählen Sie eine Signalliste aus.', 'error');
-            return;
+        function handleFileChange() {
+            if (!elements.fileInput) return;
+            const file = elements.fileInput.files && elements.fileInput.files[0];
+            const name = file ? file.name : DEFAULT_LABEL;
+            if (elements.fileLabel) {
+                elements.fileLabel.textContent = name;
+            }
         }
-        const formData = new FormData();
-        formData.append('signalliste', file);
-        setStatus('Speichern …', 'pending');
-        elements.saveButton.disabled = true;
-        try {
-            const response = await fetch(ENDPOINT, {
+
+        async function saveIfNeeded() {
+            if (!elements.fileInput) return false;
+            const file = elements.fileInput.files && elements.fileInput.files[0];
+            if (!file) return false;
+
+            const formData = new FormData();
+            formData.append(config.key, file);
+
+            const response = await fetch(config.endpoints.post, {
                 method: 'POST',
                 body: formData,
             });
@@ -83,25 +79,90 @@
             if (!response.ok || payload.status !== 'success') {
                 throw new Error(payload.message || 'Speichern fehlgeschlagen.');
             }
-            const savedName = payload.signalliste && payload.signalliste.filename;
+            const savedName = payload[config.key] && payload[config.key].filename;
             updateFileName(savedName || file.name);
             resetFileInput();
+            return true;
+        }
+
+        function hasPendingFile() {
+            return Boolean(elements.fileInput && elements.fileInput.files && elements.fileInput.files[0]);
+        }
+
+        function bindEvents() {
+            if (elements.fileInput) {
+                elements.fileInput.addEventListener('change', handleFileChange);
+            }
+        }
+
+        return {
+            loadExisting,
+            bindEvents,
+            saveIfNeeded,
+            hasPendingFile,
+        };
+    }
+
+    const uploaders = [
+        {
+            key: 'signalliste',
+            selectors: {
+                fileInputId: 'exam-settings-file',
+                fileLabelId: 'exam-settings-file-label',
+                fileNameId: 'exam-settings-file-name',
+            },
+            endpoints: {
+                get: '/api/einstellungen/pruefungseinstellungen/signalliste',
+                post: '/api/einstellungen/pruefungseinstellungen/signalliste',
+            },
+        },
+        {
+            key: 'auswertungsvorlage',
+            selectors: {
+                fileInputId: 'evaluation-template-file',
+                fileLabelId: 'evaluation-template-file-label',
+                fileNameId: 'evaluation-template-file-name',
+            },
+            endpoints: {
+                get: '/api/einstellungen/pruefungseinstellungen/auswertungsvorlage',
+                post: '/api/einstellungen/pruefungseinstellungen/auswertungsvorlage',
+            },
+        },
+    ].map(createUploader);
+
+    async function loadExistingFiles() {
+        await Promise.all(uploaders.map((uploader) => uploader.loadExisting()));
+    }
+
+    async function handleSave() {
+        if (!saveButton) return;
+        const pendingUploads = uploaders
+            .filter((uploader) => uploader.hasPendingFile())
+            .map((uploader) => uploader.saveIfNeeded());
+
+        if (pendingUploads.length === 0) {
+            setStatus('Bitte wählen Sie mindestens eine Datei aus.', 'error');
+            return;
+        }
+
+        setStatus('Speichern …', 'pending');
+        saveButton.disabled = true;
+        try {
+            await Promise.all(pendingUploads);
             setStatus('Gespeichert', 'success');
         } catch (error) {
             console.error(error);
             setStatus(error.message, 'error');
         } finally {
-            elements.saveButton.disabled = false;
+            saveButton.disabled = false;
         }
     }
 
     document.addEventListener('DOMContentLoaded', () => {
-        loadExisting();
-        if (elements.fileInput) {
-            elements.fileInput.addEventListener('change', handleFileChange);
-        }
-        if (elements.saveButton) {
-            elements.saveButton.addEventListener('click', handleSave);
+        loadExistingFiles();
+        uploaders.forEach((uploader) => uploader.bindEvents());
+        if (saveButton) {
+            saveButton.addEventListener('click', handleSave);
         }
     });
 })();

@@ -310,6 +310,14 @@ def _exam_signalliste_file_path() -> Path:
     return target_path
 
 
+def _exam_evaluation_template_file_path() -> Path:
+    return _exam_settings_file_path("auswertungsvorlage.xlsx")
+
+
+def _exam_evaluation_template_meta_path() -> Path:
+    return _exam_settings_file_path("auswertungsvorlage.json")
+
+
 def _load_pruefungssteuerung_settings() -> Dict[str, Any]:
     try:
         file_path = _exam_settings_file_path("pruefungssteuerung.json")
@@ -1584,6 +1592,48 @@ def create_app() -> Flask:
         file_path.parent.mkdir(parents=True, exist_ok=True)
         file_path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
         return jsonify({"status": "success", "signalliste": payload})
+
+    @app.get("/api/einstellungen/pruefungseinstellungen/auswertungsvorlage")
+    def api_get_pruefungseinstellungen_auswertungsvorlage():
+        try:
+            file_path = _exam_evaluation_template_file_path()
+            meta_path = _exam_evaluation_template_meta_path()
+        except ValueError:
+            return jsonify({"status": "error", "message": "Ungültiger Speicherort."}), 400
+
+        if not file_path.exists() or not meta_path.exists():
+            return jsonify({"status": "empty"})
+
+        try:
+            stored = json.loads(meta_path.read_text(encoding="utf-8"))
+        except json.JSONDecodeError:
+            return jsonify({"status": "error", "message": "Gespeicherte Vorlage ist beschädigt."}), 500
+
+        return jsonify({"status": "success", "auswertungsvorlage": stored})
+
+    @app.post("/api/einstellungen/pruefungseinstellungen/auswertungsvorlage")
+    def api_save_pruefungseinstellungen_auswertungsvorlage():
+        file = request.files.get("auswertungsvorlage")
+        if file is None or file.filename == "":
+            return jsonify({"status": "error", "message": "Keine Datei ausgewählt."}), 400
+
+        filename = file.filename
+        if not filename.lower().endswith(".xlsx"):
+            return jsonify({"status": "error", "message": "Es werden nur .xlsx-Dateien unterstützt."}), 400
+
+        meta = {"filename": filename}
+
+        try:
+            file_path = _exam_evaluation_template_file_path()
+            meta_path = _exam_evaluation_template_meta_path()
+        except ValueError:
+            return jsonify({"status": "error", "message": "Ungültiger Speicherort."}), 400
+
+        file_path.parent.mkdir(parents=True, exist_ok=True)
+        file_path.write_bytes(file.read())
+        meta_path.write_text(json.dumps(meta, ensure_ascii=False, indent=2), encoding="utf-8")
+
+        return jsonify({"status": "success", "auswertungsvorlage": meta})
 
     # Client starten
     @app.post("/api/backend/client/start")
