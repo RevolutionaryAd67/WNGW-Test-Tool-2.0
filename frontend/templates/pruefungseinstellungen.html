@@ -12,7 +12,7 @@
     <div class="exam-settings__box">
         <header class="exam-settings__header">
             <div>
-                <h2 class="exam-settings__title">Datenpunktliste hinterlegen</h2>
+                <h2 class="exam-settings__title">Excel-Tabellen hinterlegen</h2>
             </div>
             <div class="exam-settings__actions">
                 <span class="exam-settings__status" id="exam-settings-status" aria-live="polite"></span>
@@ -31,7 +31,7 @@
                 </thead>
                 <tbody>
                     <tr>
-                        <th scope="row">Vollständige Signalliste</th>
+                        <th scope="row">Datenpunktliste</th>
                         <td>
                             <label class="file-input">
                                 <input type="file" id="exam-settings-file" accept=".xlsx">
@@ -40,12 +40,25 @@
                         </td>
                         <td><span id="exam-settings-file-name">–</span></td>
                     </tr>
+                    <tr>
+                        <th scope="row">Vorlage zur Auswertung</th>
+                        <td>
+                            <label class="file-input">
+                                <input type="file" id="evaluation-template-file" accept=".xlsx">
+                                <span id="evaluation-template-file-label">Excel-Datei auswählen</span>
+                            </label>
+                        </td>
+                        <td><span id="evaluation-template-file-name">–</span></td>
+                    </tr>
                 </tbody>
             </table>
         </div>
         <p class="exam-settings__note">
-            Vollständige Signalliste hinterlegen. Mithilfe dieser Signalliste werden den eingehenden Telegrammen Meldetexte zugeordnet.
-            Somit können auf der Seite "Beobachten" die Meldetexte angezeigt werden und nicht nur die IOAs.
+            Vollständige Datenpunktliste (Signalliste) des WNGW hinterlegen. Diese Datenpunktliste dient zur Prüfung des WNGW. Außerdem
+            werden mithilfe dieser Datenpunktliste den eingehenden Telegrammen Meldetexte zugeordnet, sodass Telegramme durch den Benutzer
+            identifiziert werden können.<br><br>
+            Vorlage zur Auswertung hinterlegen. Diese Vorlage kann durch den Benutzer angepasst werden, um benutzerdefinierte Auswertungen
+            des Kommunikationsverlaufes zu ermöglichen.
         </p>
     </div>
 
@@ -55,7 +68,7 @@
     ] %}
 
     {% set rows = [
-        {"id": "zeit_zwischen_pruefungen", "label": "Zeit zwischen Prüfungen [s]"},
+        {"id": "zeit_zwischen_pruefungen", "label": "Zeit zwischen Teilprüfungen [s]"},
         {"id": "wartezeit_telegramme_ms", "label": "Wartezeit auf eingehende Telegramme [ms]"}
     ] %}
 
@@ -75,7 +88,7 @@
         "id": "pruefungssteuerung",
         "page_key": "einstellungen_pruefungseinstellungen",
         "title": "Prüfungssteuerung",
-        "note": "Für die Zeit zwischen Prüfungen sollte mindestens 60 Sekunden gewählt werden, um eine vollständige Weiterleitung der Signale durch das WNGW zu garantieren (Das WNGW leitet z.B. nur alle 30 Sekunden eine GENERALABFRAGE ACT weiter).",
+        "note": "Für die Zeit zwischen Prüfungen sollte mindestens 60 Sekunden gewählt werden, um eine vollständige Weiterleitung der Signale durch das WNGW zu garantieren (Das WNGW leitet z.B. nur alle 30 Sekunden eine GENERALABFRAGE ACT weiter).<br><br>Mit der \"Wartezeit auf eingehende Telegramme\" ist die Zeit gewartet, die der Teilnehmer auf die Durchleitung eines Signals durch das WNGW wartet, bis dieser Teilnehmer automatisch mit seinen Quellsignalen fortfährt. Eine Zeit von 5000 ms (5 s) scheint in ersten Tests gute Ergebnisse zu erzielen.",
         "table": {
             "columns": columns,
             "rows": rows
