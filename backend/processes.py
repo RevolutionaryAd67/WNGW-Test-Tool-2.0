@@ -54,7 +54,7 @@ TYPE_INFORMATION_LENGTHS: Dict[int, int] = {
     30: 8,   # M_SP_TB_1: 1x SIQ + CP56Time2a
     31: 8,   # M_DP_TB_1: 1x DIQ + CP56Time2a
     36: 12,  # M_ME_TF_1: 4x Float + QDS + CP56Time2a
-    58: 8,   # Doppelbefehl mit Zeitmarke (DCO + CP56Time2a)
+    58: 8,   # Einzelbefehl mit Zeitmarke (SCO + CP56Time2a)
     59: 1,   # C_RP_NA_1: 1x QRP
     63: 12,  # C_SE_TC_1: 4x Float + QOS + CP56Time2a
     70: 1,   # M_EI_NA_1: 1x COI
@@ -76,7 +76,7 @@ TYPE_VALUE_FIELD_LENGTHS: Dict[int, int] = {
     30: 1,   # SIQ ohne Zeitstempel
     31: 1,   # DIQ ohne Zeitstempel
     36: 4,   # Float ohne QDS/Zeitsstempel
-    58: 1,   # DCO (S/E + QU + DCS)
+    58: 1,   # SCO (S/E + QU + SCS)
     59: 1,   # QRP
     63: 5,   # 4x Float + QOS
     70: 1,   # COI
@@ -101,7 +101,7 @@ QUALIFIER_FIELD_SPECS: Dict[int, Tuple[str, int]] = {
     30: ("SIQ", 0),
     31: ("DIQ", 0),
     36: ("QDS", 4),
-    58: ("DCO", 0),
+    58: ("SCO", 0),
     59: ("QRP", 0),
     63: ("QOS", 4),
     70: ("COI", 0),
@@ -180,14 +180,14 @@ def _decode_int32_value(info_bytes: bytes) -> Optional[str]:
     return str(value)
 
 
-def _decode_double_command(info_bytes: bytes) -> Optional[str]:
+def _decode_single_command(info_bytes: bytes) -> Optional[str]:
     if len(info_bytes) < 1:
         return None
-    dco = info_bytes[0]
-    se_flag = (dco >> 7) & 0x01
-    qu_value = (dco >> 2) & 0x1F
-    dcs_value = dco & 0x03
-    return f"S/E={se_flag}, QU={qu_value}, DCS={dcs_value}"
+    sco = info_bytes[0]
+    se_flag = (sco >> 7) & 0x01
+    qu_value = (sco >> 2) & 0x1F
+    scs_value = sco & 0x03
+    return f"S/E={se_flag}, QU={qu_value}, SCS={scs_value}"
 
 
 # Typkennungen und deren dazugehörige Decoder
@@ -203,7 +203,7 @@ TYPE_VALUE_DECODERS = {
     30: _decode_siq,
     31: _decode_diq,
     36: _decode_float_value,
-    58: _decode_double_command,
+    58: _decode_single_command,
     63: _decode_float_value,
 }
 
@@ -334,8 +334,8 @@ def _parse_qualifier_byte(value: Optional[str]) -> Optional[int]:
 
 def _build_type_58_information(value_text: str, qualifier_text: Optional[str]) -> bytes:
     qualifier_value = _parse_qualifier_byte(qualifier_text)
-    dco = qualifier_value if qualifier_value is not None else 0
-    return bytes([dco]) + _build_cp56time2a()
+    sco = qualifier_value if qualifier_value is not None else 0
+    return bytes([sco]) + _build_cp56time2a()
 
 
 def _build_information_bytes(type_id: int, value_text: str, qualifier_text: Optional[str] = None) -> bytes:
