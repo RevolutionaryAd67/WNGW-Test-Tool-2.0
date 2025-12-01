@@ -55,7 +55,7 @@ TYPE_INFORMATION_LENGTHS: Dict[int, int] = {
     31: 8,   # M_DP_TB_1: 1x DIQ + CP56Time2a
     36: 12,  # M_ME_TF_1: 4x Float + QDS + CP56Time2a
     58: 8,   # Einzelbefehl mit Zeitmarke (SCO + CP56Time2a)
-    59: 1,   # C_RP_NA_1: 1x QRP
+    59: 8,   # Doppelbefehl mit Zeitmarke (DCO + CP56Time2a)
     63: 12,  # C_SE_TC_1: 4x Float + QOS + CP56Time2a
     70: 1,   # M_EI_NA_1: 1x COI
     100: 1,  # C_IC_NA_1: 1x QOI
@@ -77,7 +77,7 @@ TYPE_VALUE_FIELD_LENGTHS: Dict[int, int] = {
     31: 1,   # DIQ ohne Zeitstempel
     36: 4,   # Float ohne QDS/Zeitsstempel
     58: 1,   # SCO (S/E + QU + SCS)
-    59: 1,   # QRP
+    59: 1,   # DCO (S/E + QU + DCS)
     63: 5,   # 4x Float + QOS
     70: 1,   # COI
     100: 1,  # QOI
@@ -85,7 +85,7 @@ TYPE_VALUE_FIELD_LENGTHS: Dict[int, int] = {
 }
 
 # Typkennungen, die ein CP56Time2a-Zeitfeld enthalten
-TIMESTAMP_TYPES = {30, 31, 36, 58, 63, 103}
+TIMESTAMP_TYPES = {30, 31, 36, 58, 59, 63, 103}
 TIME_ONLY_TYPES = {103}
 
 # Name und Byte-Offset des Qualifier-Feldes je Typkennung (sofern vorhanden)
@@ -102,7 +102,7 @@ QUALIFIER_FIELD_SPECS: Dict[int, Tuple[str, int]] = {
     31: ("DIQ", 0),
     36: ("QDS", 4),
     58: ("SCO", 0),
-    59: ("QRP", 0),
+    59: ("DCO", 0),
     63: ("QOS", 4),
     70: ("COI", 0),
     100: ("QOI", 0),
@@ -190,6 +190,16 @@ def _decode_single_command(info_bytes: bytes) -> Optional[str]:
     return f"S/E={se_flag}, QU={qu_value}, SCS={scs_value}"
 
 
+def _decode_double_command(info_bytes: bytes) -> Optional[str]:
+    if len(info_bytes) < 1:
+        return None
+    dco = info_bytes[0]
+    se_flag = (dco >> 7) & 0x01
+    qu_value = (dco >> 2) & 0x1F
+    dcs_value = dco & 0x03
+    return f"S/E={se_flag}, QU={qu_value}, DCS={dcs_value}"
+
+
 def _decode_cp56time(info_bytes: bytes) -> Optional[str]:
     if len(info_bytes) < 7:
         return None
@@ -218,6 +228,7 @@ TYPE_VALUE_DECODERS = {
     31: _decode_diq,
     36: _decode_float_value,
     58: _decode_single_command,
+    59: _decode_double_command,
     63: _decode_float_value,
 }
 
@@ -351,15 +362,15 @@ def _parse_qualifier_byte(value: Optional[str]) -> Optional[int]:
     return int(text, 2) & 0xFF
 
 
-def _build_type_58_information(value_text: str, qualifier_text: Optional[str]) -> bytes:
+def _build_command_with_timestamp(qualifier_text: Optional[str]) -> bytes:
     qualifier_value = _parse_qualifier_byte(qualifier_text)
-    sco = qualifier_value if qualifier_value is not None else 0
-    return bytes([sco]) + _build_cp56time2a()
+    command_byte = qualifier_value if qualifier_value is not None else 0
+    return bytes([command_byte]) + _build_cp56time2a()
 
 
 def _build_information_bytes(type_id: int, value_text: str, qualifier_text: Optional[str] = None) -> bytes:
-    if type_id == 58:
-        return _build_type_58_information(value_text, qualifier_text)
+    if type_id in (58, 59):
+        return _build_command_with_timestamp(qualifier_text)
     total_length = TYPE_INFORMATION_LENGTHS.get(type_id)
     value_length = TYPE_VALUE_FIELD_LENGTHS.get(type_id, total_length or 0)
     if type_id in TIME_ONLY_TYPES:
