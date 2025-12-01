@@ -190,6 +190,20 @@ def _decode_single_command(info_bytes: bytes) -> Optional[str]:
     return f"S/E={se_flag}, QU={qu_value}, SCS={scs_value}"
 
 
+def _decode_cp56time(info_bytes: bytes) -> Optional[str]:
+    if len(info_bytes) < 7:
+        return None
+    millis = int.from_bytes(info_bytes[:2], "little", signed=False)
+    seconds = (millis // 1000) % 60
+    milliseconds = millis % 1000
+    minute = info_bytes[2] & 0x3F
+    hour = info_bytes[3] & 0x1F
+    day = info_bytes[4] & 0x1F
+    month = info_bytes[5] & 0x0F
+    year = 2000 + (info_bytes[6] & 0x7F)
+    return f"{year:04d}-{month:02d}-{day:02d} {hour:02d}:{minute:02d}:{seconds:02d}.{milliseconds:03d}"
+
+
 # Typkennungen und deren dazugehörige Decoder
 TYPE_VALUE_DECODERS = {
     1: _decode_siq,
@@ -217,6 +231,11 @@ def _decode_information_value(type_id: Optional[int], payload: bytes) -> Optiona
     count, information_bytes = _extract_information_bytes(payload)
     if not information_bytes:
         return None
+
+    if type_id in TIME_ONLY_TYPES:
+        timestamp_text = _decode_cp56time(information_bytes)
+        if timestamp_text:
+            return timestamp_text
 
     decoder = TYPE_VALUE_DECODERS.get(type_id)
     if decoder:
