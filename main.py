@@ -4,7 +4,17 @@
 #       1. Startet das WNGW-Test-Tool
 #       2. Intitialisiert die Flask-Routen und stellt sämtliche API-Endpunkte bereit
 #       3. Übernimmt Speichern von Eingaben, Verwalten von Prüfkonfigurationen, Excel-Import, Steuerung der Statusabfrage
+#
+#   Flask-Routen
+#       1. app.route    HTML-Seite anzeigen
+#       2. app.get      Daten abrufen
+#       3. app.post     Informationen hochladen (posten)
+#       4. app.delete   Daten löschen 
 
+
+#-----------------------------------------------------------
+# Import von Modulen
+#-----------------------------------------------------------
 from __future__ import annotations
 
 import io
@@ -24,13 +34,38 @@ from jinja2 import ChoiceLoader, FileSystemLoader
 
 from backend import backend_controller
 
+
+#-----------------------------------------------------------
+# Dateiverzeichnisse festlegen
+#-----------------------------------------------------------
+
+# 
 DATA_DIR = Path("data")
+
+#
 CONFIG_DIR = DATA_DIR / "pruefungskonfigurationen"
+
+#
 COMMUNICATION_LOG_DIR = DATA_DIR / "pruefungskommunikation"
+
+#
 EXAM_SETTINGS_DIR = DATA_DIR / "einstellungen_pruefungseinstellungen"
+
+#
 LEGACY_COMMUNICATION_DIR = DATA_DIR / "einstellungen_kommunikation"
+
+#
 PROTOKOLL_DIR = DATA_DIR / "pruefprotokolle"
+
+#
 EXCEL_NAMESPACE = "{http://schemas.openxmlformats.org/spreadsheetml/2006/main}"
+
+
+#-----------------------------------------------------------
+# Import von Modulen
+#-----------------------------------------------------------
+
+# 
 REQUIRED_SIGNAL_HEADERS = (
     "Datenpunkt / Meldetext",
     "IEC104- Typ",
@@ -46,6 +81,7 @@ REQUIRED_SIGNAL_HEADERS = (
     "GA- Generalabfrage (keine Wischer)",
 )
 
+#
 FRAME_LABELS = {
     "I": "I-Format",
     "U": "U-Format",
@@ -53,14 +89,17 @@ FRAME_LABELS = {
     "TCP": "TCP",
 }
 
+# 
 DIRECTION_ARROWS = {
     "incoming": "←",
     "outgoing": "→",
 }
 
+# 
 DEFAULT_PAUSE_BETWEEN_TESTS = 35.0
 DEFAULT_INCOMING_TELEGRAM_TIMEOUT_MS = 5000.0
 
+# 
 CAUSE_MEANINGS = {
     1: "Zyklisch",
     2: "Hintergrundabfrage",
@@ -76,6 +115,7 @@ CAUSE_MEANINGS = {
     20: "Generalabfrage",
 }
 
+# 
 ORIGINATOR_MEANINGS = {
     0: "Herkunftsadresse nicht vorhanden",
     10: "Fernsteuerung von Verteilnetz-Anlagen",
@@ -91,7 +131,14 @@ ORIGINATOR_MEANINGS = {
 }
 
 
+#-----------------------------------------------------------
+# Aufzeichnung (der Kommunikation) von Teilprüfungen einrichten
+#-----------------------------------------------------------
+
+# Klasse für der Recorder der Teilprüfungen
 class TeilpruefungRecorder:
+    
+    # Initialisiert den Recoder und legt das Zielverzeichnis an
     def __init__(self, base_dir: Path) -> None:
         self.base_dir = Path(base_dir)
         self.base_dir.mkdir(parents=True, exist_ok=True)
@@ -105,6 +152,7 @@ class TeilpruefungRecorder:
         self._recording_started = False
         self._ioa_labels: Dict[int, str] = {}
 
+    # Parst einen IOA-Teilwert und validiert den Bereich
     @staticmethod
     def _parse_ioa_part(value: Any) -> Optional[int]:
         if value is None:
@@ -117,6 +165,7 @@ class TeilpruefungRecorder:
             return None
         return parsed
 
+    # Berechnet den vollständigen IOA-Wert aus 3 Spalten
     @classmethod
     def _extract_ioa(cls, row: Dict[str, Any]) -> Optional[int]:
         parts = [
@@ -128,6 +177,7 @@ class TeilpruefungRecorder:
             return None
         return parts[0] + (parts[1] << 8) + (parts[2] << 16)
 
+    # Lädt die Meldetexte aus der gespeicherten Signalliste
     def _load_meldetexte(self) -> None:
         self._ioa_labels = {}
         file_path = _exam_signalliste_file_path()
@@ -154,6 +204,7 @@ class TeilpruefungRecorder:
                 continue
             self._ioa_labels[ioa] = label
 
+    # Leitet den angezeigten Meldetext aus Payload und Mapping ab
     def _resolve_meldetext(self, payload: Dict[str, Any]) -> Optional[str]:
         if payload.get("frame_family") != "I":
             return None
@@ -169,6 +220,7 @@ class TeilpruefungRecorder:
         label = payload.get("label")
         return label if isinstance(label, str) and label else None
 
+    # Startet eine neue Aufzeichnung mit Basisdaten
     def begin(self, config_id: str, run_id: str, teil_index: int) -> None:
         self._active = True
         self._config_id = config_id or ""
@@ -180,6 +232,7 @@ class TeilpruefungRecorder:
         self._recording_started = False
         self._load_meldetexte()
 
+    # Markiert den Zeitpunkt des ersten ausgesendeten Signals 
     def mark_signal_sent(self) -> None:
         if not self._active:
             return
@@ -189,6 +242,7 @@ class TeilpruefungRecorder:
             self._recording_started = True
             self._started_at = timestamp
 
+    # Beobachtet ein Telegramm-Event und protokolliert es
     def observe(self, event: Dict[str, Any]) -> None:
         if not self._active or not self._recording_started:
             return
@@ -209,6 +263,7 @@ class TeilpruefungRecorder:
             payload["meldetext"] = meldetext
         self._entries.append(payload)
 
+    # Schließt die Aufzeichnung ab und speichert das Protokoll
     def finish(self, aborted: bool = False) -> None:
         if not self._active:
             return
@@ -238,31 +293,36 @@ class TeilpruefungRecorder:
         )
         self._active = False
 
+    # Gibt den Zeitpunkt des letzten Signals zurück
     @property
     def last_signal_at(self) -> Optional[float]:
         return self._last_signal_at
 
+
+#-----------------------------------------------------------
+# Verzeichnisse anlegen und Informationen aus UI auslesen
+#-----------------------------------------------------------
 
 # Ablageordner für Prüfkonfigurationen bereitstellen
 def _configurations_directory() -> Path:
     CONFIG_DIR.mkdir(parents=True, exist_ok=True)
     return CONFIG_DIR
 
-
+# Liefert das Verzeichnis für aktive Prüfungs-Einstellungen
 def _exam_settings_directory() -> Path:
     EXAM_SETTINGS_DIR.mkdir(parents=True, exist_ok=True)
     return EXAM_SETTINGS_DIR
 
-
+# Liefert das Verzeichnis für ältere Kommunikations-Einstellungen
 def _legacy_exam_settings_directory() -> Path:
     return LEGACY_COMMUNICATION_DIR
 
-
+# Liefert das Verzeichnis für die abgelegten Prüfprotokolle
 def _protokoll_directory() -> Path:
     PROTOKOLL_DIR.mkdir(parents=True, exist_ok=True)
     return PROTOKOLL_DIR
 
-
+# Berechnet Dateipfad zu einem gespeicherten Protokoll
 def _protokoll_file_path(protocol_id: str) -> Path:
     directory = _protokoll_directory().resolve()
     file_path = (directory / f"{protocol_id}.json").resolve()
@@ -270,7 +330,7 @@ def _protokoll_file_path(protocol_id: str) -> Path:
         raise ValueError("Ungültiger Speicherpfad")
     return file_path
 
-
+# Baut den Pfad zu einer Kommunikations-Logdatei
 def _communication_log_file_path(filename: str) -> Path:
     directory = COMMUNICATION_LOG_DIR.resolve()
     file_path = (directory / filename).resolve()
@@ -278,7 +338,7 @@ def _communication_log_file_path(filename: str) -> Path:
         raise ValueError("Ungültiger Speicherpfad")
     return file_path
 
-
+# Ermittelt den Pfad zu einer Prüfungs-Einstellungsdatei
 def _exam_settings_file_path(filename: str) -> Path:
     directory = _exam_settings_directory().resolve()
     file_path = (directory / filename).resolve()
@@ -286,7 +346,7 @@ def _exam_settings_file_path(filename: str) -> Path:
         raise ValueError("Ungültiger Speicherpfad")
     return file_path
 
-
+# Bestimmt den Pfad zu einer Alt-Einstellungsdatei
 def _legacy_exam_settings_file_path(filename: str) -> Optional[Path]:
     directory = _legacy_exam_settings_directory().resolve()
     file_path = (directory / filename).resolve()
@@ -294,7 +354,7 @@ def _legacy_exam_settings_file_path(filename: str) -> Optional[Path]:
         raise ValueError("Ungültiger Speicherpfad")
     return file_path if file_path.exists() else None
 
-
+# Gibt den Speicherort der importierten Signalliste zurück
 def _exam_signalliste_file_path() -> Path:
     target_path = _exam_settings_file_path("signalliste.json")
     try:
@@ -309,15 +369,15 @@ def _exam_signalliste_file_path() -> Path:
             return legacy_path
     return target_path
 
-
+# Liefert den Pfad zur Auswertungsvorlage
 def _exam_evaluation_template_file_path() -> Path:
     return _exam_settings_file_path("auswertungsvorlage.xlsx")
 
-
+# Bestimmt den Pfad zur Metadatei der Auswertungsvorlage
 def _exam_evaluation_template_meta_path() -> Path:
     return _exam_settings_file_path("auswertungsvorlage.json")
 
-
+# Lädt die gespeicherten Einstellungen der Prüfungssteuerung
 def _load_pruefungssteuerung_settings() -> Dict[str, Any]:
     try:
         file_path = _exam_settings_file_path("pruefungssteuerung.json")
@@ -330,7 +390,7 @@ def _load_pruefungssteuerung_settings() -> Dict[str, Any]:
     except json.JSONDecodeError:
         return {}
 
-
+# Validiert eine positive Float-Eingabe und nutzt einen Defaultwert
 def _parse_positive_float(raw_value: Any, default: float) -> float:
     try:
         parsed = float(str(raw_value).replace(",", "."))
@@ -338,13 +398,13 @@ def _parse_positive_float(raw_value: Any, default: float) -> float:
         return default
     return parsed if parsed > 0 else default
 
-
+# Liest die eingestellte Pause zwischen Tests aus
 def _load_pause_between_tests(default: float = DEFAULT_PAUSE_BETWEEN_TESTS) -> float:
     stored = _load_pruefungssteuerung_settings()
     raw_value = stored.get("zeit_zwischen_pruefungen", {}).get("value")
     return _parse_positive_float(raw_value, default)
 
-
+# Liest das Timeout für eingehende Telegramme aus der Konfiguration
 def _load_incoming_telegram_timeout(
     default_ms: float = DEFAULT_INCOMING_TELEGRAM_TIMEOUT_MS,
 ) -> float:
@@ -353,11 +413,16 @@ def _load_incoming_telegram_timeout(
     timeout_ms = _parse_positive_float(raw_value, default_ms)
     return timeout_ms / 1000.0
 
-
+# Erzeugt einen Dateinamen für Protokoll- und Logdateien
 def _build_log_filename(config_id: str, run_id: str, teil_index: int) -> str:
     return f"{config_id}_teil{teil_index}_{run_id}_kommunikationsverlauf.json"
 
 
+#-----------------------------------------------------------
+# Darstellung der Telegramme im UI 
+#-----------------------------------------------------------
+
+# Formatiert einen Unix-Timestamp als Zeitstempeltext
 def _format_timestamp_text(value: Any) -> str:
     try:
         ts = float(value)
@@ -370,7 +435,7 @@ def _format_timestamp_text(value: Any) -> str:
     formatted = time.strftime("%H:%M:%S", time.localtime(ts))
     return f"{formatted}.{millis:03d}"
 
-
+# Stellt eine Zeitdifferenz in Sekunden als Text dar
 def _format_delta_text(delta: Any) -> str:
     try:
         value = float(delta)
@@ -378,7 +443,7 @@ def _format_delta_text(delta: Any) -> str:
         return "0,000"
     return f"{max(value, 0.0):.3f}".replace(".", ",")
 
-
+# Formatiert die Frame-Typ-Beschreibung für ein Telegramm
 def _format_type_text(frame_family: Optional[str], type_id: Optional[int]) -> str:
     frame_label = FRAME_LABELS.get(frame_family or "", frame_family or "")
     if frame_family == "I":
@@ -388,14 +453,14 @@ def _format_type_text(frame_family: Optional[str], type_id: Optional[int]) -> st
         return f"({frame_label})"
     return ""
 
-
+# Teilt einen IOA-Wert in 3 oktettbasierte Bestandteile
 def _split_ioa(ioa_value: Any) -> Optional[str]:
     if not isinstance(ioa_value, int):
         return None
     segments = [ioa_value & 0xFF, (ioa_value >> 8) & 0xFF, (ioa_value >> 16) & 0xFF]
     return " - ".join(f"{segment:03d}" for segment in segments)
 
-
+# Setzt den Qualifier-Wert passend zum Label zusammen
 def _format_qualifier_value(label: Optional[str], value: Any) -> str:
     if isinstance(value, (int, float)):
         value_text = format(int(value) & 0xFF, "08b")
@@ -403,7 +468,7 @@ def _format_qualifier_value(label: Optional[str], value: Any) -> str:
         value_text = str(value)
     return f"{label} = {value_text}" if label else value_text
 
-
+# Kombiniert Wert und Qualifier zu einem Anzeigeeintrag
 def _format_value_with_qualifier(value: Any, qualifier: Any) -> Optional[str]:
     has_value = value not in (None, "")
     qualifier_label = qualifier.get("label") if isinstance(qualifier, dict) else None
@@ -419,21 +484,21 @@ def _format_value_with_qualifier(value: Any, qualifier: Any) -> Optional[str]:
         return qualifier_text
     return None
 
-
+# Gibt die aktuelle Bedeutung der Übertragungsursache zurück
 def _format_cause_text(cause: Any) -> Optional[str]:
     if not isinstance(cause, (int, float)):
         return None
     meaning = CAUSE_MEANINGS.get(int(cause))
     return f"{int(cause)} ({meaning})" if meaning else str(int(cause))
 
-
+# Liefert die textuelle Bedeutung der Herkunftsadresse
 def _format_originator_text(originator: Any) -> Optional[str]:
     if not isinstance(originator, (int, float)):
         return None
     meaning = ORIGINATOR_MEANINGS.get(int(originator))
     return f"{int(originator)} ({meaning})" if meaning else str(int(originator))
 
-
+# Baut den Protokolleintrag als formatierten Text zusammen
 def _format_protocol_entry(entry: Dict[str, Any]) -> str:
     indent = "\t" * 6 if entry.get("side") == "server" else ""
     sequence = entry.get("sequence")
@@ -479,14 +544,14 @@ def _format_protocol_entry(entry: Dict[str, Any]) -> str:
 
     return "\n".join(lines)
 
-
+# Formatiert den Anzeigenamen eines gespeicherten Protokolls
 def _format_protocol_display_name(finished_at: float, run_name: str) -> str:
     timestamp = time.localtime(finished_at)
     prefix = time.strftime("%Y.%m.%d - %H:%M Uhr", timestamp)
     name_part = run_name.strip() if isinstance(run_name, str) else ""
     return f"{prefix} - {name_part}" if name_part else prefix
 
-
+# Entfernt nicht benötigte Felder aus dem gespeicherten Protokoll
 def _sanitize_protocol_data(run_state: Dict[str, Any]) -> Dict[str, Any]:
     finished_at = run_state.get("finishedAt") or time.time()
     config_id = run_state.get("configurationId", "")
@@ -518,6 +583,11 @@ def _sanitize_protocol_data(run_state: Dict[str, Any]) -> Dict[str, Any]:
     return sanitized
 
 
+#-----------------------------------------------------------
+# Prüfprotokolle anlegen, speichern und entfernen
+#-----------------------------------------------------------
+
+# Persistiert ein Prüfprotokoll auf dem Datenträger
 def _store_pruefprotokoll(run_state: Dict[str, Any]) -> None:
     protocol = _sanitize_protocol_data(run_state)
     try:
@@ -526,7 +596,7 @@ def _store_pruefprotokoll(run_state: Dict[str, Any]) -> None:
         return
     file_path.write_text(json.dumps(protocol, ensure_ascii=False, indent=2), encoding="utf-8")
 
-
+# Listet alle vorhandenen Prüfprotokolle auf
 def _list_protocols() -> List[Dict[str, Any]]:
     directory = _protokoll_directory()
     protocols: List[Dict[str, Any]] = []
@@ -538,7 +608,7 @@ def _list_protocols() -> List[Dict[str, Any]]:
             continue
     return sorted(protocols, key=lambda item: item.get("finishedAt", 0), reverse=True)
 
-
+# Lädt ein bestimmtes Prüfprotokoll anhand der ID
 def _load_protocol(protocol_id: str) -> Dict[str, Any]:
     file_path = _protokoll_file_path(protocol_id)
     if not file_path.exists():
@@ -549,7 +619,7 @@ def _load_protocol(protocol_id: str) -> Dict[str, Any]:
         raise ValueError("Gespeichertes Prüfprotokoll ist beschädigt.")
     return data
 
-
+# Entfernt ein Prüfprotokoll aus dem Dateisystem
 def _delete_protocol(protocol_id: str, protocol: Optional[Dict[str, Any]] = None) -> None:
     data = protocol or _load_protocol(protocol_id)
     teilpruefungen = data.get("teilpruefungen") if isinstance(data, dict) else []
@@ -674,12 +744,12 @@ def _validate_signal_headers(headers: List[str]) -> List[str]:
 
 _QUALIFIER_PATTERN = re.compile(r"^[01]{8}$")
 
-
+# Validiert, dass die Qualifier-Bits korrekt gesetzt sind
 def _validate_qualifier_bits(value: Any) -> bool:
     text = str(value or "").strip()
     return bool(_QUALIFIER_PATTERN.fullmatch(text))
 
-
+# Überprüft die Qualifier-Spalte und ermittelt die Position fehlerhafter Werte
 def _validate_qualifier_column(rows: List[Dict[str, Any]]) -> Optional[int]:
     for index, row in enumerate(rows, start=1):
         type_text = str(row.get("IEC104- Typ", "")).strip()
@@ -783,7 +853,14 @@ def _store_configuration(payload: Dict[str, Any]) -> Dict[str, Any]:
     return data
 
 
+#-----------------------------------------------------------
+# Prüfungen über PruefungRunner einrichten
+#-----------------------------------------------------------
+
+# Klasse für Prüfungen
 class PruefungRunner:
+    
+    # Initialisiert den Ausführungs-Controller für Prüfungen
     def __init__(self, backend) -> None:
         self.backend = backend
         self._lock = threading.Lock()
@@ -796,23 +873,27 @@ class PruefungRunner:
         self._recorder = TeilpruefungRecorder(COMMUNICATION_LOG_DIR)
         self._incoming_timeout_seconds = DEFAULT_INCOMING_TELEGRAM_TIMEOUT_MS / 1000.0
 
+    # Prüft anhand des Zellinhalts, ob die Quelle senden soll
     @staticmethod
     def _should_send_from(value: object) -> bool:
         text = str(value or "").upper()
         return "Q" in text
 
+    # Markiert alle Teilprüfungen als abgebrochen
     def _mark_all_aborted_locked(self) -> None:
         teilpruefungen = self._current_run.get("teilpruefungen", []) if self._current_run else []
         for teil in teilpruefungen:
             if teil.get("status") != "Abgeschlossen":
                 teil["status"] = "Abgebrochen"
 
+    # Markiert laufende Teilprüfungen als abgebrochen
     def _mark_all_aborted(self) -> None:
         with self._lock:
             if not self._current_run:
                 return
             self._mark_all_aborted_locked()
 
+    # Setzt den Status einer Teilprüfung im aktuellen Lauf
     def _set_status(self, index: int, status: str) -> None:
         with self._lock:
             if not self._current_run:
@@ -821,6 +902,7 @@ class PruefungRunner:
             if 0 <= index < len(teilpruefungen):
                 teilpruefungen[index]["status"] = status
 
+    # Wartet bis zum Ablauf oder bricht bei Stop-Signal ab
     def _wait_or_abort(self, seconds: float, current_index: Optional[int] = None) -> bool:
         deadline = time.time() + max(0.0, seconds)
         while time.time() < deadline:
@@ -831,6 +913,7 @@ class PruefungRunner:
                 return True
         return False
 
+    # Liest die erwartete Telegramm-Signatur aus einer Tabellenzeile ab
     def _expected_signature(self, row: Dict[str, Any]) -> Optional[tuple]:
         type_id = int(row.get("IEC104- Typ", 0) or 0)
         if type_id <= 0:
@@ -842,6 +925,7 @@ class PruefungRunner:
         ioa = ioa1 | (ioa2 << 8) | (ioa3 << 16)
         return (type_id, cause, ioa)
 
+    # Holt neue Ereignisse aus der Backend-Queue und aktualisiert Zähler
     def _pull_events(
         self,
         pending: Optional[Dict[str, List[tuple]]] = None,
@@ -887,6 +971,7 @@ class PruefungRunner:
                                 pending_list.pop(index)
                                 break
 
+    # Warten auf eingehende Antworten der Gegenseite 
     def _wait_for_turn(
         self,
         side: str,
@@ -909,6 +994,7 @@ class PruefungRunner:
                 return
             time.sleep(0.05)
 
+    # Gruppiert Signale nach Absenderseite 
     def _build_signal_segments(self, rows: List[Dict[str, Any]]):
         sequence: List[Dict[str, Any]] = []
         for row in rows:
@@ -927,6 +1013,7 @@ class PruefungRunner:
                 segments.append({"side": entry["side"], "rows": [entry["row"]]})
         return segments
 
+    # Schließt einen Lauf ab und speichert die Ergebnisse
     def _mark_finished(self, aborted: bool = False) -> None:
         with self._lock:
             if not self._current_run:
@@ -943,6 +1030,7 @@ class PruefungRunner:
             except Exception:
                 pass
 
+    # Liefert den öffentlich nutzbaren Status des aktuellen Laufs
     def _copy_public_state(self) -> Optional[Dict[str, Any]]:
         with self._lock:
             if not self._current_run:
@@ -954,6 +1042,7 @@ class PruefungRunner:
                     teil["signalliste"] = {"filename": signalliste.get("filename", "")}
             return clone
 
+    # Sendet die Signalsegmente an Client oder Server
     def _dispatch_signals(self, rows: List[Dict[str, Any]]) -> None:
         segments = self._build_signal_segments(rows)
         pending: Dict[str, List[tuple]] = {"client": [], "server": []}
@@ -982,6 +1071,7 @@ class PruefungRunner:
                     pending.setdefault(other_side, []).append(signature)
             self._pull_events(pending, consider_from)
 
+    # Wartet nach dem letzten ausgesendeten Signal auf Antworten
     def _wait_after_last_signal(self) -> None:
         last_signal = self._recorder.last_signal_at
         if last_signal is None:
@@ -992,6 +1082,7 @@ class PruefungRunner:
             time.sleep(0.05)
         self._pull_events()
 
+    # Hauptablauf zur Durchführung aller Teilprüfungen
     def _run(self, run_state: Dict[str, Any]) -> None:
         aborted = False
         self.backend.start_client()
@@ -1039,6 +1130,7 @@ class PruefungRunner:
             self.backend.set_test_active(False)
             self._mark_finished(aborted=aborted)
 
+    # Startet einen neuen Prüfungsdurchlauf
     def start(self, config_id: str) -> Dict[str, Any]:
         configuration = _load_configuration(config_id)
         teilpruefungen: List[Dict[str, Any]] = []
@@ -1071,6 +1163,7 @@ class PruefungRunner:
             thread.start()
         return self._copy_public_state() or {}
 
+    # Bricht den aktuellen Prüfungsdurchlauf ab und liefert Status 
     def abort(self) -> Optional[Dict[str, Any]]:
         with self._lock:
             if not self._current_run:
@@ -1079,8 +1172,14 @@ class PruefungRunner:
             self._mark_all_aborted_locked()
         return self._copy_public_state()
 
+    # Gibt den aktuellen Status des Prüfungsdurchlaufs zurück
     def status(self) -> Optional[Dict[str, Any]]:
         return self._copy_public_state()
+
+
+#-----------------------------------------------------------
+# Einträge in Frontend setzen und Einträge aus Formularen abrufen
+#-----------------------------------------------------------
 
 # Beim Wechsel auf die "Beobachten"-Seite sollen 1000 Telegramme aus der JSON-Datei geladen und angezeigt werden
 # Wert muss ebenfalls im Skript "beobachten.js" bearbeitet werden
@@ -1205,6 +1304,11 @@ def create_app() -> Flask:
             description=page.get("description", ""),
             active_page=active_page,
         )
+
+
+#-----------------------------------------------------------
+# Flask-Routen definieren
+#-----------------------------------------------------------
 
     # Flask-Route: Seite "Startseite"
     @app.route("/")
@@ -1375,6 +1479,8 @@ def create_app() -> Flask:
         file_path.unlink()
         return jsonify({"status": "success"})
 
+    # Flask-Route: Prüfprotokolle als Liste zurückgeben
+    # Listet alle abgelegten Prüfprotokolle
     @app.get("/api/pruefprotokolle")
     def api_list_pruefprotokolle():
         protocols = []
@@ -1393,6 +1499,8 @@ def create_app() -> Flask:
             )
         return jsonify({"status": "success", "protocols": protocols})
 
+    # Flask-Route: Einzelnes Prüfprotokoll abrufen
+    # Lädt ein spezifisches Prüfprotokoll
     @app.get("/api/pruefprotokolle/<protocol_id>")
     def api_get_pruefprotokoll(protocol_id: str):
         try:
@@ -1408,6 +1516,8 @@ def create_app() -> Flask:
             )
         return jsonify({"status": "success", "protocol": data})
 
+    # Flask-Route: Einzelnen Teil eines Prüfprotokolls herunterladen
+    # Stellt die Kommunikationslogdatei einer Teilprüfung bereit
     @app.get("/api/pruefprotokolle/<protocol_id>/teilpruefungen/<int:teil_index>/log")
     def api_download_pruefprotokoll(protocol_id: str, teil_index: int):
         try:
@@ -1452,6 +1562,8 @@ def create_app() -> Flask:
             headers={"Content-Disposition": f"attachment; filename={download_name}"},
         )
 
+    # Flask-Route: Prüfprotokoll löschen
+    # Entfernt ein Prüfprotokoll samt Dateien
     @app.delete("/api/pruefprotokolle/<protocol_id>")
     def api_delete_pruefprotokoll(protocol_id: str):
         try:
@@ -1467,6 +1579,8 @@ def create_app() -> Flask:
             return jsonify({"status": "error", "message": "Ungültiger Protokollpfad."}), 400
         return jsonify({"status": "success"})
 
+    # Flask-Route: Prüfungsdurchlauf starten
+    # Startet den Prüfthread mit ausgewählter Konfiguration
     @app.post("/api/pruefungslauf/start")
     def api_start_pruefungslauf():
         payload = request.get_json(silent=True) or {}
@@ -1481,10 +1595,12 @@ def create_app() -> Flask:
             return jsonify({"status": "error", "message": str(exc)}), 400
         return jsonify({"status": "success", "run": run_state})
 
+    # Flask-Route: Status des laufenden Prüfungsdurchlaufs abfragen
     @app.get("/api/pruefungslauf/status")
     def api_status_pruefungslauf():
         return jsonify({"run": pruefung_runner.status()})
 
+    # Flask-Route: Laufende Prüfung abbrechen
     @app.post("/api/pruefungslauf/abbrechen")
     def api_abort_pruefungslauf():
         state = pruefung_runner.abort()
@@ -1611,6 +1727,8 @@ def create_app() -> Flask:
 
         return jsonify({"status": "success", "auswertungsvorlage": stored})
 
+    # Flask-Route: Auswertungsvorlage speichern
+    # Speichert die bereitgestellte Auswertungsvorlage ab
     @app.post("/api/einstellungen/pruefungseinstellungen/auswertungsvorlage")
     def api_save_pruefungseinstellungen_auswertungsvorlage():
         file = request.files.get("auswertungsvorlage")
@@ -1711,6 +1829,10 @@ def create_app() -> Flask:
     # Vollständig konfigurierte Flask-App an den Aufruf zurückgeben
     return app
 
+
+#-----------------------------------------------------------
+# Programm starten
+#-----------------------------------------------------------
 
 # Lokaler Einstiegspunkt zum Starten der Anwendung 
 if __name__ == "__main__":
