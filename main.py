@@ -26,7 +26,7 @@ import uuid
 import zipfile
 import re
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 from xml.etree import ElementTree as ET
 
 from flask import Flask, Response, jsonify, render_template, request, send_from_directory
@@ -59,6 +59,8 @@ PROTOKOLL_DIR = DATA_DIR / "pruefprotokolle"
 
 #
 EXCEL_NAMESPACE = "{http://schemas.openxmlformats.org/spreadsheetml/2006/main}"
+EXCEL_REL_NS = "{http://schemas.openxmlformats.org/officeDocument/2006/relationships}"
+PACKAGE_REL_NS = "{http://schemas.openxmlformats.org/package/2006/relationships}"
 
 
 #-----------------------------------------------------------
@@ -649,6 +651,14 @@ def _column_index(cell_ref: str) -> int:
     return result
 
 
+def _column_letter(index: int) -> str:
+    result = ""
+    while index > 0:
+        index, remainder = divmod(index - 1, 26)
+        result = chr(65 + remainder) + result
+    return result
+
+
 # Gemeinsame Zeichenketten aus einer XLSX-Datei extrahieren
 def _load_shared_strings(zf: zipfile.ZipFile) -> List[str]:
     if "xl/sharedStrings.xml" not in zf.namelist():
@@ -699,6 +709,22 @@ def _read_sheet_rows(
     return rows
 
 
+def _read_cell_value(cell: ET.Element, shared_strings: List[str]) -> str:
+    cell_type = cell.attrib.get("t")
+    if cell_type == "s":
+        value_node = cell.find(f"{EXCEL_NAMESPACE}v")
+        if value_node is not None and value_node.text is not None:
+            shared_index = int(value_node.text)
+            if 0 <= shared_index < len(shared_strings):
+                return shared_strings[shared_index]
+        return ""
+    if cell_type == "inlineStr":
+        parts = [t.text or "" for t in cell.findall(f".//{EXCEL_NAMESPACE}t")]
+        return "".join(parts)
+    value_node = cell.find(f"{EXCEL_NAMESPACE}v")
+    return value_node.text if value_node is not None and value_node.text is not None else ""
+
+
 # Erste Tabelle einer Excel-Datei auslesen und in Header/Row-Struktur umwandeln
 def _parse_excel_table(file_bytes: bytes) -> Dict[str, Any]:
     try:
@@ -734,6 +760,193 @@ def _parse_excel_table(file_bytes: bytes) -> Dict[str, Any]:
             if non_empty:
                 parsed_rows.append(entry)
     return {"headers": headers, "rows": parsed_rows}
+
+
+def _load_saved_signalliste() -> Dict[str, Any]:
+    file_path = _exam_signalliste_file_path()
+    if not file_path.exists():
+        raise FileNotFoundError("Keine gespeicherte Datenpunktliste gefunden.")
+    try:
+        return json.loads(file_path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError as exc:
+        raise ValueError("Gespeicherte Datenpunktliste ist beschädigt.") from exc
+
+
+def _load_evaluation_template() -> Tuple[bytes, str]:
+    file_path = _exam_evaluation_template_file_path()
+    meta_path = _exam_evaluation_template_meta_path()
+    if not file_path.exists() or not meta_path.exists():
+        raise FileNotFoundError("Keine Auswertungsvorlage hinterlegt.")
+    try:
+        meta = json.loads(meta_path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError as exc:
+        raise ValueError("Gespeicherte Auswertungsvorlage ist beschädigt.") from exc
+    filename = meta.get("filename") or Path(file_path.name).name
+    return file_path.read_bytes(), filename
+
+
+def _combine_ioa_values(row: Dict[str, Any]) -> str:
+    parts = []
+    for key in ("IOA 3", "IOA 2", "IOA 1"):
+        value = str(row.get(key, "")).strip()
+        if value:
+            parts.append(value)
+    return ".".join(parts)
+
+
+def _build_evaluation_rows(signalliste: Dict[str, Any]) -> List[Tuple[str, str]]:
+    evaluation_rows: List[Tuple[str, str]] = []
+    for row in signalliste.get("rows") or []:
+        meldetext = str(row.get("Datenpunkt / Meldetext", "")).strip()
+        ioa = _combine_ioa_values(row)
+        if meldetext or ioa:
+            evaluation_rows.append((meldetext, ioa))
+    return evaluation_rows
+
+
+def _set_inline_cell_value(
+    row_element: ET.Element, column_index: int, row_index: int, value: str
+) -> None:
+    cell_ref = f"{_column_letter(column_index)}{row_index}"
+    for cell in row_element.findall(f"{EXCEL_NAMESPACE}c"):
+        if cell.attrib.get("r") == cell_ref:
+            row_element.remove(cell)
+            break
+    cell_element = ET.Element(f"{EXCEL_NAMESPACE}c", r=cell_ref, t="inlineStr")
+    is_element = ET.SubElement(cell_element, f"{EXCEL_NAMESPACE}is")
+    t_element = ET.SubElement(is_element, f"{EXCEL_NAMESPACE}t")
+    t_element.text = value
+    row_element.append(cell_element)
+
+
+def _clear_target_cells(row_element: ET.Element, target_columns: Tuple[int, int]) -> None:
+    for cell in list(row_element.findall(f"{EXCEL_NAMESPACE}c")):
+        ref = cell.attrib.get("r", "")
+        if _column_index(ref) in target_columns:
+            row_element.remove(cell)
+
+
+def _fill_evaluation_template(template_bytes: bytes, entries: List[Tuple[str, str]]) -> bytes:
+    if not entries:
+        raise ValueError("Keine Datenpunkte zum Einfügen vorhanden.")
+
+    with zipfile.ZipFile(io.BytesIO(template_bytes)) as zf:
+        shared_strings = _load_shared_strings(zf)
+        file_contents = {info.filename: zf.read(info.filename) for info in zf.infolist()}
+
+    workbook_bytes = file_contents.get("xl/workbook.xml")
+    rel_bytes = file_contents.get("xl/_rels/workbook.xml.rels")
+    if workbook_bytes is None or rel_bytes is None:
+        raise ValueError("Auswertungsvorlage unvollständig (workbook fehlt).")
+
+    workbook_root = ET.fromstring(workbook_bytes)
+    rel_root = ET.fromstring(rel_bytes)
+
+    relation_targets: Dict[str, str] = {}
+    for rel in rel_root.findall(f"{PACKAGE_REL_NS}Relationship"):
+        rel_id = rel.attrib.get("Id")
+        target = rel.attrib.get("Target")
+        if rel_id and target:
+            relation_targets[rel_id] = target
+
+    sheets = workbook_root.find(f"{EXCEL_NAMESPACE}sheets")
+    first_sheet = sheets.find(f"{EXCEL_NAMESPACE}sheet") if sheets is not None else None
+    if first_sheet is None:
+        raise ValueError("Auswertungsvorlage enthält kein Tabellenblatt.")
+
+    rel_id = first_sheet.attrib.get(f"{EXCEL_REL_NS}id")
+    target = relation_targets.get(rel_id) if rel_id else None
+    if not target:
+        raise ValueError("Auswertungsvorlage ohne gültige Blatt-Referenz.")
+
+    sheet_path = target if target.startswith("xl/") else f"xl/{target}"
+    sheet_bytes = file_contents.get(sheet_path)
+    if sheet_bytes is None:
+        raise ValueError("Tabellenblatt der Auswertungsvorlage fehlt.")
+
+    sheet_root = ET.fromstring(sheet_bytes)
+    sheet_data = sheet_root.find(f"{EXCEL_NAMESPACE}sheetData")
+    if sheet_data is None:
+        raise ValueError("Auswertungsvorlage hat keine SheetData-Struktur.")
+
+    header_row = None
+    meldetext_col = None
+    ioa_col = None
+    for row in sheet_data.findall(f"{EXCEL_NAMESPACE}row"):
+        row_index = int(row.attrib.get("r", 0))
+        for cell in row.findall(f"{EXCEL_NAMESPACE}c"):
+            text = _read_cell_value(cell, shared_strings)
+            if text == "Meldetext":
+                meldetext_col = _column_index(cell.attrib.get("r", ""))
+                header_row = row_index
+            elif text == "IOAs":
+                ioa_col = _column_index(cell.attrib.get("r", ""))
+                header_row = row_index if header_row is None else header_row
+        if meldetext_col and ioa_col:
+            break
+
+    if not (header_row and meldetext_col and ioa_col):
+        raise ValueError("Konnte Kopfzeile 'Meldetext' / 'IOAs' nicht finden.")
+
+    target_meldetext_col = 1
+    target_ioa_col = 2
+    target_columns = (target_meldetext_col, target_ioa_col)
+    start_row = header_row + 1
+    rows_by_index: Dict[int, ET.Element] = {
+        int(row.attrib.get("r", 0)): row for row in sheet_data.findall(f"{EXCEL_NAMESPACE}row")
+    }
+
+    def _get_or_create_row(index: int) -> ET.Element:
+        existing = rows_by_index.get(index)
+        if existing is not None:
+            return existing
+        new_row = ET.Element(f"{EXCEL_NAMESPACE}row", r=str(index))
+        inserted = False
+        for idx, current in enumerate(sheet_data.findall(f"{EXCEL_NAMESPACE}row")):
+            current_index = int(current.attrib.get("r", 0))
+            if current_index > index:
+                sheet_data.insert(idx, new_row)
+                inserted = True
+                break
+        if not inserted:
+            sheet_data.append(new_row)
+        rows_by_index[index] = new_row
+        return new_row
+
+    header_row_element = _get_or_create_row(header_row)
+    _set_inline_cell_value(
+        header_row_element, target_meldetext_col, header_row, "Meldetext"
+    )
+    _set_inline_cell_value(header_row_element, target_ioa_col, header_row, "IOAs")
+
+    for offset, (meldetext, ioa) in enumerate(entries):
+        row_index = start_row + offset
+        row_element = _get_or_create_row(row_index)
+        _set_inline_cell_value(row_element, target_meldetext_col, row_index, meldetext)
+        _set_inline_cell_value(row_element, target_ioa_col, row_index, ioa)
+
+    last_filled_row = start_row + len(entries) - 1
+    for row_index in sorted(rows_by_index):
+        if row_index > last_filled_row:
+            _clear_target_cells(rows_by_index[row_index], target_columns)
+
+    file_contents[sheet_path] = ET.tostring(
+        sheet_root, encoding="utf-8", xml_declaration=True
+    )
+
+    buffer = io.BytesIO()
+    with zipfile.ZipFile(buffer, "w") as new_zip:
+        for name, content in file_contents.items():
+            new_zip.writestr(name, content)
+    return buffer.getvalue()
+
+
+def _build_evaluation_workbook() -> Tuple[bytes, str]:
+    signalliste = _load_saved_signalliste()
+    template_bytes, filename = _load_evaluation_template()
+    entries = _build_evaluation_rows(signalliste)
+    workbook = _fill_evaluation_template(template_bytes, entries)
+    return workbook, filename
 
 
 # Pflichtspalten der Signalliste prüfen und fehlende Felder melden
@@ -1555,11 +1768,35 @@ def create_app() -> Flask:
         if not entries:
             entries.append("Keine Telegramme vorhanden.")
 
-        download_name = Path(log_path.name).with_suffix(".txt").name
+        evaluation_workbook: Optional[Tuple[bytes, str]] = None
+        try:
+            evaluation_workbook = _build_evaluation_workbook()
+        except FileNotFoundError:
+            evaluation_workbook = None
+        except Exception:
+            evaluation_workbook = None
+
+        if evaluation_workbook is None:
+            download_name = Path(log_path.name).with_suffix(".txt").name
+            return Response(
+                "\n\n".join(entries),
+                mimetype="text/plain",
+                headers={"Content-Disposition": f"attachment; filename={download_name}"},
+            )
+
+        archive = io.BytesIO()
+        text_name = Path(log_path.name).with_suffix(".txt").name
+        excel_bytes, excel_name = evaluation_workbook
+        archive_name = Path(log_path.name).with_suffix(".zip").name
+        with zipfile.ZipFile(archive, "w") as zf:
+            zf.writestr(text_name, "\n\n".join(entries))
+            zf.writestr(excel_name or "auswertung.xlsx", excel_bytes)
+
+        archive.seek(0)
         return Response(
-            "\n\n".join(entries),
-            mimetype="text/plain",
-            headers={"Content-Disposition": f"attachment; filename={download_name}"},
+            archive.getvalue(),
+            mimetype="application/zip",
+            headers={"Content-Disposition": f"attachment; filename={archive_name}"},
         )
 
     # Flask-Route: Prüfprotokoll löschen

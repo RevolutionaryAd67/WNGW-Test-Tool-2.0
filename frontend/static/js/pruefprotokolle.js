@@ -90,7 +90,8 @@
                 link.className = 'protocol-action';
                 link.href = `/api/pruefprotokolle/${encodeURIComponent(state.currentId)}/teilpruefungen/${encodeURIComponent(teil.index)}/log`;
                 link.textContent = 'Prüfprotokoll ansehen >';
-                link.setAttribute('download', '');
+                const zipName = `${teil.logFile}`.replace(/\.json$/i, '.zip');
+                link.setAttribute('download', zipName);
                 actionCell.appendChild(link);
             }
             row.appendChild(actionCell);
