@@ -86,12 +86,19 @@
 
             const actionCell = document.createElement('td');
             if (teil.logFile && state.currentId) {
-                const link = document.createElement('a');
-                link.className = 'protocol-action';
-                link.href = `/api/pruefprotokolle/${encodeURIComponent(state.currentId)}/teilpruefungen/${encodeURIComponent(teil.index)}/log`;
-                link.textContent = 'Prüfprotokoll ansehen >';
-                link.setAttribute('download', '');
-                actionCell.appendChild(link);
+                const textLink = document.createElement('a');
+                textLink.className = 'protocol-action';
+                textLink.href = `/api/pruefprotokolle/${encodeURIComponent(state.currentId)}/teilpruefungen/${encodeURIComponent(teil.index)}/log`;
+                textLink.textContent = 'Prüfprotokoll (Text) >';
+                textLink.setAttribute('download', '');
+                actionCell.appendChild(textLink);
+
+                const excelLink = document.createElement('a');
+                excelLink.className = 'protocol-action';
+                excelLink.href = `/api/pruefprotokolle/${encodeURIComponent(state.currentId)}/teilpruefungen/${encodeURIComponent(teil.index)}/excel`;
+                excelLink.textContent = 'Prüfprotokoll (Excel) >';
+                excelLink.setAttribute('download', '');
+                actionCell.appendChild(excelLink);
             }
             row.appendChild(actionCell);
 
