@@ -33,6 +33,7 @@ from flask import Flask, Response, jsonify, render_template, request, send_from_
 from jinja2 import ChoiceLoader, FileSystemLoader
 
 from backend import backend_controller
+from backend import prüfprotokoll as pruefprotokoll
 
 
 #-----------------------------------------------------------
@@ -418,22 +419,28 @@ def _build_log_filename(config_id: str, run_id: str, teil_index: int) -> str:
     return f"{config_id}_teil{teil_index}_{run_id}_kommunikationsverlauf.json"
 
 
+def _load_telegram_entries(log_filename: Optional[str]) -> List[Dict[str, Any]]:
+    if not log_filename:
+        return []
+    try:
+        log_path = _communication_log_file_path(log_filename)
+    except ValueError:
+        return []
+    if not log_path.exists():
+        return []
+    try:
+        content = json.loads(log_path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError:
+        return []
+    entries = content.get("entries")
+    if not isinstance(entries, list):
+        return []
+    return [entry for entry in entries if isinstance(entry, dict)]
+
+
 #-----------------------------------------------------------
 # Darstellung der Telegramme im UI 
 #-----------------------------------------------------------
-
-# Formatiert einen Unix-Timestamp als Zeitstempeltext
-def _format_timestamp_text(value: Any) -> str:
-    try:
-        ts = float(value)
-    except (TypeError, ValueError):
-        return "-"
-    millis = int(round((ts - int(ts)) * 1000))
-    if millis == 1000:
-        ts += 0.001
-        millis = 0
-    formatted = time.strftime("%H:%M:%S", time.localtime(ts))
-    return f"{formatted}.{millis:03d}"
 
 # Stellt eine Zeitdifferenz in Sekunden als Text dar
 def _format_delta_text(delta: Any) -> str:
@@ -508,7 +515,7 @@ def _format_protocol_entry(entry: Dict[str, Any]) -> str:
         header_parts.append(str(label))
     lines = [f"{indent}{' '.join(header_parts) if header_parts else 'Telegramm'}"]
 
-    timestamp_text = _format_timestamp_text(entry.get("timestamp"))
+    timestamp_text = pruefprotokoll.format_timestamp_text(entry.get("timestamp"))
     delta_text = _format_delta_text(entry.get("delta"))
     lines.append(f"{indent}Time: {timestamp_text} (d = {delta_text} s)")
 
@@ -581,6 +588,13 @@ def _sanitize_protocol_data(run_state: Dict[str, Any]) -> Dict[str, Any]:
         finished_at, sanitized.get("name", "")
     )
     return sanitized
+
+
+def _sanitize_filename_component(value: Any, fallback: str = "Unbenannt") -> str:
+    text = str(value or "").strip()
+    if not text:
+        return fallback
+    return re.sub(r"[^\w\-\. ]+", "_", text)
 
 
 #-----------------------------------------------------------
@@ -1515,6 +1529,59 @@ def create_app() -> Flask:
                 finished_at, data.get("name", "")
             )
         return jsonify({"status": "success", "protocol": data})
+
+    @app.get("/api/pruefprotokolle/<protocol_id>/teilpruefungen/<int:teil_index>/excel")
+    def api_download_pruefprotokoll_excel(protocol_id: str, teil_index: int):
+        try:
+            protocol = _load_protocol(protocol_id)
+        except FileNotFoundError:
+            return jsonify({"status": "error", "message": "Protokoll nicht gefunden."}), 404
+        except ValueError as exc:
+            return jsonify({"status": "error", "message": str(exc)}), 500
+
+        config_id = protocol.get("configurationId")
+        if not config_id:
+            return jsonify({"status": "error", "message": "Zuordnung zur Prüfung fehlt."}), 404
+
+        try:
+            configuration = _load_configuration(config_id)
+        except FileNotFoundError:
+            return jsonify({"status": "error", "message": "Prüfung nicht gefunden."}), 404
+        except ValueError:
+            return jsonify({"status": "error", "message": "Prüfung beschädigt."}), 500
+
+        teil_config = None
+        for teil in configuration.get("teilpruefungen", []):
+            if int(teil.get("index", -1)) == int(teil_index):
+                teil_config = teil
+                break
+
+        if not teil_config:
+            return jsonify({"status": "error", "message": "Teilprüfung nicht gefunden."}), 404
+
+        teil_protocol = None
+        for teil in protocol.get("teilpruefungen", []):
+            if int(teil.get("index", -1)) == int(teil_index):
+                teil_protocol = teil
+                break
+
+        log_file = teil_protocol.get("logFile") if isinstance(teil_protocol, dict) else None
+        telegram_entries = _load_telegram_entries(log_file)
+
+        excel_content = pruefprotokoll.build_protocol_excel(telegram_entries)
+
+        run_name = protocol.get("name") or configuration.get("name") or "Pruefung"
+        pruefungsart = teil_config.get("pruefungsart") or "Teilpruefung"
+        filename = (
+            f"Prüfprotokoll_{_sanitize_filename_component(run_name, 'Pruefung')}_"
+            f"Teilprüfung {teil_index}_{_sanitize_filename_component(pruefungsart)}.xlsx"
+        )
+
+        return Response(
+            excel_content,
+            mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            headers={"Content-Disposition": f"attachment; filename=\"{filename}\""},
+        )
 
     # Flask-Route: Einzelnen Teil eines Prüfprotokolls herunterladen
     # Stellt die Kommunikationslogdatei einer Teilprüfung bereit
