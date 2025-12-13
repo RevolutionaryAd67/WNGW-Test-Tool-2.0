@@ -78,6 +78,7 @@ class FrameParser:
         return frames
 
 
+# Wird aktuell nicht verwendet
 # Hilfsfunktion, um Sende-/Emfpangszähler aus Control-Feld zu lesen
 def _extract_sequences(frame: bytes) -> Dict[str, int]:
     if len(frame) < 6:
