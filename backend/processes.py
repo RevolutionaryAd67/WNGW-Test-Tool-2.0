@@ -235,8 +235,7 @@ TYPE_VALUE_DECODERS = {
 
 # Wählt den passenden Decoder für einen I-Frame und liefert den Nutzwert als Text
 def _decode_information_value(type_id: Optional[int], payload: bytes) -> Optional[str]:
-    """Dekodiert den Wert eines I-Frames entsprechend der Typkennung."""
-
+    
     if type_id is None:
         return None
     count, information_bytes = _extract_information_bytes(payload)
@@ -685,6 +684,7 @@ class IEC104ClientProcess(_BaseEndpoint):
         self._close_socket(publish_reset=True)
         self.publish_connection_status(False)
 
+    # I-Frame für den Client aus einer Signalliste bauen
     def _build_signal_frame(self, row: Dict[str, str]) -> Optional[Dict[str, object]]:
         type_id = _safe_int(row.get("IEC104- Typ"))
         if type_id <= 0:
@@ -877,7 +877,7 @@ class IEC104ServerProcess(_BaseEndpoint):
         )
         self._send_sequence += 1
 
-    # Baut ein I-Frame-Paket aus einer Signallistenzeile auf
+    # I-Frame für den Server aus einer Signalliste bauen (z.B. während einer Prüfung)
     def _build_signal_frame(self, row: Dict[str, str]) -> Optional[Dict[str, object]]:
         type_id = _safe_int(row.get("IEC104- Typ"))
         if type_id <= 0:
@@ -918,11 +918,12 @@ class IEC104ServerProcess(_BaseEndpoint):
             "qualifier": qualifier,
         }
 
-    # Antwortet auf eine Generalabfrage ausschließlich mit GENERALABFRAGE CON und END
+    # Server antwortet auf eine Generalabfrage ausschließlich mit GENERALABFRAGE CON und END
     def _send_general_interrogation_response(self, conn: socket.socket) -> None:
         self._send_general_confirmation(conn, 7)
         self._send_general_confirmation(conn, 10)
 
+    # 
     def _send_signal_from_row(self, conn: socket.socket, row: Dict[str, str]) -> None:
         telegram = self._build_signal_frame(row)
         if not telegram:
