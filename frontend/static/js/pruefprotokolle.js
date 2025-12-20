@@ -89,9 +89,14 @@
                 const textLink = document.createElement('a');
                 textLink.className = 'protocol-action';
                 textLink.href = `/api/pruefprotokolle/${encodeURIComponent(state.currentId)}/teilpruefungen/${encodeURIComponent(teil.index)}/log`;
-                textLink.textContent = 'Prüfprotokoll (Text) >';
+                textLink.textContent = 'Kommunikationsverlauf (txt) >';
                 textLink.setAttribute('download', '');
                 actionCell.appendChild(textLink);
+
+                const separator = document.createElement('span');
+                separator.className = 'protocol-action__separator';
+                separator.textContent = '|';
+                actionCell.appendChild(separator);
 
                 const excelLink = document.createElement('a');
                 excelLink.className = 'protocol-action';
