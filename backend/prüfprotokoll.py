@@ -214,6 +214,7 @@ def _build_excel_rows_from_datapoint_list(
                 2: str(ioa) if ioa is not None else "",
                 3: entry.get("IEC104- Typ") or "",
                 4: entry.get("Übertragungsursache") or "",
+                5: entry.get("GA- Generalabfrage (keine Wischer)") or "",
             }
         )
     return rows
@@ -508,7 +509,7 @@ def build_protocol_excel(
         "IOAs",
         "TK",
         "COT",
-        "HK",
+        "GA",
         "Zeit",
         "Meldetext",
         "IOAs",
