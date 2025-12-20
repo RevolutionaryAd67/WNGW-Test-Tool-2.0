@@ -89,6 +89,12 @@ def _build_excel_row_from_telegram(entry: Dict[str, Any]) -> Optional[Dict[int, 
     return base_row
 
 
+def _cell_has_value(value: Any) -> bool:
+    if isinstance(value, dict) and "value" in value:
+        value = value.get("value")
+    return value not in (None, "")
+
+
 def _parse_timestamp_value(value: Any) -> Optional[float]:
     try:
         return float(value)
@@ -105,6 +111,36 @@ def _normalize_match_value(value: Any) -> Optional[str]:
 def _styled_cell(value: Any, style: str) -> Dict[str, Any]:
     return {"value": value, "style": style}
 
+
+def _determine_status_evaluation(row: Dict[int, Any]) -> Optional[str]:
+    direction = _normalize_match_value(row.get(15))
+    if direction not in (">", "<"):
+        return None
+    has_h = _cell_has_value(row.get(8))
+    has_r = _cell_has_value(row.get(18))
+    if not (has_h or has_r):
+        return None
+    has_y = _cell_has_value(row.get(25))
+    has_z = _cell_has_value(row.get(26))
+    if has_y:
+        return "durchgeleitet (ok)" if has_z else "nicht gefiltert (nok)"
+    if has_z:
+        if (has_h and direction == ">") or (has_r and direction == "<"):
+            return "nicht durchgeleitet (nok)"
+        return "selbst gesendet (ok)"
+    if (has_h and direction == ">") or (has_r and direction == "<"):
+        return "gefiltert (ok)"
+    return "frei erfunden (nok)"
+
+
+def _evaluation_to_summary_cell(evaluation: str) -> Dict[str, Any]:
+    if evaluation in ("durchgeleitet (ok)", "gefiltert (ok)", "selbst gesendet (ok)"):
+        return _styled_cell("ok", "green_text")
+    if evaluation in ("nicht gefiltert (nok)", "nicht durchgeleitet (nok)"):
+        return _styled_cell("not ok", "red_text")
+    if evaluation == "frei erfunden (nok)":
+        return _styled_cell("not ok", "green_text")
+    return _styled_cell("", "green_text")
 
 def _build_excel_rows_from_communication(
     telegram_entries: List[Dict[str, Any]]
@@ -294,14 +330,28 @@ def _red_fill_style_index(column_index: int, row_index: int) -> int:
     return {0: 12, 1: 13, 2: 14, 3: 15}.get(border_style, 12)
 
 
+def _green_text_style_index(column_index: int, row_index: int) -> int:
+    border_style = _border_style_index(column_index, row_index)
+    return {0: 16, 1: 17, 2: 18, 3: 19}.get(border_style, 16)
+
+
+def _red_text_style_index(column_index: int, row_index: int) -> int:
+    border_style = _border_style_index(column_index, row_index)
+    return {0: 20, 1: 21, 2: 22, 3: 23}.get(border_style, 20)
+
+
 def _create_excel_styles() -> str:
     return (
         "<?xml version=\"1.0\" encoding=\"UTF-8\"?>"
         "<styleSheet xmlns=\"http://schemas.openxmlformats.org/spreadsheetml/2006/main\">"
-        "<fonts count=\"2\">"
+        "<fonts count=\"4\">"
         "<font><sz val=\"11\"/><color theme=\"1\"/><name val=\"Calibri\"/><family val=\"2\"/>"
         "<scheme val=\"minor\"/></font>"
         "<font><b/><sz val=\"11\"/><color theme=\"1\"/><name val=\"Calibri\"/><family val=\"2\"/>"
+        "<scheme val=\"minor\"/></font>"
+        "<font><sz val=\"11\"/><color rgb=\"FF00B050\"/><name val=\"Calibri\"/><family val=\"2\"/>"
+        "<scheme val=\"minor\"/></font>"
+        "<font><sz val=\"11\"/><color rgb=\"FFFF0000\"/><name val=\"Calibri\"/><family val=\"2\"/>"
         "<scheme val=\"minor\"/></font>"
         "</fonts>"
         "<fills count=\"3\">"
@@ -318,7 +368,7 @@ def _create_excel_styles() -> str:
         "<cellStyleXfs count=\"1\">"
         "<xf numFmtId=\"0\" fontId=\"0\" fillId=\"0\" borderId=\"0\"/>"
         "</cellStyleXfs>"
-        "<cellXfs count=\"16\">"
+        "<cellXfs count=\"24\">"
         "<xf numFmtId=\"0\" fontId=\"0\" fillId=\"0\" borderId=\"0\" xfId=\"0\"/>"
         "<xf numFmtId=\"0\" fontId=\"0\" fillId=\"0\" borderId=\"1\" xfId=\"0\" applyBorder=\"1\"/>"
         "<xf numFmtId=\"0\" fontId=\"0\" fillId=\"0\" borderId=\"2\" xfId=\"0\" applyBorder=\"1\"/>"
@@ -343,6 +393,22 @@ def _create_excel_styles() -> str:
         "<xf numFmtId=\"0\" fontId=\"0\" fillId=\"2\" borderId=\"1\" xfId=\"0\" applyFill=\"1\" applyBorder=\"1\"/>"
         "<xf numFmtId=\"0\" fontId=\"0\" fillId=\"2\" borderId=\"2\" xfId=\"0\" applyFill=\"1\" applyBorder=\"1\"/>"
         "<xf numFmtId=\"0\" fontId=\"0\" fillId=\"2\" borderId=\"3\" xfId=\"0\" applyFill=\"1\" applyBorder=\"1\"/>"
+        "<xf numFmtId=\"0\" fontId=\"2\" fillId=\"0\" borderId=\"0\" xfId=\"0\" applyFont=\"1\""
+        " applyAlignment=\"1\"><alignment horizontal=\"center\" vertical=\"center\"/></xf>"
+        "<xf numFmtId=\"0\" fontId=\"2\" fillId=\"0\" borderId=\"1\" xfId=\"0\" applyFont=\"1\" applyBorder=\"1\""
+        " applyAlignment=\"1\"><alignment horizontal=\"center\" vertical=\"center\"/></xf>"
+        "<xf numFmtId=\"0\" fontId=\"2\" fillId=\"0\" borderId=\"2\" xfId=\"0\" applyFont=\"1\" applyBorder=\"1\""
+        " applyAlignment=\"1\"><alignment horizontal=\"center\" vertical=\"center\"/></xf>"
+        "<xf numFmtId=\"0\" fontId=\"2\" fillId=\"0\" borderId=\"3\" xfId=\"0\" applyFont=\"1\" applyBorder=\"1\""
+        " applyAlignment=\"1\"><alignment horizontal=\"center\" vertical=\"center\"/></xf>"
+        "<xf numFmtId=\"0\" fontId=\"3\" fillId=\"0\" borderId=\"0\" xfId=\"0\" applyFont=\"1\""
+        " applyAlignment=\"1\"><alignment horizontal=\"center\" vertical=\"center\"/></xf>"
+        "<xf numFmtId=\"0\" fontId=\"3\" fillId=\"0\" borderId=\"1\" xfId=\"0\" applyFont=\"1\" applyBorder=\"1\""
+        " applyAlignment=\"1\"><alignment horizontal=\"center\" vertical=\"center\"/></xf>"
+        "<xf numFmtId=\"0\" fontId=\"3\" fillId=\"0\" borderId=\"2\" xfId=\"0\" applyFont=\"1\" applyBorder=\"1\""
+        " applyAlignment=\"1\"><alignment horizontal=\"center\" vertical=\"center\"/></xf>"
+        "<xf numFmtId=\"0\" fontId=\"3\" fillId=\"0\" borderId=\"3\" xfId=\"0\" applyFont=\"1\" applyBorder=\"1\""
+        " applyAlignment=\"1\"><alignment horizontal=\"center\" vertical=\"center\"/></xf>"
         "</cellXfs>"
         "<cellStyles count=\"1\">"
         "<cellStyle name=\"Normal\" xfId=\"0\" builtinId=\"0\"/>"
@@ -412,6 +478,10 @@ def _create_excel_workbook(headers: List[str], rows: List[Dict[int, Any]]) -> by
                 style_override = value.get("style")
             if style_override == "red":
                 style_index = _red_fill_style_index(col_index, row_index)
+            elif style_override == "green_text":
+                style_index = _green_text_style_index(col_index, row_index)
+            elif style_override == "red_text":
+                style_index = _red_text_style_index(col_index, row_index)
             else:
                 style_index = _body_style_index(col_index, row_index)
             if cell_value not in (None, ""):
@@ -570,4 +640,10 @@ def build_protocol_excel(
             row[26] = str(target_row)
         else:
             row[26] = _styled_cell("", "red")
+    for row in rows:
+        evaluation = _determine_status_evaluation(row)
+        if evaluation is None:
+            continue
+        row[28] = evaluation
+        row[27] = _evaluation_to_summary_cell(evaluation)
     return _create_excel_workbook(headers, rows)
