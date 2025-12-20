@@ -142,6 +142,47 @@ def _evaluation_to_summary_cell(evaluation: str) -> Dict[str, Any]:
         return _styled_cell("not ok", "green_text")
     return _styled_cell("", "green_text")
 
+
+def _normalize_row_value(value: Any) -> Optional[str]:
+    if isinstance(value, dict) and "value" in value:
+        value = value.get("value")
+    return _normalize_match_value(value)
+
+
+def _collect_discrepancies(
+    source_row: Dict[int, Any],
+    target_row: Dict[int, Any],
+) -> List[str]:
+    field_pairs = [
+        (7, 17, "Meldetext"),
+        (8, 18, "IOAs"),
+        (9, 19, "TK"),
+        (10, 20, "COT"),
+        (11, 21, "HK"),
+        (13, 23, "Wert"),
+        (14, 24, "Qualifier"),
+    ]
+
+    source_has_client = any(_cell_has_value(source_row.get(index)) for index in range(7, 15))
+    source_has_server = any(_cell_has_value(source_row.get(index)) for index in range(17, 25))
+    target_has_client = any(_cell_has_value(target_row.get(index)) for index in range(7, 15))
+    target_has_server = any(_cell_has_value(target_row.get(index)) for index in range(17, 25))
+
+    if source_has_client and target_has_server:
+        compare_pairs = field_pairs
+    elif source_has_server and target_has_client:
+        compare_pairs = [(server_index, client_index, label) for client_index, server_index, label in field_pairs]
+    else:
+        return []
+
+    discrepancies: List[str] = []
+    for source_index, target_index, label in compare_pairs:
+        source_value = _normalize_row_value(source_row.get(source_index))
+        target_value = _normalize_row_value(target_row.get(target_index))
+        if source_value != target_value:
+            discrepancies.append(label)
+    return discrepancies
+
 def _build_excel_rows_from_communication(
     telegram_entries: List[Dict[str, Any]]
 ) -> tuple[List[Dict[int, Any]], List[Dict[str, Any]]]:
@@ -640,6 +681,20 @@ def build_protocol_excel(
             row[26] = str(target_row)
         else:
             row[26] = _styled_cell("", "red")
+    for index, row in enumerate(rows):
+        match_row_value = _normalize_row_value(row.get(25))
+        if match_row_value is None:
+            continue
+        try:
+            target_row_number = int(match_row_value)
+        except ValueError:
+            continue
+        target_index = target_row_number - first_data_row_index
+        if target_index < 0 or target_index >= len(rows):
+            continue
+        discrepancies = _collect_discrepancies(row, rows[target_index])
+        if discrepancies:
+            row[29] = ";".join(discrepancies)
     for row in rows:
         evaluation = _determine_status_evaluation(row)
         if evaluation is None:
