@@ -306,7 +306,7 @@ def _create_excel_styles() -> str:
         "<fills count=\"3\">"
         "<fill><patternFill patternType=\"none\"/></fill>"
         "<fill><patternFill patternType=\"gray125\"/></fill>"
-        "<fill><patternFill patternType=\"solid\"><fgColor rgb=\"FFFF0000\"/><bgColor indexed=\"64\"/></patternFill></fill>"
+        "<fill><patternFill patternType=\"solid\"><fgColor rgb=\"FFFFA500\"/><bgColor indexed=\"64\"/></patternFill></fill>"
         "</fills>"
         "<borders count=\"4\">"
         "<border><left/><right/><top/><bottom/><diagonal/></border>"
