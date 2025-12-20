@@ -31,3 +31,8 @@
 .protocol-action:focus-visible {
     text-decoration: underline;
 }
+
+.protocol-action__separator {
+    margin: 0 0.75rem;
+    color: rgba(0, 0, 0, 0.5);
+}
