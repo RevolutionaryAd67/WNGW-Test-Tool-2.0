@@ -506,6 +506,16 @@ def _create_excel_workbook(headers: List[str], rows: List[Dict[int, Any]]) -> by
             )
 
     data_rows: List[str] = []
+    column_widths: Dict[int, int] = {}
+    for col_index, value in row1_cells.items():
+        if value:
+            column_widths[col_index] = max(column_widths.get(col_index, 0), len(str(value)))
+    for col_index, value in row2_cells.items():
+        if value:
+            column_widths[col_index] = max(column_widths.get(col_index, 0), len(str(value)))
+    for col_index, header in enumerate(headers, start=1):
+        if header:
+            column_widths[col_index] = max(column_widths.get(col_index, 0), len(str(header)))
     for offset, row in enumerate(rows):
         row_index = first_data_row_index + offset
         cell_columns = set(row.keys()) | {5, 14, 15, 24, 26, 29}
@@ -517,6 +527,8 @@ def _create_excel_workbook(headers: List[str], rows: List[Dict[int, Any]]) -> by
             if isinstance(value, dict) and "value" in value and "style" in value:
                 cell_value = value.get("value")
                 style_override = value.get("style")
+            if cell_value not in (None, ""):
+                column_widths[col_index] = max(column_widths.get(col_index, 0), len(str(cell_value)))
             if style_override == "red":
                 style_index = _red_fill_style_index(col_index, row_index)
             elif style_override == "green_text":
@@ -542,6 +554,14 @@ def _create_excel_workbook(headers: List[str], rows: List[Dict[int, Any]]) -> by
         ]
         + data_rows
     )
+    column_entries = []
+    for col_index in range(27, min(last_column_index, 29) + 1):
+        max_length = column_widths.get(col_index, 0)
+        width = max(10, max_length + 2)
+        column_entries.append(
+            f'<col min="{col_index}" max="{col_index}" width="{width}" customWidth="1"/>'
+        )
+    columns_xml = f"<cols>{''.join(column_entries)}</cols>" if column_entries else ""
     merge_cells = (
         "<mergeCells count=\"7\">"
         "<mergeCell ref=\"A1:E1\"/>"
@@ -558,6 +578,7 @@ def _create_excel_workbook(headers: List[str], rows: List[Dict[int, Any]]) -> by
         f"<worksheet xmlns=\"http://schemas.openxmlformats.org/spreadsheetml/2006/main\" "
         f"xmlns:r=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships\">"
         f"<dimension ref=\"{dimension}\"/>"
+        f"{columns_xml}"
         f"<sheetData>{sheet_rows}</sheetData>"
         f"{merge_cells}"
         "</worksheet>"
