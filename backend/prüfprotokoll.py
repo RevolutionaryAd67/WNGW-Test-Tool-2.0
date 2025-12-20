@@ -102,6 +102,10 @@ def _normalize_match_value(value: Any) -> Optional[str]:
     return str(value)
 
 
+def _styled_cell(value: Any, style: str) -> Dict[str, Any]:
+    return {"value": value, "style": style}
+
+
 def _build_excel_rows_from_communication(
     telegram_entries: List[Dict[str, Any]]
 ) -> tuple[List[Dict[int, Any]], List[Dict[str, Any]]]:
@@ -284,6 +288,11 @@ def _body_style_index(column_index: int, row_index: int) -> int:
     return _combine_style_index(base_style, border_style)
 
 
+def _red_fill_style_index(column_index: int, row_index: int) -> int:
+    border_style = _border_style_index(column_index, row_index)
+    return {0: 12, 1: 13, 2: 14, 3: 15}.get(border_style, 12)
+
+
 def _create_excel_styles() -> str:
     return (
         "<?xml version=\"1.0\" encoding=\"UTF-8\"?>"
@@ -294,9 +303,10 @@ def _create_excel_styles() -> str:
         "<font><b/><sz val=\"11\"/><color theme=\"1\"/><name val=\"Calibri\"/><family val=\"2\"/>"
         "<scheme val=\"minor\"/></font>"
         "</fonts>"
-        "<fills count=\"2\">"
+        "<fills count=\"3\">"
         "<fill><patternFill patternType=\"none\"/></fill>"
         "<fill><patternFill patternType=\"gray125\"/></fill>"
+        "<fill><patternFill patternType=\"solid\"><fgColor rgb=\"FFFF0000\"/><bgColor indexed=\"64\"/></patternFill></fill>"
         "</fills>"
         "<borders count=\"4\">"
         "<border><left/><right/><top/><bottom/><diagonal/></border>"
@@ -307,7 +317,7 @@ def _create_excel_styles() -> str:
         "<cellStyleXfs count=\"1\">"
         "<xf numFmtId=\"0\" fontId=\"0\" fillId=\"0\" borderId=\"0\"/>"
         "</cellStyleXfs>"
-        "<cellXfs count=\"12\">"
+        "<cellXfs count=\"16\">"
         "<xf numFmtId=\"0\" fontId=\"0\" fillId=\"0\" borderId=\"0\" xfId=\"0\"/>"
         "<xf numFmtId=\"0\" fontId=\"0\" fillId=\"0\" borderId=\"1\" xfId=\"0\" applyBorder=\"1\"/>"
         "<xf numFmtId=\"0\" fontId=\"0\" fillId=\"0\" borderId=\"2\" xfId=\"0\" applyBorder=\"1\"/>"
@@ -328,6 +338,10 @@ def _create_excel_styles() -> str:
         " applyAlignment=\"1\"><alignment horizontal=\"center\" vertical=\"center\"/></xf>"
         "<xf numFmtId=\"0\" fontId=\"0\" fillId=\"0\" borderId=\"3\" xfId=\"0\" applyBorder=\"1\""
         " applyAlignment=\"1\"><alignment horizontal=\"center\" vertical=\"center\"/></xf>"
+        "<xf numFmtId=\"0\" fontId=\"0\" fillId=\"2\" borderId=\"0\" xfId=\"0\" applyFill=\"1\"/>"
+        "<xf numFmtId=\"0\" fontId=\"0\" fillId=\"2\" borderId=\"1\" xfId=\"0\" applyFill=\"1\" applyBorder=\"1\"/>"
+        "<xf numFmtId=\"0\" fontId=\"0\" fillId=\"2\" borderId=\"2\" xfId=\"0\" applyFill=\"1\" applyBorder=\"1\"/>"
+        "<xf numFmtId=\"0\" fontId=\"0\" fillId=\"2\" borderId=\"3\" xfId=\"0\" applyFill=\"1\" applyBorder=\"1\"/>"
         "</cellXfs>"
         "<cellStyles count=\"1\">"
         "<cellStyle name=\"Normal\" xfId=\"0\" builtinId=\"0\"/>"
@@ -336,7 +350,7 @@ def _create_excel_styles() -> str:
     )
 
 
-def _create_excel_workbook(headers: List[str], rows: List[Dict[int, str]]) -> bytes:
+def _create_excel_workbook(headers: List[str], rows: List[Dict[int, Any]]) -> bytes:
     header_row_index = 3
     first_data_row_index = header_row_index + 1
     last_row_index = max(header_row_index, first_data_row_index + len(rows) - 1)
@@ -390,9 +404,17 @@ def _create_excel_workbook(headers: List[str], rows: List[Dict[int, str]]) -> by
         cells = []
         for col_index in sorted(cell_columns):
             value = row.get(col_index)
-            style_index = _body_style_index(col_index, row_index)
-            if value not in (None, ""):
-                cells.append(_inline_string_cell(col_index, row_index, value, style_index))
+            cell_value = value
+            style_override = None
+            if isinstance(value, dict) and "value" in value and "style" in value:
+                cell_value = value.get("value")
+                style_override = value.get("style")
+            if style_override == "red":
+                style_index = _red_fill_style_index(col_index, row_index)
+            else:
+                style_index = _body_style_index(col_index, row_index)
+            if cell_value not in (None, ""):
+                cells.append(_inline_string_cell(col_index, row_index, cell_value, style_index))
             elif style_index:
                 cells.append(_cell_with_style(col_index, row_index, style_index))
         if cells:
@@ -529,4 +551,19 @@ def build_protocol_excel(
         for source_index, target_index in matches.items():
             if source_index < len(rows):
                 rows[source_index][25] = str(first_data_row_index + target_index)
+    ioa_to_row_index: Dict[str, int] = {}
+    first_data_row_index = 4
+    for index, row in enumerate(rows):
+        ioa_value = _normalize_match_value(row.get(2))
+        if ioa_value and ioa_value not in ioa_to_row_index:
+            ioa_to_row_index[ioa_value] = first_data_row_index + index
+    for index, row in enumerate(rows):
+        ioa_value = _normalize_match_value(row.get(8)) or _normalize_match_value(row.get(18))
+        if ioa_value is None:
+            continue
+        target_row = ioa_to_row_index.get(ioa_value)
+        if target_row is not None:
+            row[26] = str(target_row)
+        else:
+            row[26] = _styled_cell("", "red")
     return _create_excel_workbook(headers, rows)
