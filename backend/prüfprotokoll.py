@@ -551,6 +551,9 @@ def build_protocol_excel(
         for source_index, target_index in matches.items():
             if source_index < len(rows):
                 rows[source_index][25] = str(first_data_row_index + target_index)
+        for source_index in range(len(communication_rows)):
+            if 25 not in rows[source_index]:
+                rows[source_index][25] = _styled_cell("", "red")
     ioa_to_row_index: Dict[str, int] = {}
     first_data_row_index = 4
     for index, row in enumerate(rows):
