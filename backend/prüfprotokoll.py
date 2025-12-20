@@ -140,10 +140,10 @@ def _cell_with_style(column_index: int, row_index: int, style_index: int = 0) ->
 
 
 def _border_style_index(column_index: int, row_index: int) -> int:
-    needs_right = (column_index in (5, 24) and row_index >= 1) or (
-        column_index in (14, 15) and row_index >= 2
+    needs_right = (column_index in (5, 24, 29) and row_index >= 1) or (
+        column_index in (14, 15, 26) and row_index >= 2
     )
-    needs_bottom = row_index in (2, 3) or (row_index == 1 and 6 <= column_index <= 24)
+    needs_bottom = row_index in (2, 3) or (row_index == 1 and 6 <= column_index <= 29)
     if needs_right and needs_bottom:
         return 3
     if needs_right:
@@ -162,8 +162,8 @@ def _combine_style_index(base_style: int, border_style: int) -> int:
 
 
 def _header_style_index(column_index: int, row_index: int) -> int:
-    if (row_index == 1 and column_index in (1, 6)) or (
-        row_index == 2 and column_index in (6, 16)
+    if (row_index == 1 and column_index in (1, 6, 25, 26, 27, 28, 29)) or (
+        row_index == 2 and column_index in (6, 16, 25, 26, 27, 28, 29)
     ):
         base_style = 4
     elif row_index in (1, 2) and 1 <= column_index <= 5:
@@ -245,10 +245,13 @@ def _create_excel_workbook(headers: List[str], rows: List[Dict[int, str]]) -> by
     row1_cells = {
         1: "Datenpunktliste",
         6: "Kommunikationsverlauf",
+        25: "Analyse des Kommunikationsverlaufes",
     }
     row2_cells = {
         6: "Client",
         16: "Server",
+        25: "Signal finden",
+        27: "Auswertung",
     }
 
     row1_cell_entries: List[str] = []
@@ -282,7 +285,7 @@ def _create_excel_workbook(headers: List[str], rows: List[Dict[int, str]]) -> by
     data_rows: List[str] = []
     for offset, row in enumerate(rows):
         row_index = first_data_row_index + offset
-        cell_columns = set(row.keys()) | {5, 14, 15, 24}
+        cell_columns = set(row.keys()) | {5, 14, 15, 24, 26, 29}
         cells = []
         for col_index in sorted(cell_columns):
             value = row.get(col_index)
@@ -305,11 +308,14 @@ def _create_excel_workbook(headers: List[str], rows: List[Dict[int, str]]) -> by
         + data_rows
     )
     merge_cells = (
-        "<mergeCells count=\"4\">"
+        "<mergeCells count=\"7\">"
         "<mergeCell ref=\"A1:E1\"/>"
         "<mergeCell ref=\"F1:X1\"/>"
+        "<mergeCell ref=\"Y1:AC1\"/>"
         "<mergeCell ref=\"F2:N2\"/>"
         "<mergeCell ref=\"P2:X2\"/>"
+        "<mergeCell ref=\"Y2:Z2\"/>"
+        "<mergeCell ref=\"AA2:AC2\"/>"
         "</mergeCells>"
     )
     sheet_content = (
@@ -395,6 +401,11 @@ def build_protocol_excel(telegram_entries: Optional[List[Dict[str, Any]]] = None
         "CA",
         "Wert",
         "Qualifier",
+        "Andere Seite",
+        "Datenpunktliste",
+        "Auswertung",
+        "Erläuterung",
+        "Abweichungen",
     ]
     rows = _build_excel_rows_from_communication(telegram_entries or [])
     return _create_excel_workbook(headers, rows)
