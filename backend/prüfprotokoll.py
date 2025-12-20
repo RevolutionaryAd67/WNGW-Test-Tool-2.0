@@ -139,7 +139,7 @@ def _evaluation_to_summary_cell(evaluation: str) -> Dict[str, Any]:
     if evaluation in ("nicht gefiltert (nok)", "nicht durchgeleitet (nok)"):
         return _styled_cell("not ok", "red_text")
     if evaluation == "frei erfunden (nok)":
-        return _styled_cell("not ok", "green_text")
+        return _styled_cell("not ok", "red_text")
     return _styled_cell("", "green_text")
 
 
