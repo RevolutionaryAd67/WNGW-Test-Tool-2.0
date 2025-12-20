@@ -378,6 +378,23 @@ def _exam_evaluation_template_file_path() -> Path:
 def _exam_evaluation_template_meta_path() -> Path:
     return _exam_settings_file_path("auswertungsvorlage.json")
 
+# Lädt die gespeicherte Signalliste für die Prüfprotokolle
+def _load_exam_signalliste_rows() -> List[Dict[str, Any]]:
+    try:
+        file_path = _exam_signalliste_file_path()
+    except ValueError:
+        return []
+    if not file_path.exists():
+        return []
+    try:
+        stored = json.loads(file_path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError:
+        return []
+    rows = stored.get("rows")
+    if not isinstance(rows, list):
+        return []
+    return [row for row in rows if isinstance(row, dict)]
+
 # Lädt die gespeicherten Einstellungen der Prüfungssteuerung
 def _load_pruefungssteuerung_settings() -> Dict[str, Any]:
     try:
@@ -1567,8 +1584,9 @@ def create_app() -> Flask:
 
         log_file = teil_protocol.get("logFile") if isinstance(teil_protocol, dict) else None
         telegram_entries = _load_telegram_entries(log_file)
+        signalliste_rows = _load_exam_signalliste_rows()
 
-        excel_content = pruefprotokoll.build_protocol_excel(telegram_entries)
+        excel_content = pruefprotokoll.build_protocol_excel(telegram_entries, signalliste_rows)
 
         run_name = protocol.get("name") or configuration.get("name") or "Pruefung"
         pruefungsart = teil_config.get("pruefungsart") or "Teilpruefung"

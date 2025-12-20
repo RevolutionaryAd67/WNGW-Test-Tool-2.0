@@ -114,6 +114,48 @@ def _build_excel_rows_from_communication(
     return rows
 
 
+def _parse_ioa_part(value: Any) -> Optional[int]:
+    if value is None:
+        return None
+    try:
+        parsed = int(str(value).strip())
+    except (TypeError, ValueError):
+        return None
+    if parsed < 0 or parsed > 255:
+        return None
+    return parsed
+
+
+def _extract_ioa(row: Dict[str, Any]) -> Optional[int]:
+    parts = [
+        _parse_ioa_part(row.get("IOA 1")),
+        _parse_ioa_part(row.get("IOA 2")),
+        _parse_ioa_part(row.get("IOA 3")),
+    ]
+    if any(part is None for part in parts):
+        return None
+    return parts[0] + (parts[1] << 8) + (parts[2] << 16)
+
+
+def _build_excel_rows_from_datapoint_list(
+    datapoint_rows: List[Dict[str, Any]]
+) -> List[Dict[int, Any]]:
+    rows: List[Dict[int, Any]] = []
+    for entry in datapoint_rows:
+        if not isinstance(entry, dict):
+            continue
+        ioa = _extract_ioa(entry)
+        rows.append(
+            {
+                1: entry.get("Datenpunkt / Meldetext") or "",
+                2: str(ioa) if ioa is not None else "",
+                3: entry.get("IEC104- Typ") or "",
+                4: entry.get("Übertragungsursache") or "",
+            }
+        )
+    return rows
+
+
 def _column_letter(index: int) -> str:
     if index <= 0:
         return ""
@@ -375,7 +417,10 @@ def _create_excel_workbook(headers: List[str], rows: List[Dict[int, str]]) -> by
     return buffer.getvalue()
 
 
-def build_protocol_excel(telegram_entries: Optional[List[Dict[str, Any]]] = None) -> bytes:
+def build_protocol_excel(
+    telegram_entries: Optional[List[Dict[str, Any]]] = None,
+    datapoint_rows: Optional[List[Dict[str, Any]]] = None,
+) -> bytes:
     headers = [
         "Meldetext",
         "IOAs",
@@ -407,5 +452,15 @@ def build_protocol_excel(telegram_entries: Optional[List[Dict[str, Any]]] = None
         "Erläuterung",
         "Abweichungen",
     ]
-    rows = _build_excel_rows_from_communication(telegram_entries or [])
+    communication_rows = _build_excel_rows_from_communication(telegram_entries or [])
+    datapoint_rows = _build_excel_rows_from_datapoint_list(datapoint_rows or [])
+    row_count = max(len(communication_rows), len(datapoint_rows))
+    rows: List[Dict[int, Any]] = []
+    for index in range(row_count):
+        combined: Dict[int, Any] = {}
+        if index < len(datapoint_rows):
+            combined.update(datapoint_rows[index])
+        if index < len(communication_rows):
+            combined.update(communication_rows[index])
+        rows.append(combined)
     return _create_excel_workbook(headers, rows)
