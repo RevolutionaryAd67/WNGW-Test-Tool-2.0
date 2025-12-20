@@ -1586,7 +1586,12 @@ def create_app() -> Flask:
         telegram_entries = _load_telegram_entries(log_file)
         signalliste_rows = _load_exam_signalliste_rows()
 
-        excel_content = pruefprotokoll.build_protocol_excel(telegram_entries, signalliste_rows)
+        incoming_timeout = _load_incoming_telegram_timeout()
+        excel_content = pruefprotokoll.build_protocol_excel(
+            telegram_entries,
+            signalliste_rows,
+            incoming_telegram_timeout=incoming_timeout,
+        )
 
         run_name = protocol.get("name") or configuration.get("name") or "Pruefung"
         pruefungsart = teil_config.get("pruefungsart") or "Teilpruefung"

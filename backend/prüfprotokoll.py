@@ -89,9 +89,22 @@ def _build_excel_row_from_telegram(entry: Dict[str, Any]) -> Optional[Dict[int, 
     return base_row
 
 
+def _parse_timestamp_value(value: Any) -> Optional[float]:
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return None
+
+
+def _normalize_match_value(value: Any) -> Optional[str]:
+    if value in (None, ""):
+        return None
+    return str(value)
+
+
 def _build_excel_rows_from_communication(
     telegram_entries: List[Dict[str, Any]]
-) -> List[Dict[int, Any]]:
+) -> tuple[List[Dict[int, Any]], List[Dict[str, Any]]]:
     def _timestamp_key(entry: Dict[str, Any]) -> float:
         try:
             return float(entry.get("timestamp", 0.0))
@@ -104,6 +117,7 @@ def _build_excel_rows_from_communication(
     )
 
     rows: List[Dict[int, Any]] = []
+    metadata: List[Dict[str, Any]] = []
     for entry in sorted_entries:
         ioa = entry.get("ioa")
         if not isinstance(ioa, int):
@@ -111,7 +125,52 @@ def _build_excel_rows_from_communication(
         row = _build_excel_row_from_telegram(entry)
         if row:
             rows.append(row)
-    return rows
+            metadata.append(
+                {
+                    "side": entry.get("side"),
+                    "ioa": _normalize_match_value(ioa),
+                    "cot": _normalize_match_value(entry.get("cause")),
+                    "timestamp": _parse_timestamp_value(entry.get("timestamp")),
+                    "direction": _determine_direction_arrow(entry),
+                }
+            )
+    return rows, metadata
+
+
+def _find_matching_row_indices(
+    metadata: List[Dict[str, Any]],
+    max_wait_seconds: float,
+) -> Dict[int, int]:
+    matches: Dict[int, int] = {}
+    for index, row_meta in enumerate(metadata):
+        side = row_meta.get("side")
+        if side not in ("client", "server"):
+            continue
+        direction = row_meta.get("direction")
+        ioa = row_meta.get("ioa")
+        cot = row_meta.get("cot")
+        current_time = row_meta.get("timestamp")
+        if ioa is None or cot is None or current_time is None:
+            continue
+        target_side = "server" if side == "client" else "client"
+        latest_time = current_time + max_wait_seconds
+        search_backward = (side == "server" and direction == ">") or (side == "client" and direction == "<")
+        candidate_range = (
+            range(index - 1, -1, -1) if search_backward else range(index + 1, len(metadata))
+        )
+        for candidate_index in candidate_range:
+            candidate = metadata[candidate_index]
+            if candidate.get("side") != target_side:
+                continue
+            candidate_time = candidate.get("timestamp")
+            if candidate_time is None:
+                continue
+            if not search_backward and candidate_time > latest_time:
+                break
+            if candidate.get("ioa") == ioa and candidate.get("cot") == cot:
+                matches[index] = candidate_index
+                break
+    return matches
 
 
 def _parse_ioa_part(value: Any) -> Optional[int]:
@@ -420,6 +479,7 @@ def _create_excel_workbook(headers: List[str], rows: List[Dict[int, str]]) -> by
 def build_protocol_excel(
     telegram_entries: Optional[List[Dict[str, Any]]] = None,
     datapoint_rows: Optional[List[Dict[str, Any]]] = None,
+    incoming_telegram_timeout: float = 0.0,
 ) -> bytes:
     headers = [
         "Meldetext",
@@ -452,7 +512,7 @@ def build_protocol_excel(
         "Erläuterung",
         "Abweichungen",
     ]
-    communication_rows = _build_excel_rows_from_communication(telegram_entries or [])
+    communication_rows, communication_metadata = _build_excel_rows_from_communication(telegram_entries or [])
     datapoint_rows = _build_excel_rows_from_datapoint_list(datapoint_rows or [])
     row_count = max(len(communication_rows), len(datapoint_rows))
     rows: List[Dict[int, Any]] = []
@@ -463,4 +523,10 @@ def build_protocol_excel(
         if index < len(communication_rows):
             combined.update(communication_rows[index])
         rows.append(combined)
+    if incoming_telegram_timeout > 0:
+        matches = _find_matching_row_indices(communication_metadata, incoming_telegram_timeout)
+        first_data_row_index = 4
+        for source_index, target_index in matches.items():
+            if source_index < len(rows):
+                rows[source_index][25] = str(first_data_row_index + target_index)
     return _create_excel_workbook(headers, rows)
