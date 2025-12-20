@@ -243,7 +243,7 @@ def _create_excel_workbook(headers: List[str], rows: List[Dict[int, str]]) -> by
     dimension = f"A1:{_column_letter(last_column_index)}{last_row_index}"
 
     row1_cells = {
-        1: "Signalliste",
+        1: "Datenpunktliste",
         6: "Kommunikationsverlauf",
     }
     row2_cells = {
