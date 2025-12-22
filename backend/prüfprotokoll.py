@@ -1,3 +1,8 @@
+#   Logik für die Erzeugung Prüfprotokolls
+#
+#   Aufgaben des Skripts:
+#       1. Erzeugung und Formatierung von Prüfprotokollen (Excel-Dateien) aus Kommunikations- und Datenpunktlisten
+
 from __future__ import annotations
 
 import io
@@ -7,6 +12,7 @@ from typing import Any, Dict, List, Optional
 from xml.sax.saxutils import escape
 
 
+# Formatiert einen Zeitstempel für das Prüfprotokoll
 def format_timestamp_text(value: Any) -> str:
     try:
         ts = float(value)
@@ -19,7 +25,7 @@ def format_timestamp_text(value: Any) -> str:
     formatted = time.strftime("%H:%M:%S", time.localtime(ts))
     return f"{formatted}.{millis:03d}"
 
-
+# Liefert das Richtungssymbol für Client/Server-Kommunikation
 def _determine_direction_arrow(entry: Dict[str, Any]) -> str:
     side = str(entry.get("side") or "").lower()
     direction = str(entry.get("direction") or "").lower()
@@ -32,7 +38,7 @@ def _determine_direction_arrow(entry: Dict[str, Any]) -> str:
         return "<"
     return ""
 
-
+# Wandelt einen Qualifier in ein 8-Bit-Binärformat für die Excel-Ausgabe
 def _format_qualifier_bits(value: Any) -> str:
     if isinstance(value, dict):
         value = value.get("value")
@@ -42,7 +48,7 @@ def _format_qualifier_bits(value: Any) -> str:
         return str(value) if value not in (None, "") else ""
     return format(parsed, "08b")
 
-
+# Baut eine Zeile für den Kommunikationsverlauf aus einem Telegramm-Entry 
 def _build_excel_row_from_telegram(entry: Dict[str, Any]) -> Optional[Dict[int, Any]]:
     side = entry.get("side")
     if side not in ("client", "server"):
@@ -60,58 +66,58 @@ def _build_excel_row_from_telegram(entry: Dict[str, Any]) -> Optional[Dict[int, 
     if side == "client":
         base_row.update(
             {
-                6: timestamp_text,  # F: Zeit (Client)
-                7: meldetext,  # G: Meldetext (Client)
-                8: str(ioa),  # H: IOAs (Client)
-                9: entry.get("type_id"),  # I: TK (Client)
-                10: entry.get("cause"),  # J: COT (Client)
-                11: entry.get("originator"),  # K: HK (Client)
-                12: entry.get("station"),  # L: CA (Client)
-                13: entry.get("value"),  # M: Wert (Client)
-                14: qualifier_bits,  # N: Qualifier (Client)
+                6: timestamp_text,              # F: Zeit (Client)
+                7: meldetext,                   # G: Meldetext (Client)
+                8: str(ioa),                    # H: IOAs (Client)
+                9: entry.get("type_id"),        # I: TK (Client)
+                10: entry.get("cause"),         # J: COT (Client)
+                11: entry.get("originator"),    # K: HK (Client)
+                12: entry.get("station"),       # L: CA (Client)
+                13: entry.get("value"),         # M: Wert (Client)
+                14: qualifier_bits,             # N: Qualifier (Client)
             }
         )
     else:
         base_row.update(
             {
-                16: timestamp_text,  # P: Zeit (Server)
-                17: meldetext,  # Q: Meldetext (Server)
-                18: str(ioa),  # R: IOAs (Server)
-                19: entry.get("type_id"),  # S: TK (Server)
-                20: entry.get("cause"),  # T: COT (Server)
-                21: entry.get("originator"),  # U: HK (Server)
-                22: entry.get("station"),  # V: CA (Server)
-                23: entry.get("value"),  # W: Wert (Server)
-                24: qualifier_bits,  # X: Qualifier (Server)
+                16: timestamp_text,             # P: Zeit (Server)
+                17: meldetext,                  # Q: Meldetext (Server)
+                18: str(ioa),                   # R: IOAs (Server)
+                19: entry.get("type_id"),       # S: TK (Server)
+                20: entry.get("cause"),         # T: COT (Server)
+                21: entry.get("originator"),    # U: HK (Server)
+                22: entry.get("station"),       # V: CA (Server)
+                23: entry.get("value"),         # W: Wert (Server)
+                24: qualifier_bits,             # X: Qualifier (Server)
             }
         )
 
     return base_row
 
-
+# Prüft, ob eine Zeile einen verwertbaren Inhalt besitzt
 def _cell_has_value(value: Any) -> bool:
     if isinstance(value, dict) and "value" in value:
         value = value.get("value")
     return value not in (None, "")
 
-
+# Parst einen Zeitstempel für spätere Vergleiche
 def _parse_timestamp_value(value: Any) -> Optional[float]:
     try:
         return float(value)
     except (TypeError, ValueError):
         return None
 
-
+# Normalisiert Vergleichswerte zu Strings oder None
 def _normalize_match_value(value: Any) -> Optional[str]:
     if value in (None, ""):
         return None
     return str(value)
 
-
+# Verpackt einen Zellwert mit einem Style-Hinweis
 def _styled_cell(value: Any, style: str) -> Dict[str, Any]:
     return {"value": value, "style": style}
 
-
+# Ermittelt die Auswertung (ok/nok) anhand der Match-/Filter-Informationen
 def _determine_status_evaluation(row: Dict[int, Any]) -> Optional[str]:
     direction = _normalize_match_value(row.get(15))
     if direction not in (">", "<"):
@@ -132,7 +138,7 @@ def _determine_status_evaluation(row: Dict[int, Any]) -> Optional[str]:
         return "gefiltert (ok)"
     return "frei erfunden (nok)"
 
-
+# Baut die farblich markierte Auswertungskachel für die Zusammenfassungsspalte 
 def _evaluation_to_summary_cell(evaluation: str) -> Dict[str, Any]:
     if evaluation in ("durchgeleitet (ok)", "gefiltert (ok)", "selbst gesendet (ok)"):
         return _styled_cell("ok", "green_text")
@@ -142,13 +148,13 @@ def _evaluation_to_summary_cell(evaluation: str) -> Dict[str, Any]:
         return _styled_cell("not ok", "red_text")
     return _styled_cell("", "green_text")
 
-
+# Normalisiert Zellwerte für den Abgleich zwischen Client und Server 
 def _normalize_row_value(value: Any) -> Optional[str]:
     if isinstance(value, dict) and "value" in value:
         value = value.get("value")
     return _normalize_match_value(value)
 
-
+# Sammelt Abweichungen zwischen zwei Kommunikationszeilen (Client/Server)
 def _collect_discrepancies(
     source_row: Dict[int, Any],
     target_row: Dict[int, Any],
@@ -168,6 +174,7 @@ def _collect_discrepancies(
     target_has_client = any(_cell_has_value(target_row.get(index)) for index in range(7, 15))
     target_has_server = any(_cell_has_value(target_row.get(index)) for index in range(17, 25))
 
+    # Die Vergleichsrichtung hängt davon ab, wo die Daten in Quell-/Zielrow liegen
     if source_has_client and target_has_server:
         compare_pairs = field_pairs
     elif source_has_server and target_has_client:
@@ -175,6 +182,7 @@ def _collect_discrepancies(
     else:
         return []
 
+    # Abweichungen je Feld sammeln (Meldetext, IOA, TK, ...)
     discrepancies: List[str] = []
     for source_index, target_index, label in compare_pairs:
         source_value = _normalize_row_value(source_row.get(source_index))
@@ -183,6 +191,7 @@ def _collect_discrepancies(
             discrepancies.append(label)
     return discrepancies
 
+# Baut Excel-Zeilen (plus Metadaten) aus dem Telegramm-Verlauf
 def _build_excel_rows_from_communication(
     telegram_entries: List[Dict[str, Any]]
 ) -> tuple[List[Dict[int, Any]], List[Dict[str, Any]]]:
@@ -217,7 +226,7 @@ def _build_excel_rows_from_communication(
             )
     return rows, metadata
 
-
+# Findet passende Gegenstellen (Client/Server) innerhalb der Timeoutgrenze (wird vom Benutzer in den Einstellungen festgelegt)
 def _find_matching_row_indices(
     metadata: List[Dict[str, Any]],
     max_wait_seconds: float,
@@ -253,7 +262,7 @@ def _find_matching_row_indices(
                 break
     return matches
 
-
+# Parst einen IOA-Teilwert aus einer Datenpunktzeile
 def _parse_ioa_part(value: Any) -> Optional[int]:
     if value is None:
         return None
@@ -265,7 +274,7 @@ def _parse_ioa_part(value: Any) -> Optional[int]:
         return None
     return parsed
 
-
+# Baut die IOA aus drei Teilwerten der Datenpunktliste 
 def _extract_ioa(row: Dict[str, Any]) -> Optional[int]:
     parts = [
         _parse_ioa_part(row.get("IOA 1")),
@@ -276,7 +285,7 @@ def _extract_ioa(row: Dict[str, Any]) -> Optional[int]:
         return None
     return parts[0] + (parts[1] << 8) + (parts[2] << 16)
 
-
+# Baut Excel-Zeilen aus der Datenpunktliste 
 def _build_excel_rows_from_datapoint_list(
     datapoint_rows: List[Dict[str, Any]]
 ) -> List[Dict[int, Any]]:
@@ -296,7 +305,7 @@ def _build_excel_rows_from_datapoint_list(
         )
     return rows
 
-
+# Wandelt eine Spaltennummer in den Excel-Spaltenbuchstaben um 
 def _column_letter(index: int) -> str:
     if index <= 0:
         return ""
@@ -306,7 +315,7 @@ def _column_letter(index: int) -> str:
         letters.append(chr(65 + remainder))
     return "".join(reversed(letters))
 
-
+# Rendert eine Zeile mit Inline-String (für XML-Excel)
 def _inline_string_cell(column_index: int, row_index: int, value: str, style_index: int = 0) -> str:
     if value is None:
         value = ""
@@ -315,13 +324,13 @@ def _inline_string_cell(column_index: int, row_index: int, value: str, style_ind
     style_attr = f' s="{style_index}"' if style_index else ""
     return f'<c r="{cell_ref}"{style_attr} t="inlineStr"><is><t>{text}</t></is></c>'
 
-
+# Rendert eine leere Zeile mit Style (für Rahmen usw.)
 def _cell_with_style(column_index: int, row_index: int, style_index: int = 0) -> str:
     cell_ref = f"{_column_letter(column_index)}{row_index}"
     style_attr = f' s="{style_index}"' if style_index else ""
     return f'<c r="{cell_ref}"{style_attr}/>'
 
-
+# Bestimmt den Rahmenstil abhängig von Spalte und Zeile
 def _border_style_index(column_index: int, row_index: int) -> int:
     needs_right = (column_index in (5, 24, 29) and row_index >= 1) or (
         column_index in (14, 15, 26) and row_index >= 2
@@ -335,7 +344,7 @@ def _border_style_index(column_index: int, row_index: int) -> int:
         return 2
     return 0
 
-
+# Kombiniert Schrift-/Füllstil mit Rahmenstil
 def _combine_style_index(base_style: int, border_style: int) -> int:
     if base_style == 4:
         return {0: 4, 1: 5, 2: 6, 3: 7}.get(border_style, 4)
@@ -343,7 +352,7 @@ def _combine_style_index(base_style: int, border_style: int) -> int:
         return {0: 8, 1: 9, 2: 10, 3: 11}.get(border_style, 8)
     return border_style
 
-
+# Liefert den Style-Index für die Kopfzeilen 
 def _header_style_index(column_index: int, row_index: int) -> int:
     if (row_index == 1 and column_index in (1, 6, 25, 26, 27, 28, 29)) or (
         row_index == 2 and column_index in (6, 16, 25, 26, 27, 28, 29)
@@ -356,7 +365,7 @@ def _header_style_index(column_index: int, row_index: int) -> int:
     border_style = _border_style_index(column_index, row_index)
     return _combine_style_index(base_style, border_style)
 
-
+# Liefert den Style-Index für Datenzellen
 def _body_style_index(column_index: int, row_index: int) -> int:
     if column_index == 15 and row_index >= 3:
         base_style = 8
@@ -365,22 +374,22 @@ def _body_style_index(column_index: int, row_index: int) -> int:
     border_style = _border_style_index(column_index, row_index)
     return _combine_style_index(base_style, border_style)
 
-
+# Style-Index für rot hinterlegte Felder
 def _red_fill_style_index(column_index: int, row_index: int) -> int:
     border_style = _border_style_index(column_index, row_index)
     return {0: 12, 1: 13, 2: 14, 3: 15}.get(border_style, 12)
 
-
+# Style-Index für grünen Text (ok)
 def _green_text_style_index(column_index: int, row_index: int) -> int:
     border_style = _border_style_index(column_index, row_index)
     return {0: 16, 1: 17, 2: 18, 3: 19}.get(border_style, 16)
 
-
+# Style-Index für roten Text (not ok)
 def _red_text_style_index(column_index: int, row_index: int) -> int:
     border_style = _border_style_index(column_index, row_index)
     return {0: 20, 1: 21, 2: 22, 3: 23}.get(border_style, 20)
 
-
+# Erzeugt das Excel-Stylesheet für die Prüfprotokoll-Datei 
 def _create_excel_styles() -> str:
     return (
         "<?xml version=\"1.0\" encoding=\"UTF-8\"?>"
@@ -457,7 +466,7 @@ def _create_excel_styles() -> str:
         "</styleSheet>"
     )
 
-
+# Erstellt die XLSX-Struktur inkl. Sheet-Inhalt, Styles und Relationen
 def _create_excel_workbook(headers: List[str], rows: List[Dict[int, Any]]) -> bytes:
     header_row_index = 3
     first_data_row_index = header_row_index + 1
@@ -465,11 +474,14 @@ def _create_excel_workbook(headers: List[str], rows: List[Dict[int, Any]]) -> by
     last_column_index = len(headers)
     dimension = f"A1:{_column_letter(last_column_index)}{last_row_index}"
 
+    # Kopfzeilenblock 1
     row1_cells = {
         1: "Datenpunktliste",
         6: "Kommunikationsverlauf",
         25: "Analyse des Kommunikationsverlaufes",
     }
+
+    # Kopfzeilenblock 2
     row2_cells = {
         6: "Client",
         16: "Server",
@@ -477,6 +489,7 @@ def _create_excel_workbook(headers: List[str], rows: List[Dict[int, Any]]) -> by
         27: "Auswertung",
     }
 
+    # Zeile 1: Abschnittsüberschriften und Merge-Styles
     row1_cell_entries: List[str] = []
     for col_index in range(1, last_column_index + 1):
         value = row1_cells.get(col_index)
@@ -486,6 +499,7 @@ def _create_excel_workbook(headers: List[str], rows: List[Dict[int, Any]]) -> by
         elif style_index:
             row1_cell_entries.append(_cell_with_style(col_index, 1, style_index))
 
+    # Zeile 2: Unterüberschriften
     row2_cell_entries: List[str] = []
     for col_index in range(1, last_column_index + 1):
         value = row2_cells.get(col_index)
@@ -495,6 +509,7 @@ def _create_excel_workbook(headers: List[str], rows: List[Dict[int, Any]]) -> by
         else:
             row2_cell_entries.append(_cell_with_style(col_index, 2, style_index))
 
+    # Zeile 3: eigentlich Spaltenüberschriften
     header_cells = [
         _inline_string_cell(index + 1, header_row_index, header, _body_style_index(index + 1, header_row_index))
         for index, header in enumerate(headers)
@@ -505,6 +520,7 @@ def _create_excel_workbook(headers: List[str], rows: List[Dict[int, Any]]) -> by
                 _cell_with_style(col_index, header_row_index, _border_style_index(col_index, header_row_index))
             )
 
+    # Datenzeilen (Kommunikation + Datenpunktliste)
     data_rows: List[str] = []
     column_widths: Dict[int, int] = {}
     for col_index, value in row1_cells.items():
@@ -520,6 +536,8 @@ def _create_excel_workbook(headers: List[str], rows: List[Dict[int, Any]]) -> by
         row_index = first_data_row_index + offset
         cell_columns = set(row.keys()) | {5, 14, 15, 24, 26, 29}
         cells = []
+
+        # Stilwahl je Zelle: Fehlerfarben, Textfarben oder Standard
         for col_index in sorted(cell_columns):
             value = row.get(col_index)
             cell_value = value
@@ -546,6 +564,7 @@ def _create_excel_workbook(headers: List[str], rows: List[Dict[int, Any]]) -> by
         else:
             data_rows.append(f'<row r="{row_index}"/>')
 
+    # XML für Sheet inkl. Spaltenbreiten und gemergten Zellen
     sheet_rows = "".join(
         [
             f'<row r="1">{"".join(row1_cell_entries)}</row>',
@@ -562,6 +581,7 @@ def _create_excel_workbook(headers: List[str], rows: List[Dict[int, Any]]) -> by
             f'<col min="{col_index}" max="{col_index}" width="{width}" customWidth="1"/>'
         )
     columns_xml = f"<cols>{''.join(column_entries)}</cols>" if column_entries else ""
+    # Feste Merge-Breite für Abschnittsüberschriften
     merge_cells = (
         "<mergeCells count=\"7\">"
         "<mergeCell ref=\"A1:E1\"/>"
@@ -584,6 +604,7 @@ def _create_excel_workbook(headers: List[str], rows: List[Dict[int, Any]]) -> by
         "</worksheet>"
     )
 
+    # Workbook-XML und Relationen
     workbook_content = (
         "<?xml version=\"1.0\" encoding=\"UTF-8\"?>"
         "<workbook xmlns=\"http://schemas.openxmlformats.org/spreadsheetml/2006/main\" "
@@ -621,6 +642,7 @@ def _create_excel_workbook(headers: List[str], rows: List[Dict[int, Any]]) -> by
     )
 
     buffer = io.BytesIO()
+    # XLSX-Bausteine in die ZIP-Struktur schreiben
     with zipfile.ZipFile(buffer, "w", compression=zipfile.ZIP_DEFLATED) as zf:
         zf.writestr("[Content_Types].xml", content_types)
         zf.writestr("_rels/.rels", root_rels)
@@ -630,7 +652,7 @@ def _create_excel_workbook(headers: List[str], rows: List[Dict[int, Any]]) -> by
         zf.writestr("xl/worksheets/sheet1.xml", sheet_content)
     return buffer.getvalue()
 
-
+# Hauptfunktion: erzeugt die Prüfprotokoll-Excel-Datei als Bytes 
 def build_protocol_excel(
     telegram_entries: Optional[List[Dict[str, Any]]] = None,
     datapoint_rows: Optional[List[Dict[str, Any]]] = None,
@@ -667,6 +689,8 @@ def build_protocol_excel(
         "Erläuterung",
         "Abweichungen",
     ]
+
+    # Kommunikations- und Datenpunktzeilen vorbereiten 
     communication_rows, communication_metadata = _build_excel_rows_from_communication(telegram_entries or [])
     datapoint_rows = _build_excel_rows_from_datapoint_list(datapoint_rows or [])
     row_count = max(len(communication_rows), len(datapoint_rows))
@@ -678,6 +702,8 @@ def build_protocol_excel(
         if index < len(communication_rows):
             combined.update(communication_rows[index])
         rows.append(combined)
+
+    # Vergleichslinks zwischen Client/Server innerhalbd es Timeouts setzen
     if incoming_telegram_timeout > 0:
         matches = _find_matching_row_indices(communication_metadata, incoming_telegram_timeout)
         first_data_row_index = 4
@@ -687,12 +713,16 @@ def build_protocol_excel(
         for source_index in range(len(communication_rows)):
             if 25 not in rows[source_index]:
                 rows[source_index][25] = _styled_cell("", "red")
+
+    # IOA --> Datenpunktzeile für Rückverweise aufbauen
     ioa_to_row_index: Dict[str, int] = {}
     first_data_row_index = 4
     for index, row in enumerate(rows):
         ioa_value = _normalize_match_value(row.get(2))
         if ioa_value and ioa_value not in ioa_to_row_index:
             ioa_to_row_index[ioa_value] = first_data_row_index + index
+
+    # Referenzen zwischen Kommunikations- und Datenpunktliste setzen
     for index, row in enumerate(rows):
         ioa_value = _normalize_match_value(row.get(8)) or _normalize_match_value(row.get(18))
         if ioa_value is None:
@@ -702,6 +732,8 @@ def build_protocol_excel(
             row[26] = str(target_row)
         else:
             row[26] = _styled_cell("", "red")
+
+    # Abweichungen zwischen korrespondierenden Zeilen markieren
     for index, row in enumerate(rows):
         match_row_value = _normalize_row_value(row.get(25))
         if match_row_value is None:
@@ -716,6 +748,8 @@ def build_protocol_excel(
         discrepancies = _collect_discrepancies(row, rows[target_index])
         if discrepancies:
             row[29] = ";".join(discrepancies)
+
+    # Gesamtbewertung (ok/nok) berechnen und Summary-Feld setzen
     for row in rows:
         evaluation = _determine_status_evaluation(row)
         if evaluation is None:
