@@ -1,0 +1,197 @@
+{
+  "configurationId": "580066c6ea4043db87d63b2b8603ec3b",
+  "runId": "bc7b6dd121064cf1bc4b925341d10423",
+  "teilpruefungIndex": 1,
+  "aborted": false,
+  "startedAt": 1767383952.4400609,
+  "finishedAt": 1767383958.6125534,
+  "entries": [
+    {
+      "side": "client",
+      "sequence": 3662,
+      "timestamp": 1767383953.1502368,
+      "delta": 1.0144853591918945,
+      "local_endpoint": "192.168.1.10:2404",
+      "remote_endpoint": "192.168.1.50:2404",
+      "frame_family": "I",
+      "label": "SOLLW FREIG BEZUG %",
+      "direction": "outgoing",
+      "type_id": 63,
+      "cause": 6,
+      "originator": 11,
+      "station": 49331,
+      "ioa": 4514132,
+      "value": "100",
+      "qualifier": {
+        "label": "QOS",
+        "value": 0
+      },
+      "meldetext": "SOLLW FREIG EE %"
+    },
+    {
+      "side": "server",
+      "sequence": 113,
+      "timestamp": 1767383953.4314635,
+      "delta": 9.211249113082886,
+      "local_endpoint": "192.168.2.100:2404",
+      "remote_endpoint": "192.168.2.50:2404",
+      "frame_family": "I",
+      "label": "I-FRAME",
+      "direction": "incoming",
+      "type_id": 63,
+      "cause": 6,
+      "originator": 11,
+      "station": 2019,
+      "ioa": 4514132,
+      "value": "100.0",
+      "qualifier": {
+        "label": "QOS",
+        "value": 0
+      },
+      "meldetext": "SOLLW FREIG EE %"
+    },
+    {
+      "side": "server",
+      "sequence": 114,
+      "timestamp": 1767383953.4314635,
+      "delta": 0.0,
+      "local_endpoint": "192.168.2.100:2404",
+      "remote_endpoint": "192.168.2.50:2404",
+      "frame_family": "S",
+      "label": "S-FRAME",
+      "direction": "outgoing"
+    },
+    {
+      "side": "server",
+      "sequence": 115,
+      "timestamp": 1767383954.4403763,
+      "delta": 1.0089128017425537,
+      "local_endpoint": "192.168.2.100:2404",
+      "remote_endpoint": "192.168.2.50:2404",
+      "frame_family": "I",
+      "label": "SOLLW FREIG BEZUG %",
+      "direction": "outgoing",
+      "type_id": 63,
+      "cause": 7,
+      "originator": 11,
+      "station": 2019,
+      "ioa": 4514132,
+      "value": "100",
+      "qualifier": {
+        "label": "QOS",
+        "value": 0
+      },
+      "meldetext": "SOLLW FREIG EE %"
+    },
+    {
+      "side": "server",
+      "sequence": 116,
+      "timestamp": 1767383954.4636056,
+      "delta": 0.023229360580444336,
+      "local_endpoint": "192.168.2.100:2404",
+      "remote_endpoint": "192.168.2.50:2404",
+      "frame_family": "I",
+      "label": "SOLLW FREIG BEZUG %",
+      "direction": "outgoing",
+      "type_id": 36,
+      "cause": 3,
+      "originator": 0,
+      "station": 2019,
+      "ioa": 5263361,
+      "value": "100",
+      "qualifier": {
+        "label": "QDS",
+        "value": 0
+      },
+      "meldetext": "P"
+    },
+    {
+      "side": "server",
+      "sequence": 117,
+      "timestamp": 1767383954.484281,
+      "delta": 0.0206754207611084,
+      "local_endpoint": "192.168.2.100:2404",
+      "remote_endpoint": "192.168.2.50:2404",
+      "frame_family": "I",
+      "label": "SOLLW FREIG BEZUG %",
+      "direction": "outgoing",
+      "type_id": 63,
+      "cause": 10,
+      "originator": 11,
+      "station": 2019,
+      "ioa": 4514132,
+      "value": "100",
+      "qualifier": {
+        "label": "QOS",
+        "value": 0
+      },
+      "meldetext": "SOLLW FREIG EE %"
+    },
+    {
+      "side": "client",
+      "sequence": 3663,
+      "timestamp": 1767383954.4987597,
+      "delta": 1.3485229015350342,
+      "local_endpoint": "192.168.1.10:2404",
+      "remote_endpoint": "192.168.1.50:2404",
+      "frame_family": "I",
+      "label": "I-FRAME",
+      "direction": "incoming",
+      "type_id": 63,
+      "cause": 7,
+      "originator": 11,
+      "station": 49331,
+      "ioa": 4514132,
+      "value": "100.0",
+      "qualifier": {
+        "label": "QOS",
+        "value": 0
+      },
+      "meldetext": "SOLLW FREIG EE %"
+    },
+    {
+      "side": "client",
+      "sequence": 3664,
+      "timestamp": 1767383954.4987597,
+      "delta": 0.0,
+      "local_endpoint": "192.168.1.10:2404",
+      "remote_endpoint": "192.168.1.50:2404",
+      "frame_family": "S",
+      "label": "S-FRAME",
+      "direction": "outgoing"
+    },
+    {
+      "side": "client",
+      "sequence": 3665,
+      "timestamp": 1767383954.5997822,
+      "delta": 0.10102248191833496,
+      "local_endpoint": "192.168.1.10:2404",
+      "remote_endpoint": "192.168.1.50:2404",
+      "frame_family": "I",
+      "label": "I-FRAME",
+      "direction": "incoming",
+      "type_id": 63,
+      "cause": 10,
+      "originator": 11,
+      "station": 49331,
+      "ioa": 4514132,
+      "value": "100.0",
+      "qualifier": {
+        "label": "QOS",
+        "value": 0
+      },
+      "meldetext": "SOLLW FREIG EE %"
+    },
+    {
+      "side": "client",
+      "sequence": 3666,
+      "timestamp": 1767383954.5997822,
+      "delta": 0.0,
+      "local_endpoint": "192.168.1.10:2404",
+      "remote_endpoint": "192.168.1.50:2404",
+      "frame_family": "S",
+      "label": "S-FRAME",
+      "direction": "outgoing"
+    }
+  ]
+}

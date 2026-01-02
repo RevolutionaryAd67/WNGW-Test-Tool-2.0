@@ -1,0 +1,252 @@
+{
+  "configurationId": "39158cfa7396468d801b01ffa76df434",
+  "runId": "b22800e2711e4aa0a021235ea8d4d02b",
+  "teilpruefungIndex": 1,
+  "aborted": false,
+  "startedAt": 1767383997.6302395,
+  "finishedAt": 1767384003.4447756,
+  "entries": [
+    {
+      "side": "client",
+      "sequence": 4011,
+      "timestamp": 1767383998.054326,
+      "delta": 6.045220136642456,
+      "local_endpoint": "192.168.1.10:2404",
+      "remote_endpoint": "192.168.1.50:2404",
+      "frame_family": "U",
+      "label": "TESTFR ACT",
+      "direction": "outgoing"
+    },
+    {
+      "side": "client",
+      "sequence": 4012,
+      "timestamp": 1767383998.054326,
+      "delta": 0.0,
+      "local_endpoint": "192.168.1.10:2404",
+      "remote_endpoint": "192.168.1.50:2404",
+      "frame_family": "I",
+      "label": "LAT",
+      "direction": "outgoing",
+      "type_id": 59,
+      "cause": 6,
+      "originator": 11,
+      "station": 49331,
+      "ioa": 4509995,
+      "value": "",
+      "qualifier": {
+        "label": "DCO",
+        "value": 0
+      },
+      "meldetext": "LAT"
+    },
+    {
+      "side": "client",
+      "sequence": 4013,
+      "timestamp": 1767383998.0753484,
+      "delta": 0.021022319793701172,
+      "local_endpoint": "192.168.1.10:2404",
+      "remote_endpoint": "192.168.1.50:2404",
+      "frame_family": "U",
+      "label": "TESTFR CON",
+      "direction": "incoming"
+    },
+    {
+      "side": "server",
+      "sequence": 123,
+      "timestamp": 1767383998.2814848,
+      "delta": 3.7040247917175293,
+      "local_endpoint": "192.168.2.100:2404",
+      "remote_endpoint": "192.168.2.50:2404",
+      "frame_family": "I",
+      "label": "I-FRAME",
+      "direction": "incoming",
+      "type_id": 59,
+      "cause": 6,
+      "originator": 11,
+      "station": 2019,
+      "ioa": 4509995,
+      "value": "S/E=0, QU=0, DCS=0",
+      "qualifier": {
+        "label": "DCO",
+        "value": 0
+      },
+      "meldetext": "LAT"
+    },
+    {
+      "side": "server",
+      "sequence": 124,
+      "timestamp": 1767383998.2814848,
+      "delta": 0.0,
+      "local_endpoint": "192.168.2.100:2404",
+      "remote_endpoint": "192.168.2.50:2404",
+      "frame_family": "S",
+      "label": "S-FRAME",
+      "direction": "outgoing"
+    },
+    {
+      "side": "server",
+      "sequence": 125,
+      "timestamp": 1767383999.290815,
+      "delta": 1.0093302726745605,
+      "local_endpoint": "192.168.2.100:2404",
+      "remote_endpoint": "192.168.2.50:2404",
+      "frame_family": "I",
+      "label": "LAT",
+      "direction": "outgoing",
+      "type_id": 59,
+      "cause": 7,
+      "originator": 11,
+      "station": 2019,
+      "ioa": 4509995,
+      "value": "",
+      "qualifier": {
+        "label": "DCO",
+        "value": 0
+      },
+      "meldetext": "LAT"
+    },
+    {
+      "side": "server",
+      "sequence": 126,
+      "timestamp": 1767383999.3140364,
+      "delta": 0.023221254348754883,
+      "local_endpoint": "192.168.2.100:2404",
+      "remote_endpoint": "192.168.2.50:2404",
+      "frame_family": "I",
+      "label": "LAT",
+      "direction": "outgoing",
+      "type_id": 31,
+      "cause": 3,
+      "originator": 0,
+      "station": 2019,
+      "ioa": 4493611,
+      "value": "",
+      "qualifier": {
+        "label": "DIQ",
+        "value": 0
+      },
+      "meldetext": "LAT"
+    },
+    {
+      "side": "server",
+      "sequence": 127,
+      "timestamp": 1767383999.334691,
+      "delta": 0.020654678344726562,
+      "local_endpoint": "192.168.2.100:2404",
+      "remote_endpoint": "192.168.2.50:2404",
+      "frame_family": "I",
+      "label": "LAT",
+      "direction": "outgoing",
+      "type_id": 59,
+      "cause": 10,
+      "originator": 11,
+      "station": 2019,
+      "ioa": 4509995,
+      "value": "",
+      "qualifier": {
+        "label": "DCO",
+        "value": 0
+      },
+      "meldetext": "LAT"
+    },
+    {
+      "side": "client",
+      "sequence": 4014,
+      "timestamp": 1767383999.3872852,
+      "delta": 1.311936855316162,
+      "local_endpoint": "192.168.1.10:2404",
+      "remote_endpoint": "192.168.1.50:2404",
+      "frame_family": "I",
+      "label": "I-FRAME",
+      "direction": "incoming",
+      "type_id": 31,
+      "cause": 3,
+      "originator": 0,
+      "station": 49331,
+      "ioa": 4493611,
+      "value": "Unbestimmt",
+      "qualifier": {
+        "label": "DIQ",
+        "value": 0
+      },
+      "meldetext": "LAT"
+    },
+    {
+      "side": "client",
+      "sequence": 4015,
+      "timestamp": 1767383999.3872852,
+      "delta": 0.0,
+      "local_endpoint": "192.168.1.10:2404",
+      "remote_endpoint": "192.168.1.50:2404",
+      "frame_family": "S",
+      "label": "S-FRAME",
+      "direction": "outgoing"
+    },
+    {
+      "side": "client",
+      "sequence": 4016,
+      "timestamp": 1767383999.3872852,
+      "delta": 0.0,
+      "local_endpoint": "192.168.1.10:2404",
+      "remote_endpoint": "192.168.1.50:2404",
+      "frame_family": "I",
+      "label": "I-FRAME",
+      "direction": "incoming",
+      "type_id": 59,
+      "cause": 7,
+      "originator": 11,
+      "station": 49331,
+      "ioa": 4509995,
+      "value": "S/E=0, QU=0, DCS=0",
+      "qualifier": {
+        "label": "DCO",
+        "value": 0
+      },
+      "meldetext": "LAT"
+    },
+    {
+      "side": "client",
+      "sequence": 4017,
+      "timestamp": 1767383999.3872852,
+      "delta": 0.0,
+      "local_endpoint": "192.168.1.10:2404",
+      "remote_endpoint": "192.168.1.50:2404",
+      "frame_family": "S",
+      "label": "S-FRAME",
+      "direction": "outgoing"
+    },
+    {
+      "side": "client",
+      "sequence": 4018,
+      "timestamp": 1767383999.3872852,
+      "delta": 0.0,
+      "local_endpoint": "192.168.1.10:2404",
+      "remote_endpoint": "192.168.1.50:2404",
+      "frame_family": "I",
+      "label": "I-FRAME",
+      "direction": "incoming",
+      "type_id": 59,
+      "cause": 10,
+      "originator": 11,
+      "station": 49331,
+      "ioa": 4509995,
+      "value": "S/E=0, QU=0, DCS=0",
+      "qualifier": {
+        "label": "DCO",
+        "value": 0
+      },
+      "meldetext": "LAT"
+    },
+    {
+      "side": "client",
+      "sequence": 4019,
+      "timestamp": 1767383999.3872852,
+      "delta": 0.0,
+      "local_endpoint": "192.168.1.10:2404",
+      "remote_endpoint": "192.168.1.50:2404",
+      "frame_family": "S",
+      "label": "S-FRAME",
+      "direction": "outgoing"
+    }
+  ]
+}

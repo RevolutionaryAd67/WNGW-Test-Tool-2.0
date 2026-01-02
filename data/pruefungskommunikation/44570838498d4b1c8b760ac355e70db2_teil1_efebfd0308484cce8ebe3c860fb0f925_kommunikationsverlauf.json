@@ -1,0 +1,230 @@
+{
+  "configurationId": "44570838498d4b1c8b760ac355e70db2",
+  "runId": "efebfd0308484cce8ebe3c860fb0f925",
+  "teilpruefungIndex": 1,
+  "aborted": false,
+  "startedAt": 1767384033.389266,
+  "finishedAt": 1767384039.5420718,
+  "entries": [
+    {
+      "side": "client",
+      "sequence": 4130,
+      "timestamp": 1767384034.1556673,
+      "delta": 5.04065728187561,
+      "local_endpoint": "192.168.1.10:2404",
+      "remote_endpoint": "192.168.1.50:2404",
+      "frame_family": "I",
+      "label": "VORGABE Q REGELUNG",
+      "direction": "outgoing",
+      "type_id": 58,
+      "cause": 6,
+      "originator": 11,
+      "station": 49331,
+      "ioa": 4251734,
+      "value": "",
+      "qualifier": {
+        "label": "SCO",
+        "value": 0
+      },
+      "meldetext": "VORGABE Q REGELUNG"
+    },
+    {
+      "side": "server",
+      "sequence": 131,
+      "timestamp": 1767384034.3543258,
+      "delta": 14.968895673751831,
+      "local_endpoint": "192.168.2.100:2404",
+      "remote_endpoint": "192.168.2.50:2404",
+      "frame_family": "I",
+      "label": "I-FRAME",
+      "direction": "incoming",
+      "type_id": 58,
+      "cause": 6,
+      "originator": 11,
+      "station": 2019,
+      "ioa": 4251734,
+      "value": "S/E=0, QU=0, SCS=0",
+      "qualifier": {
+        "label": "SCO",
+        "value": 0
+      },
+      "meldetext": "VORGABE Q REGELUNG"
+    },
+    {
+      "side": "server",
+      "sequence": 132,
+      "timestamp": 1767384034.3543258,
+      "delta": 0.0,
+      "local_endpoint": "192.168.2.100:2404",
+      "remote_endpoint": "192.168.2.50:2404",
+      "frame_family": "S",
+      "label": "S-FRAME",
+      "direction": "outgoing"
+    },
+    {
+      "side": "server",
+      "sequence": 133,
+      "timestamp": 1767384035.3575675,
+      "delta": 1.003241777420044,
+      "local_endpoint": "192.168.2.100:2404",
+      "remote_endpoint": "192.168.2.50:2404",
+      "frame_family": "I",
+      "label": "VORGABE Q REGELUNG",
+      "direction": "outgoing",
+      "type_id": 58,
+      "cause": 7,
+      "originator": 11,
+      "station": 2019,
+      "ioa": 4251734,
+      "value": "",
+      "qualifier": {
+        "label": "SCO",
+        "value": 0
+      },
+      "meldetext": "VORGABE Q REGELUNG"
+    },
+    {
+      "side": "server",
+      "sequence": 134,
+      "timestamp": 1767384035.3803492,
+      "delta": 0.0227816104888916,
+      "local_endpoint": "192.168.2.100:2404",
+      "remote_endpoint": "192.168.2.50:2404",
+      "frame_family": "I",
+      "label": "VORGABE Q REGELUNG",
+      "direction": "outgoing",
+      "type_id": 30,
+      "cause": 3,
+      "originator": 0,
+      "station": 2019,
+      "ioa": 4235350,
+      "value": "",
+      "qualifier": {
+        "label": "SIQ",
+        "value": 0
+      },
+      "meldetext": "VORGABE Q REGELUNG"
+    },
+    {
+      "side": "server",
+      "sequence": 135,
+      "timestamp": 1767384035.4015281,
+      "delta": 0.0211789608001709,
+      "local_endpoint": "192.168.2.100:2404",
+      "remote_endpoint": "192.168.2.50:2404",
+      "frame_family": "I",
+      "label": "VORGABE Q REGELUNG",
+      "direction": "outgoing",
+      "type_id": 58,
+      "cause": 10,
+      "originator": 11,
+      "station": 2019,
+      "ioa": 4251734,
+      "value": "",
+      "qualifier": {
+        "label": "SCO",
+        "value": 0
+      },
+      "meldetext": "VORGABE Q REGELUNG"
+    },
+    {
+      "side": "client",
+      "sequence": 4131,
+      "timestamp": 1767384035.4622135,
+      "delta": 1.3065462112426758,
+      "local_endpoint": "192.168.1.10:2404",
+      "remote_endpoint": "192.168.1.50:2404",
+      "frame_family": "I",
+      "label": "I-FRAME",
+      "direction": "incoming",
+      "type_id": 30,
+      "cause": 3,
+      "originator": 0,
+      "station": 49331,
+      "ioa": 4235350,
+      "value": "Aus",
+      "qualifier": {
+        "label": "SIQ",
+        "value": 0
+      },
+      "meldetext": "VORGABE Q REGELUNG"
+    },
+    {
+      "side": "client",
+      "sequence": 4132,
+      "timestamp": 1767384035.4622135,
+      "delta": 0.0,
+      "local_endpoint": "192.168.1.10:2404",
+      "remote_endpoint": "192.168.1.50:2404",
+      "frame_family": "S",
+      "label": "S-FRAME",
+      "direction": "outgoing"
+    },
+    {
+      "side": "client",
+      "sequence": 4133,
+      "timestamp": 1767384035.4622135,
+      "delta": 0.0,
+      "local_endpoint": "192.168.1.10:2404",
+      "remote_endpoint": "192.168.1.50:2404",
+      "frame_family": "I",
+      "label": "I-FRAME",
+      "direction": "incoming",
+      "type_id": 58,
+      "cause": 7,
+      "originator": 11,
+      "station": 49331,
+      "ioa": 4251734,
+      "value": "S/E=0, QU=0, SCS=0",
+      "qualifier": {
+        "label": "SCO",
+        "value": 0
+      },
+      "meldetext": "VORGABE Q REGELUNG"
+    },
+    {
+      "side": "client",
+      "sequence": 4134,
+      "timestamp": 1767384035.4622135,
+      "delta": 0.0,
+      "local_endpoint": "192.168.1.10:2404",
+      "remote_endpoint": "192.168.1.50:2404",
+      "frame_family": "S",
+      "label": "S-FRAME",
+      "direction": "outgoing"
+    },
+    {
+      "side": "client",
+      "sequence": 4135,
+      "timestamp": 1767384035.4622135,
+      "delta": 0.0,
+      "local_endpoint": "192.168.1.10:2404",
+      "remote_endpoint": "192.168.1.50:2404",
+      "frame_family": "I",
+      "label": "I-FRAME",
+      "direction": "incoming",
+      "type_id": 58,
+      "cause": 10,
+      "originator": 11,
+      "station": 49331,
+      "ioa": 4251734,
+      "value": "S/E=0, QU=0, SCS=0",
+      "qualifier": {
+        "label": "SCO",
+        "value": 0
+      },
+      "meldetext": "VORGABE Q REGELUNG"
+    },
+    {
+      "side": "client",
+      "sequence": 4136,
+      "timestamp": 1767384035.4622135,
+      "delta": 0.0,
+      "local_endpoint": "192.168.1.10:2404",
+      "remote_endpoint": "192.168.1.50:2404",
+      "frame_family": "S",
+      "label": "S-FRAME",
+      "direction": "outgoing"
+    }
+  ]
+}

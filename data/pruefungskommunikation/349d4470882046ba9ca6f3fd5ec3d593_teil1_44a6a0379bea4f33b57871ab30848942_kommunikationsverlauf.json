@@ -1,0 +1,98 @@
+{
+  "configurationId": "349d4470882046ba9ca6f3fd5ec3d593",
+  "runId": "44a6a0379bea4f33b57871ab30848942",
+  "teilpruefungIndex": 1,
+  "aborted": false,
+  "startedAt": 1767384069.3096392,
+  "finishedAt": 1767384079.4561327,
+  "entries": [
+    {
+      "side": "client",
+      "sequence": 4250,
+      "timestamp": 1767384069.9912522,
+      "delta": 10.087352991104126,
+      "local_endpoint": "192.168.1.10:2404",
+      "remote_endpoint": "192.168.1.50:2404",
+      "frame_family": "I",
+      "label": "LAT",
+      "direction": "outgoing",
+      "type_id": 31,
+      "cause": 3,
+      "originator": 11,
+      "station": 49331,
+      "ioa": 4493611,
+      "value": "",
+      "qualifier": {
+        "label": "DIQ",
+        "value": 0
+      },
+      "meldetext": "LAT"
+    },
+    {
+      "side": "server",
+      "sequence": 139,
+      "timestamp": 1767384073.4364066,
+      "delta": 10.029875040054321,
+      "local_endpoint": "192.168.2.100:2404",
+      "remote_endpoint": "192.168.2.50:2404",
+      "frame_family": "U",
+      "label": "TESTFR ACT",
+      "direction": "incoming"
+    },
+    {
+      "side": "server",
+      "sequence": 140,
+      "timestamp": 1767384073.4364066,
+      "delta": 0.0,
+      "local_endpoint": "192.168.2.100:2404",
+      "remote_endpoint": "192.168.2.50:2404",
+      "frame_family": "U",
+      "label": "TESTFR CON",
+      "direction": "outgoing"
+    },
+    {
+      "side": "server",
+      "sequence": 141,
+      "timestamp": 1767384074.4386992,
+      "delta": 1.0022926330566406,
+      "local_endpoint": "192.168.2.100:2404",
+      "remote_endpoint": "192.168.2.50:2404",
+      "frame_family": "I",
+      "label": "LAT",
+      "direction": "outgoing",
+      "type_id": 31,
+      "cause": 3,
+      "originator": 11,
+      "station": 2019,
+      "ioa": 4493611,
+      "value": "",
+      "qualifier": {
+        "label": "DIQ",
+        "value": 0
+      },
+      "meldetext": "LAT"
+    },
+    {
+      "side": "client",
+      "sequence": 4251,
+      "timestamp": 1767384075.0665476,
+      "delta": 5.075295448303223,
+      "local_endpoint": "192.168.1.10:2404",
+      "remote_endpoint": "192.168.1.50:2404",
+      "frame_family": "U",
+      "label": "TESTFR ACT",
+      "direction": "outgoing"
+    },
+    {
+      "side": "client",
+      "sequence": 4252,
+      "timestamp": 1767384075.0665476,
+      "delta": 0.0,
+      "local_endpoint": "192.168.1.10:2404",
+      "remote_endpoint": "192.168.1.50:2404",
+      "frame_family": "U",
+      "label": "TESTFR CON",
+      "direction": "incoming"
+    }
+  ]
+}

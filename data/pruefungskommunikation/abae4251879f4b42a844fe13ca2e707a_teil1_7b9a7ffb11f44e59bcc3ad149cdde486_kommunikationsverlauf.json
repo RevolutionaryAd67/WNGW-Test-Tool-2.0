@@ -1,0 +1,131 @@
+{
+  "configurationId": "abae4251879f4b42a844fe13ca2e707a",
+  "runId": "7b9a7ffb11f44e59bcc3ad149cdde486",
+  "teilpruefungIndex": 1,
+  "aborted": false,
+  "startedAt": 1767384089.5066087,
+  "finishedAt": 1767384099.652883,
+  "entries": [
+    {
+      "side": "client",
+      "sequence": 4362,
+      "timestamp": 1767384089.5849502,
+      "delta": 5.034227609634399,
+      "local_endpoint": "192.168.1.10:2404",
+      "remote_endpoint": "192.168.1.50:2404",
+      "frame_family": "I",
+      "label": "UMZ AUSK",
+      "direction": "outgoing",
+      "type_id": 30,
+      "cause": 3,
+      "originator": 11,
+      "station": 49331,
+      "ioa": 5320738,
+      "value": "",
+      "qualifier": {
+        "label": "SIQ",
+        "value": 0
+      },
+      "meldetext": "UMZ AUSK"
+    },
+    {
+      "side": "client",
+      "sequence": 4363,
+      "timestamp": 1767384090.6164405,
+      "delta": 1.0314903259277344,
+      "local_endpoint": "192.168.1.10:2404",
+      "remote_endpoint": "192.168.1.50:2404",
+      "frame_family": "U",
+      "label": "TESTFR ACT",
+      "direction": "outgoing"
+    },
+    {
+      "side": "client",
+      "sequence": 4364,
+      "timestamp": 1767384090.6164405,
+      "delta": 0.0,
+      "local_endpoint": "192.168.1.10:2404",
+      "remote_endpoint": "192.168.1.50:2404",
+      "frame_family": "U",
+      "label": "TESTFR CON",
+      "direction": "incoming"
+    },
+    {
+      "side": "server",
+      "sequence": 143,
+      "timestamp": 1767384094.4655647,
+      "delta": 10.009138822555542,
+      "local_endpoint": "192.168.2.100:2404",
+      "remote_endpoint": "192.168.2.50:2404",
+      "frame_family": "U",
+      "label": "TESTFR ACT",
+      "direction": "incoming"
+    },
+    {
+      "side": "server",
+      "sequence": 144,
+      "timestamp": 1767384094.4655647,
+      "delta": 0.0,
+      "local_endpoint": "192.168.2.100:2404",
+      "remote_endpoint": "192.168.2.50:2404",
+      "frame_family": "U",
+      "label": "TESTFR CON",
+      "direction": "outgoing"
+    },
+    {
+      "side": "server",
+      "sequence": 145,
+      "timestamp": 1767384095.487315,
+      "delta": 1.0217502117156982,
+      "local_endpoint": "192.168.2.100:2404",
+      "remote_endpoint": "192.168.2.50:2404",
+      "frame_family": "I",
+      "label": "UMZ AUSK",
+      "direction": "outgoing",
+      "type_id": 30,
+      "cause": 3,
+      "originator": 11,
+      "station": 2019,
+      "ioa": 5320738,
+      "value": "",
+      "qualifier": {
+        "label": "SIQ",
+        "value": 0
+      },
+      "meldetext": "UMZ AUSK"
+    },
+    {
+      "side": "client",
+      "sequence": 4365,
+      "timestamp": 1767384095.5678601,
+      "delta": 4.9514195919036865,
+      "local_endpoint": "192.168.1.10:2404",
+      "remote_endpoint": "192.168.1.50:2404",
+      "frame_family": "I",
+      "label": "I-FRAME",
+      "direction": "incoming",
+      "type_id": 30,
+      "cause": 3,
+      "originator": 0,
+      "station": 49331,
+      "ioa": 5320738,
+      "value": "Aus",
+      "qualifier": {
+        "label": "SIQ",
+        "value": 0
+      },
+      "meldetext": "UMZ AUSK"
+    },
+    {
+      "side": "client",
+      "sequence": 4366,
+      "timestamp": 1767384095.5678601,
+      "delta": 0.0,
+      "local_endpoint": "192.168.1.10:2404",
+      "remote_endpoint": "192.168.1.50:2404",
+      "frame_family": "S",
+      "label": "S-FRAME",
+      "direction": "outgoing"
+    }
+  ]
+}
