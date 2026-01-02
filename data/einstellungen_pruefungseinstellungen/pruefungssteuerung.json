@@ -1,0 +1,8 @@
+{
+  "zeit_zwischen_pruefungen": {
+    "value": "5"
+  },
+  "wartezeit_telegramme_ms": {
+    "value": "5000"
+  }
+}
