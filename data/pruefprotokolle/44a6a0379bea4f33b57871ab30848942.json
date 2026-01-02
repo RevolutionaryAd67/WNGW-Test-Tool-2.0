@@ -1,0 +1,17 @@
+{
+  "id": "44a6a0379bea4f33b57871ab30848942",
+  "configurationId": "349d4470882046ba9ca6f3fd5ec3d593",
+  "name": "TK 31",
+  "finishedAt": 1767384079.4561327,
+  "startedAt": 1767384064.2683804,
+  "aborted": false,
+  "teilpruefungen": [
+    {
+      "index": 1,
+      "pruefungsart": "GA-Prüfung",
+      "status": "Abgeschlossen",
+      "logFile": "349d4470882046ba9ca6f3fd5ec3d593_teil1_44a6a0379bea4f33b57871ab30848942_kommunikationsverlauf.json"
+    }
+  ],
+  "displayName": "2026.01.02 - 21:01 Uhr - TK 31"
+}

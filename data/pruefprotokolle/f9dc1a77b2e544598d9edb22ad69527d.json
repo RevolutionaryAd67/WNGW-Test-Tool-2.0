@@ -1,0 +1,17 @@
+{
+  "id": "f9dc1a77b2e544598d9edb22ad69527d",
+  "configurationId": "bb5ec48fd8274fd58c59af8c575c734f",
+  "name": "TK 103",
+  "finishedAt": 1767384112.645404,
+  "startedAt": 1767384102.4909399,
+  "aborted": false,
+  "teilpruefungen": [
+    {
+      "index": 1,
+      "pruefungsart": "GA-Prüfung",
+      "status": "Abgeschlossen",
+      "logFile": "bb5ec48fd8274fd58c59af8c575c734f_teil1_f9dc1a77b2e544598d9edb22ad69527d_kommunikationsverlauf.json"
+    }
+  ],
+  "displayName": "2026.01.02 - 21:01 Uhr - TK 103"
+}

@@ -1,0 +1,17 @@
+{
+  "id": "bc7b6dd121064cf1bc4b925341d10423",
+  "configurationId": "580066c6ea4043db87d63b2b8603ec3b",
+  "name": "TK 63",
+  "finishedAt": 1767383958.6153228,
+  "startedAt": 1767383942.3347726,
+  "aborted": false,
+  "teilpruefungen": [
+    {
+      "index": 1,
+      "pruefungsart": "GA-Prüfung",
+      "status": "Abgeschlossen",
+      "logFile": "580066c6ea4043db87d63b2b8603ec3b_teil1_bc7b6dd121064cf1bc4b925341d10423_kommunikationsverlauf.json"
+    }
+  ],
+  "displayName": "2026.01.02 - 20:59 Uhr - TK 63"
+}

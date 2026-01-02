@@ -1,0 +1,17 @@
+{
+  "id": "77552080bba9457b967f7aaefd0715a3",
+  "configurationId": "a997be3ba6fd43ec9d6d25eeb4c479df",
+  "name": "TK 36",
+  "finishedAt": 1767384058.4226604,
+  "startedAt": 1767384043.2068193,
+  "aborted": false,
+  "teilpruefungen": [
+    {
+      "index": 1,
+      "pruefungsart": "GA-Prüfung",
+      "status": "Abgeschlossen",
+      "logFile": "a997be3ba6fd43ec9d6d25eeb4c479df_teil1_77552080bba9457b967f7aaefd0715a3_kommunikationsverlauf.json"
+    }
+  ],
+  "displayName": "2026.01.02 - 21:00 Uhr - TK 36"
+}

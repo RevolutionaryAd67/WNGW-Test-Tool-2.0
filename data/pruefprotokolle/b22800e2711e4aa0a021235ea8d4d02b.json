@@ -1,0 +1,17 @@
+{
+  "id": "b22800e2711e4aa0a021235ea8d4d02b",
+  "configurationId": "39158cfa7396468d801b01ffa76df434",
+  "name": "TK 59",
+  "finishedAt": 1767384003.4447756,
+  "startedAt": 1767383987.5612319,
+  "aborted": false,
+  "teilpruefungen": [
+    {
+      "index": 1,
+      "pruefungsart": "GA-Prüfung",
+      "status": "Abgeschlossen",
+      "logFile": "39158cfa7396468d801b01ffa76df434_teil1_b22800e2711e4aa0a021235ea8d4d02b_kommunikationsverlauf.json"
+    }
+  ],
+  "displayName": "2026.01.02 - 21:00 Uhr - TK 59"
+}

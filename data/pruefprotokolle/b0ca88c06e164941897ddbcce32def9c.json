@@ -1,0 +1,17 @@
+{
+  "id": "b0ca88c06e164941897ddbcce32def9c",
+  "configurationId": "ca0cb402da734476959bf9520b3fc53e",
+  "name": "TK 100",
+  "finishedAt": 1767384127.524012,
+  "startedAt": 1767384116.4492085,
+  "aborted": false,
+  "teilpruefungen": [
+    {
+      "index": 1,
+      "pruefungsart": "GA-Prüfung",
+      "status": "Abgeschlossen",
+      "logFile": "ca0cb402da734476959bf9520b3fc53e_teil1_b0ca88c06e164941897ddbcce32def9c_kommunikationsverlauf.json"
+    }
+  ],
+  "displayName": "2026.01.02 - 21:02 Uhr - TK 100"
+}
