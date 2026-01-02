@@ -1,0 +1,11 @@
+{
+  "flusskontrolle_modus_client": {
+    "value": ""
+  },
+  "flusskontrolle_k_client": {
+    "value": "12"
+  },
+  "flusskontrolle_w_client": {
+    "value": "8"
+  }
+}
