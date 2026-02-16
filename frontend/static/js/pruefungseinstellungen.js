@@ -116,18 +116,6 @@
                 post: '/api/einstellungen/pruefungseinstellungen/signalliste',
             },
         },
-        {
-            key: 'auswertungsvorlage',
-            selectors: {
-                fileInputId: 'evaluation-template-file',
-                fileLabelId: 'evaluation-template-file-label',
-                fileNameId: 'evaluation-template-file-name',
-            },
-            endpoints: {
-                get: '/api/einstellungen/pruefungseinstellungen/auswertungsvorlage',
-                post: '/api/einstellungen/pruefungseinstellungen/auswertungsvorlage',
-            },
-        },
     ].map(createUploader);
 
     async function loadExistingFiles() {
