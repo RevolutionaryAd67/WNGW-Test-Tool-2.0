@@ -1271,6 +1271,10 @@ def create_app() -> Flask:
             "heading": "Allgemein",
             "description": "Darstellung, Sprache und Reset-Optionen.",
         },
+        "referenzen": {
+            "heading": "Referenzen",
+            "description": "Ansprechpartner für technische Entwicklung und Produkt-Management.",
+        },
     }
 
     # Pfad für das Zwischenspeichern der Eingabefelder pro Seite/Komponente
@@ -1436,6 +1440,18 @@ def create_app() -> Flask:
     @app.route("/einstellungen/allgemein")
     def einstellungen_allgemein():
         return render_page("einstellungen_allgemein", "einstellungen_allgemein")
+
+    # Flask-Route: Seite "Referenzen"
+    @app.route("/referenzen")
+    def referenzen():
+        page = pages.get("referenzen", {})
+        return render_template(
+            "referenzen.html",
+            title=page.get("heading", "WNGW"),
+            heading=page.get("heading", ""),
+            description=page.get("description", ""),
+            active_page="referenzen",
+        )
 
     # Flask-Route: API-Endpunkte für UI-Interaktionen 
     # Eingaben aus dynamischen Input-Boxen abspeichern
