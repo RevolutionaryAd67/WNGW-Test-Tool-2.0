@@ -63,7 +63,7 @@
         const newButton = document.createElement('button');
         newButton.type = 'button';
         newButton.className = `config-list__button${state.current.id === null ? ' config-list__button--active' : ''}`;
-        newButton.textContent = '+ Neue Konfiguration';
+        newButton.textContent = '+ Neue Prüfung';
         newButton.addEventListener('click', () => {
             setCurrentConfig(createEmptyConfig());
         });
