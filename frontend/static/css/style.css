@@ -55,7 +55,14 @@ body {
     list-style: none;
     display: flex;
     gap: 1rem;
-    width: 100%;
+    flex: 1;
+}
+
+.nav-logo-image {
+    height: 44px;
+    width: auto;
+    object-fit: contain;
+    margin-left: 1rem;
 }
 
 .nav-links li {
