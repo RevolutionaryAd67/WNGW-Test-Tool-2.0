@@ -82,6 +82,16 @@ REQUIRED_SIGNAL_HEADERS = (
     "GA- Generalabfrage (keine Wischer)",
 )
 
+REQUIRED_EXAM_SETTINGS_SIGNAL_HEADERS = (
+    "Datenpunkt / Meldetext",
+    "IOA 3",
+    "IOA 2",
+    "IOA 1",
+    "IEC104- Typ",
+    "Übertragungsursache",
+    "GA- Generalabfrage (keine Wischer)",
+)
+
 #
 FRAME_LABELS = {
     "I": "I-Format",
@@ -768,9 +778,11 @@ def _parse_excel_table(file_bytes: bytes) -> Dict[str, Any]:
 
 
 # Pflichtspalten der Signalliste prüfen und fehlende Felder melden
-def _validate_signal_headers(headers: List[str]) -> List[str]:
+def _validate_signal_headers(
+    headers: List[str], required_headers: tuple[str, ...] = REQUIRED_SIGNAL_HEADERS
+) -> List[str]:
     available = set(headers)
-    return [header for header in REQUIRED_SIGNAL_HEADERS if header not in available]
+    return [header for header in required_headers if header not in available]
 
 
 _QUALIFIER_PATTERN = re.compile(r"^[01]{8}$")
@@ -1780,24 +1792,15 @@ def create_app() -> Flask:
             parsed = _parse_excel_table(file.read())
         except ValueError as exc:
             return jsonify({"status": "error", "message": str(exc)}), 400
-        missing = _validate_signal_headers(parsed.get("headers", []))
+        missing = _validate_signal_headers(
+            parsed.get("headers", []), REQUIRED_EXAM_SETTINGS_SIGNAL_HEADERS
+        )
         if missing:
             return (
                 jsonify(
                     {
                         "status": "error",
                         "message": "Signalliste unvollständig: " + ", ".join(missing),
-                    }
-                ),
-                400,
-            )
-        invalid_row = _validate_qualifier_column(parsed.get("rows", []))
-        if invalid_row is not None:
-            return (
-                jsonify(
-                    {
-                        "status": "error",
-                        "message": f"Ungültiger Qualifier in Zeile {invalid_row}: Es werden genau 8 Bits (0 oder 1) erwartet.",
                     }
                 ),
                 400,
